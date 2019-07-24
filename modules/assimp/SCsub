@@ -90,6 +90,7 @@ env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/co
 env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/FBX/*.cpp'))
 env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/MMD/*.cpp'))
 env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF/*.cpp'))
+env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF2/*.cpp'))
 
 # Godot's own source files
 env_assimp.add_source_files(env.modules_sources, "*.cpp")
