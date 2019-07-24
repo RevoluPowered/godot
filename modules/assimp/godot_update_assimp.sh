@@ -254,7 +254,7 @@ rm -rf contrib/irrXML
 rm -rf contrib/Open3DGC
 rm -rf contrib/openddlparser
 rm -rf contrib/poly2tri
-rm -rf contrib/rapidjson
+#rm -rf contrib/rapidjson
 rm -rf contrib/unzip
 rm -rf contrib/zip
 rm -rf contrib/stb_image

@@ -118,8 +118,8 @@ namespace Assimp {
             }
 
             ConvertGlobalSettings();
-            ConvertToUnitScale(unit);
             TransferDataToScene();
+            ConvertToUnitScale(unit);
 
             // if we didn't read any meshes set the AI_SCENE_FLAGS_INCOMPLETE
             // to make sure the scene passes assimp's validation. FBX files
@@ -1518,7 +1518,7 @@ namespace Assimp {
                     // if we found at least one, generate the output bones
                     // XXX this could be heavily simplified by collecting the bone
                     // data in a single step.
-                    if (ok || !mRemoveEmptyBones) {
+                    if (ok && mRemoveEmptyBones) {
                         ConvertCluster(bones, model, *cluster, out_indices, index_out_indices,
                             count_out_indices, node_global_transform);
                     }
