@@ -345,3 +345,4 @@ compile_commands.json
 
 # Cppcheck
 *.cppcheck
+pypy3-venv/
