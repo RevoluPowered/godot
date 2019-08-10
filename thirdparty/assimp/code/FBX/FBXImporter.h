@@ -89,10 +89,11 @@ protected:
     void InternReadFile( const std::string& pFile,
         aiScene* pScene,
         IOSystem* pIOHandler
-    );
+    );    
 
 private:
     FBX::ImportSettings settings;
+    Importer *importer;
 }; // !class FBXImporter
 
 } // end of namespace Assimp
