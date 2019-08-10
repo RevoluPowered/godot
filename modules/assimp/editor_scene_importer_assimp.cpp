@@ -124,6 +124,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 	importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
+								aiProcess_GlobalScale | // fixed for FBX
 								 //aiProcess_FlipUVs |
 								 //aiProcess_FlipWindingOrder |
 								 //aiProcess_DropNormals |
