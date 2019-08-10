@@ -324,64 +324,18 @@ void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const 
 void EditorSceneImporterAssimp::_fill_node_relationships(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<int, int> &skeleton_map, int p_skeleton_id, Skeleton *p_skeleton, const String &p_parent_name, int &holecount, const Vector<SkeletonHole> &p_holes, const Map<String, Transform> &bind_xforms) {
 
 	String name = _assimp_get_string(p_assimp_node->mName);
-	if (name == String()) {
-		name = "AuxiliaryBone" + itos(holecount++);
-	}
-
 	Transform pose = _assimp_matrix_transform(p_assimp_node->mTransformation);
 
-	if (!ownership.has(name)) {
-		//not a bone, it's a hole
-		Vector<SkeletonHole> holes = p_holes;
-		SkeletonHole hole; //add a new one
-		hole.name = name;
-		hole.pose = pose;
-		hole.node = p_assimp_node;
-		hole.parent = p_parent_name;
-		holes.push_back(hole);
 
-		for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-			_fill_node_relationships(state, p_assimp_node->mChildren[i], ownership, skeleton_map, p_skeleton_id, p_skeleton, name, holecount, holes, bind_xforms);
-		}
+	int bone_idx = p_skeleton->get_bone_count();
+	p_skeleton->add_bone(name);
 
-		return;
-	} else if (ownership[name] != p_skeleton_id) {
-		//oh, it's from another skeleton? fine.. reparent all bones to this skeleton.
-		int prev_owner = ownership[name];
-		ERR_EXPLAIN("A previous skeleton exists for bone '" + name + "', this type of skeleton layout is unsupported.");
-		ERR_FAIL_COND(skeleton_map.has(prev_owner));
-		for (Map<String, int>::Element *E = ownership.front(); E; E = E->next()) {
-			if (E->get() == prev_owner) {
-				E->get() = p_skeleton_id;
-			}
-		}
-	}
+	int parent_idx = p_skeleton->find_bone(p_parent_name);
 
-	//valid bone, first fill holes if needed
-	for (int i = 0; i < p_holes.size(); i++) {
-
-		int bone_idx = p_skeleton->get_bone_count();
-		p_skeleton->add_bone(p_holes[i].name);
-		int parent_idx = p_skeleton->find_bone(p_holes[i].parent);
 		if (parent_idx >= 0) {
 			p_skeleton->set_bone_parent(bone_idx, parent_idx);
 		}
 
-		Transform pose_transform = _get_global_assimp_node_transform(p_holes[i].node);
-		p_skeleton->set_bone_rest(bone_idx, pose_transform);
-
-		state.bone_owners[p_holes[i].name] = skeleton_map[p_skeleton_id];
-	}
-
-	//finally fill bone
-
-	int bone_idx = p_skeleton->get_bone_count();
-	p_skeleton->add_bone(name);
-	int parent_idx = p_skeleton->find_bone(p_parent_name);
-	if (parent_idx >= 0) {
-		p_skeleton->set_bone_parent(bone_idx, parent_idx);
-	}
-	//p_skeleton->set_bone_pose(bone_idx, pose);
 	if (bind_xforms.has(name)) {
 		//for now this is the full path to the bone in rest pose
 		//when skeleton finds it's place in the tree, it will get fixed
