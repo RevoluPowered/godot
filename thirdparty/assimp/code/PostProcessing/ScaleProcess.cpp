@@ -39,19 +39,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ----------------------------------------------------------------------
 */
-#ifndef ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
-
 #include "ScaleProcess.h"
 
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+
 
 namespace Assimp {
 
 ScaleProcess::ScaleProcess()
 : BaseProcess()
 , mScale( AI_CONFIG_GLOBAL_SCALE_FACTOR_DEFAULT ) {
-    // empty
 }
 
 ScaleProcess::~ScaleProcess() {
@@ -71,10 +69,15 @@ bool ScaleProcess::IsActive( unsigned int pFlags ) const {
 }
 
 void ScaleProcess::SetupProperties( const Importer* pImp ) {
-    mScale = pImp->GetPropertyFloat( AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0 );
+    mScale = pImp->GetPropertyFloat( AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 1.0f );
 }
 
 void ScaleProcess::Execute( aiScene* pScene ) {
+    printf("scaling aiScene to %f scale\n", mScale);    
+
+    ai_assert(mScale != 0);
+    ai_assert(nullptr != pScene && nullptr != pScene->mRootNode);
+
     if ( nullptr == pScene ) {
         return;
     }
@@ -87,17 +90,24 @@ void ScaleProcess::Execute( aiScene* pScene ) {
 }
 
 void ScaleProcess::traverseNodes( aiNode *node ) {
+    //printf("Scale applied for node! %s\n", node->mName.C_Str());
+    
+    // apply to parent
     applyScaling( node );
+
+    for( size_t i = 0; i < node->mNumChildren; i++)
+    {
+        // recurse into the tree until we are done!
+        traverseNodes( node->mChildren[i] ); 
+    }    
 }
 
 void ScaleProcess::applyScaling( aiNode *currentNode ) {
-    if ( nullptr != currentNode ) {
-        currentNode->mTransformation.a1 = currentNode->mTransformation.a1 * mScale;
-        currentNode->mTransformation.b2 = currentNode->mTransformation.b2 * mScale;
-        currentNode->mTransformation.c3 = currentNode->mTransformation.c3 * mScale;
+    if ( nullptr != currentNode ) {     
+        currentNode->mTransformation.a4 *= mScale;        
+        currentNode->mTransformation.b4 *= mScale;
+        currentNode->mTransformation.c4 *= mScale;        
     }
 }
 
 } // Namespace Assimp
-
-#endif // !! ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
