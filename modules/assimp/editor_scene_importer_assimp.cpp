@@ -398,22 +398,6 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 	state.fbx = false;
 	state.animation_player = NULL;
 
-	real_t scale_factor = 1.0f;
-	{
-		//handle scale
-		String ext = p_path.get_file().get_extension().to_lower();
-		if (ext == "fbx") {
-			if (scene->mMetaData != NULL) {
-				float factor = 1.0;
-				scene->mMetaData->Get("UnitScaleFactor", factor);
-				scale_factor = factor * 0.01f;
-			}
-			state.fbx = true;
-		}
-	}
-
-	state.root->set_scale(Vector3(scale_factor, scale_factor, scale_factor));
-
 	//fill light map cache
 	for (size_t l = 0; l < scene->mNumLights; l++) {
 
