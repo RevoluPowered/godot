@@ -284,7 +284,8 @@ T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, co
 
 void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<String, Transform> &bind_xforms) {
 
-	Transform mesh_offset = _get_global_assimp_node_transform(p_assimp_node);
+	Transform mesh_offset = _assimp_matrix_transform(p_assimp_node->mTransformation);
+	//Transform mesh_offset = _get_global_assimp_node_transform(p_assimp_node);
 	//mesh_offset.basis = Basis();
 	for (uint32_t i = 0; i < p_assimp_node->mNumMeshes; i++) {
 		const aiMesh *mesh = state.assimp_scene->mMeshes[i];
