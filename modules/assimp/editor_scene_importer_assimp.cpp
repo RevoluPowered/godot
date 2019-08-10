@@ -122,6 +122,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 	//}
 
 	importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
+	importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.1f);
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
 								aiProcess_GlobalScale | // fixed for FBX
@@ -324,7 +325,6 @@ void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const 
 }
 
 void EditorSceneImporterAssimp::_fill_node_relationships(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<int, int> &skeleton_map, int p_skeleton_id, Skeleton *p_skeleton, const String &p_parent_name, int &holecount, const Vector<SkeletonHole> &p_holes, const Map<String, Transform> &bind_xforms) {
-
 	String name = _assimp_get_string(p_assimp_node->mName);
 	Transform pose = _assimp_matrix_transform(p_assimp_node->mTransformation);
 
@@ -343,7 +343,9 @@ void EditorSceneImporterAssimp::_fill_node_relationships(ImportState &state, con
 		//when skeleton finds it's place in the tree, it will get fixed
 		p_skeleton->set_bone_rest(bone_idx, bind_xforms[name]);
 	}
+
 	state.bone_owners[name] = skeleton_map[p_skeleton_id];
+
 	//go to children
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
 		_fill_node_relationships(state, p_assimp_node->mChildren[i], ownership, skeleton_map, p_skeleton_id, p_skeleton, name, holecount, Vector<SkeletonHole>(), bind_xforms);
@@ -1524,6 +1526,7 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 			//but let's not support it for now.
 			return;
 		}
+		
 		//restore rest poses to local, now that we know where the skeleton finally is
 		Transform skeleton_transform;
 		if (p_assimp_node->mParent) {
@@ -1536,8 +1539,10 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 
 		skeleton->localize_rests();
 		node_name = "Skeleton"; //don't use the bone root name
-		node_transform = Transform(); //don't transform
-
+		//node_transform = Transform(); //don't transform
+		// todo: i don't want this here
+		// todo: animation is broken because mesh and skeleton start at 0,0,0 when they should start at the correct position?
+		// this is because the mesh is the armature, is the wrong type in godot the root node is an armature and should be treated as such.
 		new_node = skeleton;
 	} else {
 		//generic node
