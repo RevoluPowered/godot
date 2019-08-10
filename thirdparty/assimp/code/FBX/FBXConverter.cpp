@@ -59,7 +59,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/scene.h>
 
 #include <assimp/CreateAnimMesh.h>
-
+#include <assimp/Importer.hpp>
+#include <assimp/importerdesc.h>
 #include <tuple>
 #include <memory>
 #include <iterator>
@@ -77,7 +78,7 @@ namespace Assimp {
 
 #define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000L
 
-        FBXConverter::FBXConverter(aiScene* out, const Document& doc, bool removeEmptyBones, FbxUnit unit )
+        FBXConverter::FBXConverter(aiScene* out, Importer* importer, const Document& doc, bool removeEmptyBones, FbxUnit unit )
         : defaultMaterialIndex()
         , lights()
         , cameras()
@@ -90,8 +91,8 @@ namespace Assimp {
         , anim_fps()
         , out(out)
         , doc(doc)
-        , mRemoveEmptyBones( removeEmptyBones )
-        , mCurrentUnit(FbxUnit::cm) {
+        , mCurrentUnit(FbxUnit::cm)
+        , mImporter(importer) {
             // animations need to be converted first since this will
             // populate the node_anim_chain_bits map, which is needed
             // to determine which nodes need to be generated.
@@ -118,9 +119,19 @@ namespace Assimp {
             }
 
             ConvertGlobalSettings();
-            TransferDataToScene();
-            ConvertToUnitScale(unit);
+            ai_real scale = GetUnitScale(unit) / 10.0f;
 
+            #ifdef ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
+            #error "To get the correct scale for your .fbx model you must enable GLOBAL SCALE post process in your config.h"
+            #else
+            printf("Scale %f", scale);  
+            // This import must have the correct scale
+            mImporter->SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, scale);
+            
+            #endif // ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
+            
+            TransferDataToScene();
+            
             // if we didn't read any meshes set the AI_SCENE_FLAGS_INCOMPLETE
             // to make sure the scene passes assimp's validation. FBX files
             // need not contain geometry (i.e. camera animations, raw armatures).
@@ -1462,13 +1473,7 @@ namespace Assimp {
 
                     const WeightIndexArray& indices = cluster->GetIndices();
 
-                    if (indices.empty() && mRemoveEmptyBones ) {
-                        continue;
-                    }
-
                     const MatIndexArray& mats = geo.GetMaterialIndices();
-
-                    bool ok = false;
 
                     const size_t no_index_sentinel = std::numeric_limits<size_t>::max();
 
@@ -1509,8 +1514,7 @@ namespace Assimp {
                                     out_indices.push_back(std::distance(outputVertStartIndices->begin(), it));
                                 }
 
-                                ++count_out_indices.back();
-                                ok = true;
+                                ++count_out_indices.back();                               
                             }
                         }
                     }
@@ -1518,10 +1522,8 @@ namespace Assimp {
                     // if we found at least one, generate the output bones
                     // XXX this could be heavily simplified by collecting the bone
                     // data in a single step.
-                    if (ok && mRemoveEmptyBones) {
-                        ConvertCluster(bones, model, *cluster, out_indices, index_out_indices,
+                    ConvertCluster(bones, model, *cluster, out_indices, index_out_indices,
                             count_out_indices, node_global_transform);
-                    }
                 }
             }
             catch (std::exception&) {
@@ -3532,11 +3534,8 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
             out->mMetaData->Set(14, "CustomFrameRate", doc.GlobalSettings().CustomFrameRate());
         }
 
-        void FBXConverter::ConvertToUnitScale( FbxUnit unit ) {
-            if (mCurrentUnit == unit) {
-                return;
-            }
-
+        ai_real FBXConverter::GetUnitScale( FbxUnit unit )
+        {
             ai_real scale = 1.0;
             if (mCurrentUnit == FbxUnit::cm) {
                 if (unit == FbxUnit::m) {
@@ -3557,19 +3556,21 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
                     scale = (ai_real)1000.0;
                 }
             }
-            
-            for (auto mesh : meshes) {
-                if (nullptr == mesh) {
-                    continue;
-                }
+            return scale;
+        }
 
-                if (mesh->HasPositions()) {
-                    for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-                        aiVector3D &pos = mesh->mVertices[i];
-                        pos *= scale;
-                    }
-                }
-            }
+
+        void FBXConverter::ConvertToUnitScale( ai_real scale ) { 
+              
+            // for (auto mesh : meshes) {
+            //     if (nullptr == mesh)
+            //         continue;
+
+            //     for (unsigned int x = 0; x < mesh->mNumVertices; ++x) {
+            //         aiVector3D &pos = mesh->mVertices[x];
+            //         pos *= scale;
+            //     }               
+            // }
         }
 
         void FBXConverter::TransferDataToScene()
@@ -3577,9 +3578,7 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
             ai_assert(!out->mMeshes);
             ai_assert(!out->mNumMeshes);
 
-            // note: the trailing () ensures initialization with NULL - not
-            // many C++ users seem to know this, so pointing it out to avoid
-            // confusion why this code works.
+            ai_assert(out->mNumMeshes == 0);
 
             if (meshes.size()) {
                 out->mMeshes = new aiMesh*[meshes.size()]();
@@ -3625,9 +3624,9 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
         }
 
         // ------------------------------------------------------------------------------------------------
-        void ConvertToAssimpScene(aiScene* out, const Document& doc, bool removeEmptyBones, FbxUnit unit)
+        void ConvertToAssimpScene(aiScene* out, Importer* importer, const Document& doc, bool removeEmptyBones, FbxUnit unit)
         {
-            FBXConverter converter(out, doc, removeEmptyBones, unit);
+            FBXConverter converter(out, importer, doc, removeEmptyBones, unit);
         }
 
     } // !FBX
