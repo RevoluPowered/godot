@@ -90,7 +90,7 @@ void ScaleProcess::Execute( aiScene* pScene ) {
 }
 
 void ScaleProcess::traverseNodes( aiNode *node ) {
-    //printf("Scale applied for node! %s\n", node->mName.C_Str());
+    printf("[Post process] Scale applied for node! %s, scale %f\n", node->mName.C_Str(), mScale);
     
     // apply to parent
     applyScaling( node );
@@ -103,10 +103,9 @@ void ScaleProcess::traverseNodes( aiNode *node ) {
 }
 
 void ScaleProcess::applyScaling( aiNode *currentNode ) {
-    if ( nullptr != currentNode ) {     
-        currentNode->mTransformation.a4 *= mScale;        
-        currentNode->mTransformation.b4 *= mScale;
-        currentNode->mTransformation.c4 *= mScale;        
+    if ( nullptr != currentNode ) {
+        // scale entire matrix - this is correct because it does everything
+        currentNode->mTransformation = currentNode->mTransformation * mScale;
     }
 }
 
