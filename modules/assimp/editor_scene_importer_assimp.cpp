@@ -371,8 +371,7 @@ void EditorSceneImporterAssimp::_generate_skeletons(ImportState &state, const ai
 	for (Map<int, List<aiNode *> >::Element *E = skeletons_found.front(); E; E = E->next()) {
 		ERR_CONTINUE(skeleton_map.has(E->key())); //skeleton already exists? this can't be.. skip
 		Skeleton *skeleton = memnew(Skeleton);
-		//this the only way to reliably use multiple meshes with one skeleton, at the cost of less precision
-		skeleton->set_use_bones_in_world_transform(true);
+		
 		skeleton_map[E->key()] = state.skeletons.size();
 		state.skeletons.push_back(skeleton);
 		int holecount = 1;
