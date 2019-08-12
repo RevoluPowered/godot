@@ -1558,7 +1558,7 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 
 		skeleton->localize_rests();
 		node_name = "Skeleton"; //don't use the bone root name
-		//node_transform = Transform(); //don't transform
+		node_transform = Transform(); //don't transform
 		// todo: i don't want this here
 		// todo: animation is broken because mesh and skeleton start at 0,0,0 when they should start at the correct position?
 		// this is because the mesh is the armature, is the wrong type in godot the root node is an armature and should be treated as such.
