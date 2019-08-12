@@ -150,8 +150,8 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_EmbedTextures |
 								 aiProcess_SplitByBoneCount |
 								 0;
-	const aiScene *scene = importer.ReadFile(s_path.c_str(),
-			post_process_Steps);
+	const aiScene *scene = importer.ReadFile(s_path.c_str(), post_process_Steps);
+	printf("post process has run?\n");
 	ERR_EXPLAIN(String("Open Asset Import failed to open: ") + String(importer.GetErrorString()));
 	ERR_FAIL_COND_V(scene == NULL, NULL);
 	return _generate_scene(p_path, scene, p_flags, p_bake_fps, max_bone_weights);
@@ -328,15 +328,14 @@ void EditorSceneImporterAssimp::_fill_node_relationships(ImportState &state, con
 	String name = _assimp_get_string(p_assimp_node->mName);
 	Transform pose = _assimp_matrix_transform(p_assimp_node->mTransformation);
 
-
 	int bone_idx = p_skeleton->get_bone_count();
 	p_skeleton->add_bone(name);
 
 	int parent_idx = p_skeleton->find_bone(p_parent_name);
 
-		if (parent_idx >= 0) {
-			p_skeleton->set_bone_parent(bone_idx, parent_idx);
-		}
+	if (parent_idx >= 0) {
+		p_skeleton->set_bone_parent(bone_idx, parent_idx);
+	}
 
 	if (bind_xforms.has(name)) {
 		//for now this is the full path to the bone in rest pose
@@ -371,7 +370,7 @@ void EditorSceneImporterAssimp::_generate_skeletons(ImportState &state, const ai
 	for (Map<int, List<aiNode *> >::Element *E = skeletons_found.front(); E; E = E->next()) {
 		ERR_CONTINUE(skeleton_map.has(E->key())); //skeleton already exists? this can't be.. skip
 		Skeleton *skeleton = memnew(Skeleton);
-		
+
 		skeleton_map[E->key()] = state.skeletons.size();
 		state.skeletons.push_back(skeleton);
 		int holecount = 1;
@@ -381,7 +380,7 @@ void EditorSceneImporterAssimp::_generate_skeletons(ImportState &state, const ai
 		}
 	}
 
-	//go to the children
+	
 	for (uint32_t i = 0; i < p_assimp_node->mNumChildren; i++) {
 		String name = _assimp_get_string(p_assimp_node->mChildren[i]->mName);
 		if (ownership.has(name)) {
@@ -1160,12 +1159,15 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	return mat;
 }
 
-Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, Skeleton *p_skeleton, bool p_double_sided_material) {
+Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &state, Transform *parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton, bool p_double_sided_material) {
 
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 	bool has_uvs = false;
 
+	//
+	// Process Vertex Weights
+	//
 	for (int i = 0; i < p_surface_indices.size(); i++) {
 		const unsigned int mesh_idx = p_surface_indices[i];
 		const aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_idx];
@@ -1199,23 +1201,34 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			}
 		}
 
+		//
+		// Create mesh from data from assimp
+		//
+
 		Ref<SurfaceTool> st;
 		st.instance();
 		st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 		for (size_t j = 0; j < ai_mesh->mNumVertices; j++) {
+
+			// Get the texture coordinates if they exist
 			if (ai_mesh->HasTextureCoords(0)) {
 				has_uvs = true;
 				st->add_uv(Vector2(ai_mesh->mTextureCoords[0][j].x, 1.0f - ai_mesh->mTextureCoords[0][j].y));
 			}
+
 			if (ai_mesh->HasTextureCoords(1)) {
 				has_uvs = true;
 				st->add_uv2(Vector2(ai_mesh->mTextureCoords[1][j].x, 1.0f - ai_mesh->mTextureCoords[1][j].y));
 			}
+
+			// Assign vertex colors
 			if (ai_mesh->HasVertexColors(0)) {
 				Color color = Color(ai_mesh->mColors[0]->r, ai_mesh->mColors[0]->g, ai_mesh->mColors[0]->b, ai_mesh->mColors[0]->a);
 				st->add_color(color);
 			}
+
+			// Work out normal calculations? - this needs work it doesn't work properly on huestos
 			if (ai_mesh->mNormals != NULL) {
 				const aiVector3D normals = ai_mesh->mNormals[j];
 				const Vector3 godot_normal = Vector3(normals.x, normals.y, normals.z);
@@ -1230,13 +1243,16 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				}
 			}
 
+			// We have vertex weights right?
 			if (vertex_weights.has(j)) {
-
+				
 				Vector<BoneInfo> bone_info = vertex_weights[j];
 				Vector<int> bones;
 				bones.resize(bone_info.size());
 				Vector<float> weights;
 				weights.resize(bone_info.size());
+
+				// todo? do we really need to loop over all bones? - assimp may have helper to find all influences on this vertex.
 				for (int k = 0; k < bone_info.size(); k++) {
 					bones.write[k] = bone_info[k].bone;
 					weights.write[k] = bone_info[k].weight;
@@ -1245,8 +1261,12 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				st->add_bones(bones);
 				st->add_weights(weights);
 			}
-
+			
+			// Assign vertex
 			const aiVector3D pos = ai_mesh->mVertices[j];
+
+			// note we must include node offset transform as this is relative to world space not local space.
+			// todo: check if we can do this somewhere better.
 			Vector3 godot_pos = Vector3(pos.x, pos.y, pos.z);
 			st->add_vertex(godot_pos);
 		}
@@ -1391,58 +1411,60 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 		/* MESH NODE */
 		Ref<Mesh> mesh;
 		Skeleton *skeleton = NULL;
-		{
 
-			//see if we have mesh cache for this.
-			Vector<int> surface_indices;
-			for (uint32_t i = 0; i < p_assimp_node->mNumMeshes; i++) {
-				int mesh_index = p_assimp_node->mMeshes[i];
-				surface_indices.push_back(mesh_index);
+		// see if we have mesh cache for this.
+		Vector<int> surface_indices;
+		for (uint32_t i = 0; i < p_assimp_node->mNumMeshes; i++) {
+			int mesh_index = p_assimp_node->mMeshes[i];
+			aiMesh *ai_mesh = state.assimp_scene->mMeshes[p_assimp_node->mMeshes[i]];
 
-				//take the chance and attempt to find the skeleton from the bones
-				if (!skeleton) {
-					aiMesh *ai_mesh = state.assimp_scene->mMeshes[p_assimp_node->mMeshes[i]];
-					for (uint32_t j = 0; j < ai_mesh->mNumBones; j++) {
-						aiBone *bone = ai_mesh->mBones[j];
-						String bone_name = _assimp_get_string(bone->mName);
-						if (state.bone_owners.has(bone_name)) {
-							skeleton = state.skeletons[state.bone_owners[bone_name]];
-							break;
-						}
+			surface_indices.push_back(mesh_index);
+
+			//take the chance and attempt to find the skeleton from the bones
+			if (!skeleton) {
+				for (uint32_t j = 0; j < ai_mesh->mNumBones; j++) {
+					aiBone *bone = ai_mesh->mBones[j];
+					String bone_name = _assimp_get_string(bone->mName);
+					if (state.bone_owners.has(bone_name)) {
+						skeleton = state.skeletons[state.bone_owners[bone_name]];
+						break;
 					}
 				}
 			}
-			surface_indices.sort();
-			String mesh_key;
-			for (int i = 0; i < surface_indices.size(); i++) {
-				if (i > 0) {
-					mesh_key += ":";
-				}
-				mesh_key += itos(surface_indices[i]);
+		} 
+
+		surface_indices.sort();
+		String mesh_key;
+		for (int i = 0; i < surface_indices.size(); i++) {
+			if (i > 0) {
+				mesh_key += ":";
 			}
-
-			if (!state.mesh_cache.has(mesh_key)) {
-				//adding cache
-				aiString cull_mode; //cull is on mesh, which is kind of stupid tbh
-				bool double_sided_material = false;
-				if (p_assimp_node->mMetaData) {
-					p_assimp_node->mMetaData->Get("Culling", cull_mode);
-				}
-				if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
-					double_sided_material = true;
-				}
-
-				mesh = _generate_mesh_from_surface_indices(state, surface_indices, skeleton, double_sided_material);
-				state.mesh_cache[mesh_key] = mesh;
-			}
-
-			mesh = state.mesh_cache[mesh_key];
+			mesh_key += itos(surface_indices[i]);
 		}
+
+		if (!state.mesh_cache.has(mesh_key)) {
+			//adding cache
+			aiString cull_mode; //cull is on mesh, which is kind of stupid tbh
+			bool double_sided_material = false;
+			if (p_assimp_node->mMetaData) {
+				p_assimp_node->mMetaData->Get("Culling", cull_mode);
+			}
+			if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
+				double_sided_material = true;
+			}
+
+			mesh = _generate_mesh_from_surface_indices(state, &node_transform, surface_indices, skeleton, double_sided_material);
+			state.mesh_cache[mesh_key] = mesh;
+		}
+
+		mesh = state.mesh_cache[mesh_key];
+		
 
 		MeshInstance *mesh_node = memnew(MeshInstance);
 		if (skeleton) {
 			state.mesh_skeletons[mesh_node] = skeleton;
 		}
+
 		mesh_node->set_mesh(mesh);
 		new_node = mesh_node;
 
