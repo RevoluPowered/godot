@@ -119,14 +119,29 @@ namespace Assimp {
             }
 
             ConvertGlobalSettings();
-            ai_real scale = GetUnitScale(unit) / 10.0f;
+
+            ai_real existingScale = mImporter->GetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 1.0f);
+
+            ai_real scale = GetUnitScale(unit);
 
             #ifdef ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
             #error "To get the correct scale for your .fbx model you must enable GLOBAL SCALE post process in your config.h"
             #else
-            printf("Scale %f", scale);  
-            // This import must have the correct scale
-            mImporter->SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, scale);
+
+            // if we aren't dealing with a non 1.0 value we must pay attention to this value as this means
+            // that a user or engine has put an override in place for this value
+            // we must now assume that our coordinate system must change.
+            if(existingScale != 1.0f)
+            {
+                // Unit conversion is required!
+                mImporter->SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, existingScale);
+            }
+            else
+            {
+                // This import must have the correct scale
+                mImporter->SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, scale);
+            }
+            
             
             #endif // ASSIMP_BUILD_NO_GLOBALSCALE_PROCESS
             
@@ -3536,25 +3551,15 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
 
         ai_real FBXConverter::GetUnitScale( FbxUnit unit )
         {
-            ai_real scale = 1.0;
-            if (mCurrentUnit == FbxUnit::cm) {
-                if (unit == FbxUnit::m) {
-                    scale = (ai_real)0.01;
-                } else if (unit == FbxUnit::km) {
-                    scale = (ai_real)0.00001;
-                }
-            } else if (mCurrentUnit == FbxUnit::m) {
-                if (unit == FbxUnit::cm) {
-                    scale = (ai_real)100.0;
-                } else if (unit == FbxUnit::km) {
-                    scale = (ai_real)0.001;
-                }
-            } else if (mCurrentUnit == FbxUnit::km) {
-                if (unit == FbxUnit::cm) {
-                    scale = (ai_real)100000.0;
-                } else if (unit == FbxUnit::m) {
-                    scale = (ai_real)1000.0;
-                }
+            double scale;
+            if( out->mMetaData->Get("UnitScaleFactor", scale) )
+            {
+                printf("unit scale factor from file: %f\n", scale);
+            }
+            else
+            {
+                printf("no file scale detected!");
+                return 1.0f;
             }
             return scale;
         }

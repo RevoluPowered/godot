@@ -73,6 +73,7 @@ void ScaleProcess::SetupProperties( const Importer* pImp ) {
 }
 
 void ScaleProcess::Execute( aiScene* pScene ) {
+    if(mScale == 1.0f) return; // nothing to scale
     printf("scaling aiScene to %f scale\n", mScale);    
 
     ai_assert(mScale != 0);
@@ -85,27 +86,119 @@ void ScaleProcess::Execute( aiScene* pScene ) {
     if ( nullptr == pScene->mRootNode ) {
         return;
     }
+    
+    // Process animations and update position transform to new unit system
+    for( unsigned int animationID = 0; animationID < pScene->mNumAnimations; animationID++ )
+    {
+        aiAnimation* animation = pScene->mAnimations[animationID];
+
+        for( unsigned int animationChannel = 0; animationChannel < animation->mNumChannels; animationChannel++)
+        {
+            aiNodeAnim* anim = animation->mChannels[animationChannel];
+            
+            for( unsigned int posKey = 0; posKey < anim->mNumPositionKeys; posKey++)
+            {
+                aiVectorKey& vectorKey = anim->mPositionKeys[posKey];
+                vectorKey.mValue *= mScale;
+            }
+        }
+    }
+
+    for( uint meshID = 0; meshID < pScene->mNumMeshes; meshID++)
+    {
+        aiMesh *mesh = pScene->mMeshes[meshID]; 
+        
+        // Reconstruct mesh vertexes to the new unit system
+        for( unsigned int vertexID = 0; vertexID < mesh->mNumVertices; vertexID++)
+        {
+            aiVector3D& vertex = mesh->mVertices[vertexID];
+            vertex *= mScale;
+        }
+
+
+        // bone placement / scaling
+        for( unsigned int boneID = 0; boneID < mesh->mNumBones; boneID++)
+        {
+            // Reconstruct matrix by transform rather than by scale 
+            // This prevent scale values being changed which can
+            // be meaningful in some cases 
+            // like when you want the modeller to see 1:1 compatibility.
+            aiBone* bone = mesh->mBones[boneID];
+
+            aiVector3D pos, scale;
+            aiQuaternion rotation;
+
+            bone->mOffsetMatrix.Decompose( scale, rotation, pos);
+            
+            aiMatrix4x4 translation;
+            aiMatrix4x4::Translation( pos * mScale, translation );
+            
+            aiMatrix4x4 scaling;
+            aiMatrix4x4::Scaling( aiVector3D(scale), scaling );
+
+            aiMatrix4x4 RotMatrix = aiMatrix4x4 (rotation.GetMatrix());
+
+            bone->mOffsetMatrix = translation * RotMatrix * scaling;
+        }
+
+
+        // animation mesh processing
+        // convert by position rather than scale.
+        for( unsigned int animMeshID = 0; animMeshID < mesh->mNumAnimMeshes; animMeshID++)
+        {
+            aiAnimMesh * animMesh = mesh->mAnimMeshes[animMeshID];
+            
+            for( unsigned int vertexID = 0; vertexID < animMesh->mNumVertices; vertexID++)
+            {
+                aiVector3D& vertex = animMesh->mVertices[vertexID];
+                vertex *= mScale;
+            }
+        }
+    }
 
     traverseNodes( pScene->mRootNode );
 }
 
-void ScaleProcess::traverseNodes( aiNode *node ) {
-    printf("[Post process] Scale applied for node! %s, scale %f\n", node->mName.C_Str(), mScale);
-    
-    // apply to parent
+void ScaleProcess::traverseNodes( aiNode *node, unsigned int nested_node_id ) {    
+    // for(unsigned int x = 0; x < nested_node_id; x++)
+    // {
+    //     //printf("-");
+    // }
+
+    //printf("[%d] %s\n", nested_node_id, node->mName.C_Str());
+
     applyScaling( node );
 
     for( size_t i = 0; i < node->mNumChildren; i++)
     {
         // recurse into the tree until we are done!
-        traverseNodes( node->mChildren[i] ); 
-    }    
+        traverseNodes( node->mChildren[i], nested_node_id+1 ); 
+    }
 }
 
 void ScaleProcess::applyScaling( aiNode *currentNode ) {
     if ( nullptr != currentNode ) {
-        // scale entire matrix - this is correct because it does everything
-        currentNode->mTransformation = currentNode->mTransformation * mScale;
+        // Reconstruct matrix by transform rather than by scale 
+        // This prevent scale values being changed which can
+        // be meaningful in some cases 
+        // like when you want the modeller to 
+        // see 1:1 compatibility.
+        
+        aiVector3D pos, scale;
+        aiQuaternion rotation;
+        currentNode->mTransformation.Decompose( scale, rotation, pos);
+        
+        aiMatrix4x4 translation;
+        aiMatrix4x4::Translation( pos * mScale, translation );
+        
+        aiMatrix4x4 scaling;
+
+        // note: we do not use mScale here, this is on purpose.
+        aiMatrix4x4::Scaling( scale, scaling );
+
+        aiMatrix4x4 RotMatrix = aiMatrix4x4 (rotation.GetMatrix());
+
+        currentNode->mTransformation = translation * RotMatrix * scaling;
     }
 }
 
