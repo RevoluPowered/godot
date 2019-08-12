@@ -122,7 +122,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 	//}
 
 	importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
-	importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.1f);
+	importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
 								aiProcess_GlobalScale | // fixed for FBX
@@ -295,7 +295,7 @@ void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const 
 		for (uint32_t j = 0; j < mesh->mNumBones; j++) {
 			const aiBone *bone = mesh->mBones[j];
 			String name = _assimp_get_string(bone->mName);
-
+			
 			if (ownership.has(name)) {
 				owned_by = ownership[name];
 				break;
@@ -313,9 +313,10 @@ void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const 
 			const aiBone *bone = mesh->mBones[j];
 			String name = _assimp_get_string(bone->mName);
 			ownership[name] = owned_by;
+			printf("adding from assimp: %d\n", name);
 			//store the actual full path for the bone transform
 			//when skeleton finds its place in the tree, it will be restored
-			bind_xforms[name] = mesh_offset * _assimp_matrix_transform(bone->mOffsetMatrix);
+			bind_xforms[name] = _assimp_matrix_transform(bone->mOffsetMatrix);
 		}
 	}
 
@@ -1548,13 +1549,10 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 			return;
 		}
 		
-		//restore rest poses to local, now that we know where the skeleton finally is
-		Transform skeleton_transform;
-		if (p_assimp_node->mParent) {
-			skeleton_transform = _get_global_assimp_node_transform(p_assimp_node->mParent);
-		}
+		//Transform skeleton_transform = _assimp_matrix_transform(p_assimp_node->mParent);
+
 		for (int i = 0; i < skeleton->get_bone_count(); i++) {
-			Transform rest = skeleton_transform.affine_inverse() * skeleton->get_bone_rest(i);
+			Transform rest = skeleton->get_bone_rest(i);
 			skeleton->set_bone_rest(i, rest.affine_inverse());
 		}
 
