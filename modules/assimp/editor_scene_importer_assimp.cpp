@@ -122,7 +122,10 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 	//}
 
 	importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
+
+	// set the importer to scale the CM to meters in FBX importer
 	importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 0.01f);
+
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
 								aiProcess_GlobalScale | // fixed for FBX
