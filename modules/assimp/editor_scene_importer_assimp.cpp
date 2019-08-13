@@ -284,110 +284,40 @@ T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, co
 	ERR_FAIL_V(p_values[0]);
 }
 
-void EditorSceneImporterAssimp::_generate_bone_groups(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<String, Transform> &bind_xforms) {
+void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, const aiNode *p_assimp_node) {
 
 	Transform mesh_offset = _assimp_matrix_transform(p_assimp_node->mTransformation);
 	//Transform mesh_offset = _get_global_assimp_node_transform(p_assimp_node);
 	//mesh_offset.basis = Basis();
-	for (uint32_t i = 0; i < p_assimp_node->mNumMeshes; i++) {
-		const aiMesh *mesh = state.assimp_scene->mMeshes[i];
-		int owned_by = -1;
-		for (uint32_t j = 0; j < mesh->mNumBones; j++) {
-			const aiBone *bone = mesh->mBones[j];
-			String name = _assimp_get_string(bone->mName);
+
+	// retrieve this transform mesh (not the scene mesh)
+	for (unsigned int mesh_index = 0; mesh_index < p_assimp_node->mNumMeshes; mesh_index++) {
+
+		// get the node mesh by index - assimp
+		const aiMesh *mesh = state.assimp_scene->mMeshes[mesh_index];
+		Skeleton * skeleton = NULL;
+
+		// iterate over all the bones on the mesh for this node only!
+		for (unsigned int boneIndex = 0; j < mesh->mNumBones; j++) {
 			
-			if (ownership.has(name)) {
-				owned_by = ownership[name];
-				break;
+			// we know a bone exists so let's make a skeleton for it to be contained in
+			if(skeleton == NULL)
+			{
+				// allocate new skeleton mesh because this is a new instance for this mesh.
+				skeleton = memnew(Skeleton);
+				// global information - set skeleton
+				state.skeletons.push_back(skeleton);
 			}
-		}
 
-		if (owned_by == -1) { //no owned, create new unique id
-			owned_by = 1;
-			for (Map<String, int>::Element *E = ownership.front(); E; E = E->next()) {
-				owned_by = MAX(E->get() + 1, owned_by);
-			}
-		}
-
-		for (uint32_t j = 0; j < mesh->mNumBones; j++) {
 			const aiBone *bone = mesh->mBones[j];
-			String name = _assimp_get_string(bone->mName);
-			ownership[name] = owned_by;
-			printf("adding from assimp: %d\n", name);
-			//store the actual full path for the bone transform
-			//when skeleton finds its place in the tree, it will be restored
-			bind_xforms[name] = _assimp_matrix_transform(bone->mOffsetMatrix);
+			skeleton.add_bone(String(bone->mName.c_str()));
+			skeleton.set_bone_rest(skeleton->get_bone_count(), mesh_offset * _assimp_matrix_transform(bone->mOffsetMatrix));
 		}
 	}
 
+	// recursive node lookup
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_generate_bone_groups(state, p_assimp_node->mChildren[i], ownership, bind_xforms);
-	}
-}
-
-void EditorSceneImporterAssimp::_fill_node_relationships(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<int, int> &skeleton_map, int p_skeleton_id, Skeleton *p_skeleton, const String &p_parent_name, int &holecount, const Vector<SkeletonHole> &p_holes, const Map<String, Transform> &bind_xforms) {
-	String name = _assimp_get_string(p_assimp_node->mName);
-	Transform pose = _assimp_matrix_transform(p_assimp_node->mTransformation);
-
-	int bone_idx = p_skeleton->get_bone_count();
-	p_skeleton->add_bone(name);
-
-	int parent_idx = p_skeleton->find_bone(p_parent_name);
-
-	if (parent_idx >= 0) {
-		p_skeleton->set_bone_parent(bone_idx, parent_idx);
-	}
-
-	if (bind_xforms.has(name)) {
-		//for now this is the full path to the bone in rest pose
-		//when skeleton finds it's place in the tree, it will get fixed
-		p_skeleton->set_bone_rest(bone_idx, bind_xforms[name]);
-	}
-
-	state.bone_owners[name] = skeleton_map[p_skeleton_id];
-
-	//go to children
-	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_fill_node_relationships(state, p_assimp_node->mChildren[i], ownership, skeleton_map, p_skeleton_id, p_skeleton, name, holecount, Vector<SkeletonHole>(), bind_xforms);
-	}
-}
-
-void EditorSceneImporterAssimp::_generate_skeletons(ImportState &state, const aiNode *p_assimp_node, Map<String, int> &ownership, Map<int, int> &skeleton_map, const Map<String, Transform> &bind_xforms) {
-
-	//find skeletons at this level, there may be multiple root nodes for each
-	Map<int, List<aiNode *> > skeletons_found;
-	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		String name = _assimp_get_string(p_assimp_node->mChildren[i]->mName);
-		if (ownership.has(name)) {
-			int skeleton = ownership[name];
-			if (!skeletons_found.has(skeleton)) {
-				skeletons_found[skeleton] = List<aiNode *>();
-			}
-			skeletons_found[skeleton].push_back(p_assimp_node->mChildren[i]);
-		}
-	}
-
-	//go via the potential skeletons found and generate the actual skeleton
-	for (Map<int, List<aiNode *> >::Element *E = skeletons_found.front(); E; E = E->next()) {
-		ERR_CONTINUE(skeleton_map.has(E->key())); //skeleton already exists? this can't be.. skip
-		Skeleton *skeleton = memnew(Skeleton);
-
-		skeleton_map[E->key()] = state.skeletons.size();
-		state.skeletons.push_back(skeleton);
-		int holecount = 1;
-		//fill the bones and their relationships
-		for (List<aiNode *>::Element *F = E->get().front(); F; F = F->next()) {
-			_fill_node_relationships(state, F->get(), ownership, skeleton_map, E->key(), skeleton, "", holecount, Vector<SkeletonHole>(), bind_xforms);
-		}
-	}
-
-	
-	for (uint32_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		String name = _assimp_get_string(p_assimp_node->mChildren[i]->mName);
-		if (ownership.has(name)) {
-			continue; //a bone, so don't bother with this
-		}
-		_generate_skeletons(state, p_assimp_node->mChildren[i], ownership, skeleton_map, bind_xforms);
+		_generate_bone_groups(state, p_assimp_node->mChildren[i]);
 	}
 }
 
@@ -415,17 +345,11 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 		aiCamera *ai_camera = scene->mCameras[c];
 		ERR_CONTINUE(ai_camera == NULL);
 		state.camera_cache[_assimp_get_string(ai_camera->mName)] = c;
-	}
+	}	
 
 	if (scene->mRootNode) {
-		Map<String, Transform> bind_xforms; //temporary map to store bind transforms
-		//guess the skeletons, since assimp does not really support them directly
-		Map<String, int> ownership; //bone names to groups
-		//fill this map with bone names and which group where they detected to, going mesh by mesh
-		_generate_bone_groups(state, state.assimp_scene->mRootNode, ownership, bind_xforms);
-		Map<int, int> skeleton_map; //maps previously created groups to actual skeletons
-		//generates the skeletons when bones are found in the hierarchy, and follows them (including gaps/holes).
-		_generate_skeletons(state, state.assimp_scene->mRootNode, ownership, skeleton_map, bind_xforms);
+		// read bones from assimp - creates skeleton automatically too. (recursive)
+		_read_bones_from_assimp(state, state.assimp_scene->mRootNode);
 
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
@@ -434,12 +358,12 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 
 		//assign skeletons to nodes
 
-		for (Map<MeshInstance *, Skeleton *>::Element *E = state.mesh_skeletons.front(); E; E = E->next()) {
+		/*for (Map<MeshInstance *, Skeleton *>::Element *E = state.mesh_skeletons.front(); E; E = E->next()) {
 			MeshInstance *mesh = E->key();
 			Skeleton *skeleton = E->get();
 			NodePath skeleton_path = mesh->get_path_to(skeleton);
 			mesh->set_skeleton_path(skeleton_path);
-		}
+		}*/
 	}
 
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -1420,17 +1344,17 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 
 			surface_indices.push_back(mesh_index);
 
-			//take the chance and attempt to find the skeleton from the bones
-			if (!skeleton) {
-				for (uint32_t j = 0; j < ai_mesh->mNumBones; j++) {
-					aiBone *bone = ai_mesh->mBones[j];
-					String bone_name = _assimp_get_string(bone->mName);
-					if (state.bone_owners.has(bone_name)) {
-						skeleton = state.skeletons[state.bone_owners[bone_name]];
-						break;
-					}
-				}
-			}
+			// //take the chance and attempt to find the skeleton from the bones
+			// if (!skeleton) {
+			// 	for (uint32_t j = 0; j < ai_mesh->mNumBones; j++) {
+			// 		aiBone *bone = ai_mesh->mBones[j];
+			// 		String bone_name = _assimp_get_string(bone->mName);
+			// 		if (state.bone_owners.has(bone_name)) {
+			// 			skeleton = state.skeletons[state.bone_owners[bone_name]];
+			// 			break;
+			// 		}
+			// 	}
+			// }
 		} 
 
 		surface_indices.sort();
