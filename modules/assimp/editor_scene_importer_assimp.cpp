@@ -93,18 +93,6 @@ uint32_t EditorSceneImporterAssimp::get_import_flags() const {
 	return IMPORT_SCENE;
 }
 
-AssimpStream::AssimpStream() {
-	// empty
-}
-
-AssimpStream::~AssimpStream() {
-	// empty
-}
-
-void AssimpStream::write(const char *message) {
-	print_verbose(String("Open Asset Import: ") + String(message).strip_edges());
-}
-
 void EditorSceneImporterAssimp::_bind_methods() {
 }
 

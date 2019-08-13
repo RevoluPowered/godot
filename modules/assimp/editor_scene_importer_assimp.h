@@ -54,12 +54,14 @@
 class AssimpStream : public Assimp::LogStream {
 public:
 	// Constructor
-	AssimpStream();
+	AssimpStream(){}
 
 	// Destructor
-	~AssimpStream();
+	~AssimpStream(){}
 	// Write something using your own functionality
-	void write(const char *message);
+	void write(const char *message) {
+		print_verbose(String("Open Asset Import: ") + String(message).strip_edges());
+	}
 };
 
 #define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor", 0, 0
