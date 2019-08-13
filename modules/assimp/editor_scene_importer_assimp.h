@@ -160,7 +160,6 @@ private:
 		Vector<Skeleton *> skeletons;
 		Map<String, int> bone_owners; //maps bones to skeleton index owned by
 		Map<String, Node *> node_map;
-		Map<MeshInstance *, Skeleton *> mesh_skeletons;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};

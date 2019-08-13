@@ -318,6 +318,16 @@ void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, cons
 		}
 	}
 
+	// todo: move this into _read_bones_from_assimp
+	// todo: set skeleton path
+	// todo: set skeleton transform
+	/*for (Map<MeshInstance *, Skeleton *>::Element *E = state.mesh_skeletons.front(); E; E = E->next()) {
+		MeshInstance *mesh = E->key();
+		Skeleton *skeleton = E->get();
+		NodePath skeleton_path = mesh->get_path_to(skeleton);
+		mesh->set_skeleton_path(skeleton_path);
+	}*/
+
 	// recursive node lookup
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
 		_generate_bone_groups(state, p_assimp_node->mChildren[i]);
@@ -358,15 +368,6 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			_generate_node(state, scene->mRootNode->mChildren[i], state.root);
 		}
-
-		//assign skeletons to nodes
-
-		/*for (Map<MeshInstance *, Skeleton *>::Element *E = state.mesh_skeletons.front(); E; E = E->next()) {
-			MeshInstance *mesh = E->key();
-			Skeleton *skeleton = E->get();
-			NodePath skeleton_path = mesh->get_path_to(skeleton);
-			mesh->set_skeleton_path(skeleton_path);
-		}*/
 	}
 
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -1346,18 +1347,6 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 			aiMesh *ai_mesh = state.assimp_scene->mMeshes[p_assimp_node->mMeshes[i]];
 
 			surface_indices.push_back(mesh_index);
-
-			// //take the chance and attempt to find the skeleton from the bones
-			// if (!skeleton) {
-			// 	for (uint32_t j = 0; j < ai_mesh->mNumBones; j++) {
-			// 		aiBone *bone = ai_mesh->mBones[j];
-			// 		String bone_name = _assimp_get_string(bone->mName);
-			// 		if (state.bone_owners.has(bone_name)) {
-			// 			skeleton = state.skeletons[state.bone_owners[bone_name]];
-			// 			break;
-			// 		}
-			// 	}
-			// }
 		} 
 
 		surface_indices.sort();
@@ -1385,13 +1374,7 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 		}
 
 		mesh = state.mesh_cache[mesh_key];
-		
-
-		MeshInstance *mesh_node = memnew(MeshInstance);
-		if (skeleton) {
-			state.mesh_skeletons[mesh_node] = skeleton;
-		}
-
+	
 		mesh_node->set_mesh(mesh);
 		new_node = mesh_node;
 
