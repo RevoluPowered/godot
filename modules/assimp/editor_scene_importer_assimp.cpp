@@ -57,6 +57,7 @@
 #include "import_utils.h"
 #include <string>
 
+
 void EditorSceneImporterAssimp::get_extensions(List<String> *r_extensions) const {
 
 	const String import_setting_string = "filesystem/import/open_asset_import/";
@@ -278,7 +279,7 @@ T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, co
 
 void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, const aiNode *p_assimp_node) {
 
-	Transform mesh_offset = _assimp_matrix_transform(p_assimp_node->mTransformation);
+	Transform mesh_offset =  AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
 	//Transform mesh_offset = _get_global_assimp_node_transform(p_assimp_node);
 	//mesh_offset.basis = Basis();
 
@@ -287,10 +288,12 @@ void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, cons
 
 		// get the node mesh by index - assimp
 		const aiMesh *mesh = state.assimp_scene->mMeshes[mesh_index];
+
+		// intentional behaviour one mesh per skeleton
 		Skeleton * skeleton = NULL;
 
 		// iterate over all the bones on the mesh for this node only!
-		for (unsigned int boneIndex = 0; j < mesh->mNumBones; j++) {
+		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			
 			// we know a bone exists so let's make a skeleton for it to be contained in
 			if(skeleton == NULL)
@@ -301,9 +304,9 @@ void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, cons
 				state.skeletons.push_back(skeleton);
 			}
 
-			const aiBone *bone = mesh->mBones[j];
-			skeleton.add_bone(String(bone->mName.c_str()));
-			skeleton.set_bone_rest(skeleton->get_bone_count(), mesh_offset * _assimp_matrix_transform(bone->mOffsetMatrix));
+			const aiBone *bone = mesh->mBones[boneIndex];
+			skeleton->add_bone(String(bone->mName.C_Str()));
+			skeleton->set_bone_rest(skeleton->get_bone_count(), mesh_offset * AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
 		}
 	}
 
@@ -319,7 +322,7 @@ void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, cons
 
 	// recursive node lookup
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_generate_bone_groups(state, p_assimp_node->mChildren[i]);
+		_read_bones_from_assimp(state, p_assimp_node->mChildren[i]);
 	}
 }
 
@@ -339,14 +342,14 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 
 		aiLight *ai_light = scene->mLights[l];
 		ERR_CONTINUE(ai_light == NULL);
-		state.light_cache[_assimp_get_string(ai_light->mName)] = l;
+		state.light_cache[AssimpUtils::get_assimp_string(ai_light->mName)] = l;
 	}
 
 	//fill camera cache
 	for (size_t c = 0; c < scene->mNumCameras; c++) {
 		aiCamera *ai_camera = scene->mCameras[c];
 		ERR_CONTINUE(ai_camera == NULL);
-		state.camera_cache[_assimp_get_string(ai_camera->mName)] = c;
+		state.camera_cache[AssimpUtils::get_assimp_string(ai_camera->mName)] = c;
 	}	
 
 	if (scene->mRootNode) {
@@ -466,7 +469,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	ERR_FAIL_INDEX(p_animation_index, (int)state.assimp_scene->mNumAnimations);
 
 	const aiAnimation *anim = state.assimp_scene->mAnimations[p_animation_index];
-	String name = _assimp_anim_string_to_string(anim->mName);
+	String name = AssimpUtils::get_anim_string_from_assimp(anim->mName);
 	if (name == String()) {
 		name = "Animation " + itos(p_animation_index + 1);
 	}
@@ -476,7 +479,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	if (state.assimp_scene->mMetaData != NULL && Math::is_equal_approx(ticks_per_second, 0.0f)) {
 		int32_t time_mode = 0;
 		state.assimp_scene->mMetaData->Get("TimeMode", time_mode);
-		ticks_per_second = _get_fbx_fps(time_mode, state.assimp_scene);
+		ticks_per_second = AssimpUtils::get_fbx_fps(time_mode, state.assimp_scene);
 	}
 
 	//?
@@ -497,7 +500,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
 	for (size_t i = 0; i < anim->mNumChannels; i++) {
 		const aiNodeAnim *track = anim->mChannels[i];
-		String node_name = _assimp_get_string(track->mNodeName);
+		String node_name = AssimpUtils::get_assimp_string(track->mNodeName);
 		/*
 		if (node_name.find(ASSIMP_FBX_KEY) != -1) {
 			String p_track_type = node_name.get_slice(ASSIMP_FBX_KEY, 1);
@@ -535,7 +538,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
 		const aiMeshMorphAnim *anim_mesh = anim->mMorphMeshChannels[i];
 
-		const String prop_name = _assimp_get_string(anim_mesh->mName);
+		const String prop_name = AssimpUtils::get_assimp_string(anim_mesh->mName);
 		const String mesh_name = prop_name.split("*")[0];
 
 		ERR_CONTINUE(prop_name.split("*").size() != 2);
@@ -581,7 +584,7 @@ Ref<Texture> EditorSceneImporterAssimp::_load_texture(ImportState &state, String
 		size_t texture_idx = split_path[1].to_int();
 		ERR_FAIL_COND_V(texture_idx >= state.assimp_scene->mNumTextures, Ref<Texture>());
 		aiTexture *tex = state.assimp_scene->mTextures[texture_idx];
-		String filename = _assimp_raw_string_to_string(tex->mFilename);
+		String filename = AssimpUtils::get_raw_string_from_assimp(tex->mFilename);
 		filename = filename.get_file();
 		print_verbose("Open Asset Import: Loading embedded texture " + filename);
 		if (tex->mHeight == 0) {
@@ -665,7 +668,7 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	//const String mesh_name = _assimp_get_string(ai_mesh->mName);
 	aiString mat_name;
 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_NAME, mat_name)) {
-		mat->set_name(_assimp_get_string(mat_name));
+		mat->set_name(AssimpUtils::get_assimp_string(mat_name));
 	}
 
 	aiTextureType tex_normal = aiTextureType_NORMALS;
@@ -675,15 +678,15 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 		aiTextureMapMode map_mode[2];
 
 		if (AI_SUCCESS == ai_material->GetTexture(tex_normal, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-			filename = _assimp_raw_string_to_string(ai_filename);
+			filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 
 				if (texture.is_valid()) {
-					_set_texture_mapping_mode(map_mode, texture);
+					AssimpUtils::set_texture_mapping_mode(map_mode, texture);
 					mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
 					mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
 				}
@@ -696,10 +699,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 		String filename = "";
 
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_NORMAL_TEXTURE, ai_filename)) {
-			filename = _assimp_raw_string_to_string(ai_filename);
+			filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
@@ -719,14 +722,14 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 		aiTextureMapMode map_mode[2];
 
 		if (AI_SUCCESS == ai_material->GetTexture(tex_emissive, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-			filename = _assimp_raw_string_to_string(ai_filename);
+			filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
-					_set_texture_mapping_mode(map_mode, texture);
+					AssimpUtils::set_texture_mapping_mode(map_mode, texture);
 					mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
 					mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, texture);
 				}
@@ -741,15 +744,15 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 		String filename = "";
 		aiTextureMapMode map_mode[2];
 		if (AI_SUCCESS == ai_material->GetTexture(tex_albedo, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-			filename = _assimp_raw_string_to_string(ai_filename);
+			filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
 					if (texture->get_data()->detect_alpha() != Image::ALPHA_NONE) {
-						_set_texture_mapping_mode(map_mode, texture);
+						AssimpUtils::set_texture_mapping_mode(map_mode, texture);
 						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 						mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
 					}
@@ -771,16 +774,16 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	aiString tex_gltf_base_color_path = aiString();
 	aiTextureMapMode map_mode[2];
 	if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &tex_gltf_base_color_path, NULL, NULL, NULL, NULL, map_mode)) {
-		String filename = _assimp_raw_string_to_string(tex_gltf_base_color_path);
+		String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_base_color_path);
 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 		bool found = false;
-		_find_texture_path(state.path, path, found);
+		AssimpUtils::find_texture_path(state.path, path, found);
 		if (found) {
 			Ref<Texture> texture = _load_texture(state, path);
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (texture != NULL) {
 				if (texture->get_data()->detect_alpha() == Image::ALPHA_BLEND) {
-					_set_texture_mapping_mode(map_mode, texture);
+					AssimpUtils::set_texture_mapping_mode(map_mode, texture);
 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
 				}
@@ -800,13 +803,13 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_base_color_path = aiString();
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_base_color_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
-				_find_texture_path(state.path, path, found);
+				AssimpUtils::find_texture_path(state.path, path, found);
 				if (texture != NULL) {
 					if (texture->get_data()->detect_alpha() == Image::ALPHA_BLEND) {
 						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
@@ -832,13 +835,13 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_normal_path = aiString();
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE, tex_fbx_pbs_normal_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_normal_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_normal_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
-				_find_texture_path(state.path, path, found);
+				AssimpUtils::find_texture_path(state.path, path, found);
 				if (texture != NULL) {
 					mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
 					mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
@@ -854,13 +857,13 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_stingray_normal_path = aiString();
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE, tex_fbx_stingray_normal_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_stingray_normal_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_stingray_normal_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
-				_find_texture_path(state.path, path, found);
+				AssimpUtils::find_texture_path(state.path, path, found);
 				if (texture != NULL) {
 					mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
 					mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
@@ -872,13 +875,13 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_base_color_path = aiString();
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_base_color_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
-				_find_texture_path(state.path, path, found);
+				AssimpUtils::find_texture_path(state.path, path, found);
 				if (texture != NULL) {
 					if (texture->get_data()->detect_alpha() == Image::ALPHA_BLEND) {
 						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
@@ -904,13 +907,13 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_emissive_path = aiString();
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE, tex_fbx_pbs_emissive_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_emissive_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_emissive_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
-				_find_texture_path(state.path, path, found);
+				AssimpUtils::find_texture_path(state.path, path, found);
 				if (texture != NULL) {
 					if (texture->get_data()->detect_alpha() == Image::ALPHA_BLEND) {
 						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
@@ -934,10 +937,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 
 	aiString tex_gltf_pbr_metallicroughness_path;
 	if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &tex_gltf_pbr_metallicroughness_path)) {
-		String filename = _assimp_raw_string_to_string(tex_gltf_pbr_metallicroughness_path);
+		String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_pbr_metallicroughness_path);
 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 		bool found = false;
-		_find_texture_path(state.path, path, found);
+		AssimpUtils::find_texture_path(state.path, path, found);
 		if (found) {
 			Ref<Texture> texture = _load_texture(state, path);
 			if (texture != NULL) {
@@ -961,10 +964,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_metallic_path;
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE, tex_fbx_pbs_metallic_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_metallic_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
@@ -981,10 +984,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 
 		aiString tex_fbx_pbs_rough_path;
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_rough_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
@@ -1004,10 +1007,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 	{
 		aiString tex_fbx_pbs_metallic_path;
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE, tex_fbx_pbs_metallic_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_metallic_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
@@ -1024,10 +1027,10 @@ Ref<Material> EditorSceneImporterAssimp::_generate_material_from_index(ImportSta
 
 		aiString tex_fbx_pbs_rough_path;
 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
-			String filename = _assimp_raw_string_to_string(tex_fbx_pbs_rough_path);
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
 			String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 			bool found = false;
-			_find_texture_path(state.path, path, found);
+			AssimpUtils::find_texture_path(state.path, path, found);
 			if (found) {
 				Ref<Texture> texture = _load_texture(state, path);
 				if (texture != NULL) {
@@ -1067,7 +1070,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 		if (p_skeleton) {
 			for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
 				aiBone *bone = ai_mesh->mBones[b];
-				String bone_name = _assimp_get_string(bone->mName);
+				String bone_name = AssimpUtils::get_assimp_string(bone->mName);
 				int bone_index = p_skeleton->find_bone(bone_name);
 				ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
@@ -1191,7 +1194,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 
 			if (i == 0) {
 				//only do this the first time
-				String ai_anim_mesh_name = _assimp_get_string(ai_mesh->mAnimMeshes[j]->mName);
+				String ai_anim_mesh_name = AssimpUtils::get_assimp_string(ai_mesh->mAnimMeshes[j]->mName);
 				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
 				if (ai_anim_mesh_name.empty()) {
 					ai_anim_mesh_name = String("morph_") + itos(j);
@@ -1266,7 +1269,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				tangents.resize(num_vertices);
 				PoolColorArray::Write w = tangents.write();
 				for (size_t l = 0; l < num_vertices; l++) {
-					_calc_tangent_from_mesh(ai_mesh, j, l, l, w);
+					AssimpUtils::calc_tangent_from_mesh(ai_mesh, j, l, l, w);
 				}
 				PoolRealArray new_tangents = array_copy[VisualServer::ARRAY_TANGENT].duplicate(true);
 				ERR_CONTINUE(new_tangents.size() != tangents.size() * 4);
@@ -1285,7 +1288,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 
 		mesh->add_surface_from_arrays(primitive, array_mesh, morphs);
 		mesh->surface_set_material(i, material);
-		mesh->surface_set_name(i, _assimp_get_string(ai_mesh->mName));
+		mesh->surface_set_name(i, AssimpUtils::get_assimp_string(ai_mesh->mName));
 	}
 
 	return mesh;
@@ -1294,9 +1297,9 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode *p_assimp_node, Node *p_parent) {
 
 	Spatial *new_node = NULL;
-	String node_name = _assimp_get_string(p_assimp_node->mName);
-	Transform node_transform = _assimp_matrix_transform(p_assimp_node->mTransformation);
-
+	String node_name = AssimpUtils::get_assimp_string(p_assimp_node->mName);
+	Transform node_transform = AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
+	bool ignore_creation = false;
 	if (p_assimp_node->mNumMeshes > 0) {
 		/* MESH NODE */
 		Ref<Mesh> mesh;
@@ -1334,7 +1337,7 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 			mesh = _generate_mesh_from_surface_indices(state, &node_transform, surface_indices, skeleton, double_sided_material);
 			state.mesh_cache[mesh_key] = mesh;
 		}
-
+		MeshInstance *mesh_node = memnew(MeshInstance);
 		mesh = state.mesh_cache[mesh_key];
 	
 		mesh_node->set_mesh(mesh);
@@ -1411,43 +1414,23 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 		new_node = camera;
 	} else if (state.bone_owners.has(node_name)) {
 
-		//have to actually put the skeleton somewhere, you know.
-		Skeleton *skeleton = state.skeletons[state.bone_owners[node_name]];
-		if (skeleton->get_parent()) {
-			//a bone for a skeleton already added..
-			//could go downwards here to add meshes children of skeleton bones
-			//but let's not support it for now.
-			return;
-		}
-		
-		//Transform skeleton_transform = _assimp_matrix_transform(p_assimp_node->mParent);
-
-		for (int i = 0; i < skeleton->get_bone_count(); i++) {
-			Transform rest = skeleton->get_bone_rest(i);
-			skeleton->set_bone_rest(i, rest.affine_inverse());
-		}
-
-		skeleton->localize_rests();
-		node_name = "Skeleton"; //don't use the bone root name
-		node_transform = Transform(); //don't transform
-		// todo: i don't want this here
-		// todo: animation is broken because mesh and skeleton start at 0,0,0 when they should start at the correct position?
-		// this is because the mesh is the armature, is the wrong type in godot the root node is an armature and should be treated as such.
-		new_node = skeleton;
+		// ignore skeleton or bone node.
+		ignore_creation = true;
+		OS::get_singleton()->print("ignoring bone: %s\n", node_name.c_str());
 	} else {
 		//generic node
 		new_node = memnew(Spatial);
 	}
 
+	// ignore skeleton and bone nodes.
+	if(!ignore_creation)
 	{
-
 		new_node->set_name(node_name);
 		new_node->set_transform(node_transform);
 		p_parent->add_child(new_node);
 		new_node->set_owner(state.root);
+		state.node_map[node_name] = new_node;
 	}
-
-	state.node_map[node_name] = new_node;
 
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
 		_generate_node(state, p_assimp_node->mChildren[i], new_node);

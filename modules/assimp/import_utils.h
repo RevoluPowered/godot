@@ -64,6 +64,41 @@ public:
         w[index] = plane_tangent;
     }
 
+    struct AssetImportFbx {
+		enum ETimeMode {
+			TIME_MODE_DEFAULT = 0,
+			TIME_MODE_120 = 1,
+			TIME_MODE_100 = 2,
+			TIME_MODE_60 = 3,
+			TIME_MODE_50 = 4,
+			TIME_MODE_48 = 5,
+			TIME_MODE_30 = 6,
+			TIME_MODE_30_DROP = 7,
+			TIME_MODE_NTSC_DROP_FRAME = 8,
+			TIME_MODE_NTSC_FULL_FRAME = 9,
+			TIME_MODE_PAL = 10,
+			TIME_MODE_CINEMA = 11,
+			TIME_MODE_1000 = 12,
+			TIME_MODE_CINEMA_ND = 13,
+			TIME_MODE_CUSTOM = 14,
+			TIME_MODE_TIME_MODE_COUNT = 15
+		};
+		enum UpAxis {
+			UP_VECTOR_AXIS_X = 1,
+			UP_VECTOR_AXIS_Y = 2,
+			UP_VECTOR_AXIS_Z = 3
+		};
+		enum FrontAxis {
+			FRONT_PARITY_EVEN = 1,
+			FRONT_PARITY_ODD = 2,
+		};
+
+		enum CoordAxis {
+			COORD_RIGHT = 0,
+			COORD_LEFT = 1
+		};
+	};
+
     static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture) {
         ERR_FAIL_COND(map_mode == NULL);
         aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
@@ -160,7 +195,7 @@ public:
     /** Get assimp string
     * automatically filters the string data
     */
-    static String get_assimp_string(const aiString &p_string) const {
+    static String get_assimp_string(const aiString &p_string) {
         //convert an assimp String to a Godot String
         String name;
         name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
@@ -175,7 +210,7 @@ public:
         return name;
     }
 
-    static String get_anim_string_from_assimp(const aiString &p_string) const {
+    static String get_anim_string_from_assimp(const aiString &p_string) {
 
         String name;
         name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
@@ -192,7 +227,7 @@ public:
      * This just convers the aiString to a parsed utf8 string
      * Without removing special chars etc
      */
-    static String get_raw_string_from_assimp(const aiString &p_string) const {
+    static String get_raw_string_from_assimp(const aiString &p_string) {
         String name;
         name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
         return name;
@@ -248,12 +283,12 @@ public:
         aiNode const *current_node = p_current_node;
         Transform xform;
         while (current_node != NULL) {
-            xform = _assimp_matrix_transform(current_node->mTransformation) * xform;
+            xform = assimp_matrix_transform(current_node->mTransformation) * xform;
             current_node = current_node->mParent;
         }
         return xform;
     }
 
-}
+};
 
 #endif // IMPORT_UTILS_IMPORTER_ASSIMP_H
