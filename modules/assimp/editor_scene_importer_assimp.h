@@ -114,41 +114,6 @@ private:
 		};
 	};
 
-	struct AssetImportFbx {
-		enum ETimeMode {
-			TIME_MODE_DEFAULT = 0,
-			TIME_MODE_120 = 1,
-			TIME_MODE_100 = 2,
-			TIME_MODE_60 = 3,
-			TIME_MODE_50 = 4,
-			TIME_MODE_48 = 5,
-			TIME_MODE_30 = 6,
-			TIME_MODE_30_DROP = 7,
-			TIME_MODE_NTSC_DROP_FRAME = 8,
-			TIME_MODE_NTSC_FULL_FRAME = 9,
-			TIME_MODE_PAL = 10,
-			TIME_MODE_CINEMA = 11,
-			TIME_MODE_1000 = 12,
-			TIME_MODE_CINEMA_ND = 13,
-			TIME_MODE_CUSTOM = 14,
-			TIME_MODE_TIME_MODE_COUNT = 15
-		};
-		enum UpAxis {
-			UP_VECTOR_AXIS_X = 1,
-			UP_VECTOR_AXIS_Y = 2,
-			UP_VECTOR_AXIS_Z = 3
-		};
-		enum FrontAxis {
-			FRONT_PARITY_EVEN = 1,
-			FRONT_PARITY_ODD = 2,
-		};
-
-		enum CoordAxis {
-			COORD_RIGHT = 0,
-			COORD_LEFT = 1
-		};
-	};
-
 	struct ImportState {
 
 		String path;
@@ -178,14 +143,9 @@ private:
 		const aiNode *node;
 	};
 
-	const Transform _assimp_matrix_transform(const aiMatrix4x4 p_matrix);
-	String _assimp_get_string(const aiString &p_string) const;
-	Transform _get_global_assimp_node_transform(const aiNode *p_current_node);
-
+	
 	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
 	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
-	void _find_texture_path(const String &p_path, String &path, bool &r_found);
-	void _find_texture_path(const String &p_path, _Directory &dir, String &path, bool &found, String extension);
 
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
@@ -227,7 +187,6 @@ public:
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
-	virtual Ref<Animation> import_animation(const String &p_path, uint32_t p_flags, int p_bake_fps);
 };
 #endif
 #endif
