@@ -143,7 +143,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_EmbedTextures |
 								 aiProcess_SplitByBoneCount |
 								 0;
-	const aiScene *scene = importer.ReadFile(s_path.c_str(), post_process_Steps);
+	aiScene *scene = (aiScene*)importer.ReadFile(s_path.c_str(), post_process_Steps);
 	printf("post process has run?\n");
 	ERR_EXPLAIN(String("Open Asset Import failed to open: ") + String(importer.GetErrorString()));
 	ERR_FAIL_COND_V(scene == NULL, NULL);
@@ -277,56 +277,7 @@ T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, co
 	ERR_FAIL_V(p_values[0]);
 }
 
-void EditorSceneImporterAssimp::_read_bones_from_assimp(ImportState &state, const aiNode *p_assimp_node) {
-
-	Transform mesh_offset =  AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
-	//Transform mesh_offset = _get_global_assimp_node_transform(p_assimp_node);
-	//mesh_offset.basis = Basis();
-
-	// retrieve this transform mesh (not the scene mesh)
-	for (unsigned int mesh_index = 0; mesh_index < p_assimp_node->mNumMeshes; mesh_index++) {
-
-		// get the node mesh by index - assimp
-		const aiMesh *mesh = state.assimp_scene->mMeshes[mesh_index];
-
-		// intentional behaviour one mesh per skeleton
-		Skeleton * skeleton = NULL;
-
-		// iterate over all the bones on the mesh for this node only!
-		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
-			
-			// we know a bone exists so let's make a skeleton for it to be contained in
-			if(skeleton == NULL)
-			{
-				// allocate new skeleton mesh because this is a new instance for this mesh.
-				skeleton = memnew(Skeleton);
-				// global information - set skeleton
-				state.skeletons.push_back(skeleton);
-			}
-
-			const aiBone *bone = mesh->mBones[boneIndex];
-			skeleton->add_bone(String(bone->mName.C_Str()));
-			skeleton->set_bone_rest(skeleton->get_bone_count(), mesh_offset * AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
-		}
-	}
-
-	// todo: move this into _read_bones_from_assimp
-	// todo: set skeleton path
-	// todo: set skeleton transform
-	/*for (Map<MeshInstance *, Skeleton *>::Element *E = state.mesh_skeletons.front(); E; E = E->next()) {
-		MeshInstance *mesh = E->key();
-		Skeleton *skeleton = E->get();
-		NodePath skeleton_path = mesh->get_path_to(skeleton);
-		mesh->set_skeleton_path(skeleton_path);
-	}*/
-
-	// recursive node lookup
-	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_read_bones_from_assimp(state, p_assimp_node->mChildren[i]);
-	}
-}
-
-Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights) {
+Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights) {
 	ERR_FAIL_COND_V(scene == NULL, NULL);
 
 	ImportState state;
@@ -353,13 +304,16 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, const 
 	}	
 
 	if (scene->mRootNode) {
-		// read bones from assimp - creates skeleton automatically too. (recursive)
-		_read_bones_from_assimp(state, state.assimp_scene->mRootNode);
-
+		
+		Vector<MeshInstance*> mesh_list;
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
-			_generate_node(state, scene->mRootNode->mChildren[i], state.root);
+			_generate_node(state, (aiScene*)scene, scene->mRootNode->mChildren[i], state.root, mesh_list, -1);
 		}
+
+				// read bones from assimp - creates skeleton automatically too. (recursive)
+		//_read_bones_from_assimp(state, state.assimp_scene->mRootNode, mesh_list);
+
 	}
 
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -402,7 +356,7 @@ void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, cons
 	Vector<float> scale_times;
 	Vector<Quat> rot_values;
 	Vector<float> rot_times;
-
+	
 	for (size_t p = 0; p < assimp_track->mNumPositionKeys; p++) {
 		aiVector3D pos = assimp_track->mPositionKeys[p].mValue;
 		pos_values.push_back(Vector3(pos.x, pos.y, pos.z));
@@ -1293,11 +1247,36 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 	return mesh;
 }
 
-void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode *p_assimp_node, Node *p_parent) {
+/* to be moved into assimp */
+aiBone* get_bone_by_name(aiScene* scene, aiString bone_name )
+{	
+	for( unsigned int mesh_id = 0; mesh_id < scene->mNumMeshes; ++mesh_id) {
+		aiMesh *mesh = scene->mMeshes[mesh_id];
 
+		// iterate over all the bones on the mesh for this node only!
+		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+			aiBone *bone = mesh->mBones[boneIndex];
+			if(bone->mName == bone_name)
+			{
+				return bone;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+void EditorSceneImporterAssimp::_generate_node(
+	ImportState &state, 
+	aiScene *scene, 
+	const aiNode *p_assimp_node, 
+	Node *p_parent, Vector<MeshInstance*>& mesh_list, 
+	int bone_parent_id) {
 	Spatial *new_node = NULL;
 	String node_name = AssimpUtils::get_assimp_string(p_assimp_node->mName);
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
+	// can safely return null
+	aiBone* bone = get_bone_by_name(scene, p_assimp_node->mName);
 	bool ignore_creation = false;
 	if (p_assimp_node->mNumMeshes > 0) {
 		/* MESH NODE */
@@ -1341,6 +1320,7 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 	
 		mesh_node->set_mesh(mesh);
 		new_node = mesh_node;
+		mesh_list.push_back(mesh_node);
 
 	} else if (state.light_cache.has(node_name)) {
 
@@ -1411,27 +1391,29 @@ void EditorSceneImporterAssimp::_generate_node(ImportState &state, const aiNode 
 		xform.set_look_at(pos, look_at, up);
 
 		new_node = camera;
-	} else if (state.bone_owners.has(node_name)) {
-
-		// ignore skeleton or bone node.
+	} else if (bone != NULL) {
+		printf("Found bone! %s, parent %d", p_assimp_node->mName.C_Str(), bone_parent_id);
+		// this transform is a bone
+		//skeleton->add_bone(node_name);
+		//skeleton->set_bone_rest(skeleton->get_bone_count(), node_transform);
+		bone_parent_id++; // increment this to auto count bone parent id
 		ignore_creation = true;
-		OS::get_singleton()->print("ignoring bone: %s\n", node_name.c_str());
 	} else {
 		//generic node
 		new_node = memnew(Spatial);
 	}
 
 	// ignore skeleton and bone nodes.
-	if(!ignore_creation)
+	if(!ignore_creation && new_node != NULL) 
 	{
-		new_node->set_name(node_name);
-		new_node->set_transform(node_transform);
-		p_parent->add_child(new_node);
-		new_node->set_owner(state.root);
-		state.node_map[node_name] = new_node;
-	}
+		// new_node->set_name(node_name);
+		// new_node->set_transform(node_transform);
+		// p_parent->add_child(new_node);
+		// new_node->set_owner(state.root);
+		// state.node_map[node_name] = new_node;
+	}	
 
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_generate_node(state, p_assimp_node->mChildren[i], new_node);
+		_generate_node(state, scene, p_assimp_node->mChildren[i], new_node, mesh_list, bone_parent_id);
 	}
 }
