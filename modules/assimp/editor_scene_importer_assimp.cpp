@@ -306,14 +306,19 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 	if (scene->mRootNode) {
 		
 		Vector<MeshInstance*> mesh_list;
+
+		
+		Skeleton * skel = memnew(Skeleton);
+
+		state.root->add_child(skel);
+		skel->set_owner(state.root);
+		state.skeletons.push_back(skel);
+
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
-			_generate_node(state, (aiScene*)scene, scene->mRootNode->mChildren[i], state.root, mesh_list, -1);
+			_generate_node(state, (aiScene*)scene, skel, scene->mRootNode->mChildren[i], state.root, mesh_list, -1);
 		}
-
-				// read bones from assimp - creates skeleton automatically too. (recursive)
-		//_read_bones_from_assimp(state, state.assimp_scene->mRootNode, mesh_list);
-
+	
 	}
 
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -1255,20 +1260,24 @@ aiBone* get_bone_by_name(aiScene* scene, aiString bone_name )
 
 		// iterate over all the bones on the mesh for this node only!
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+			
 			aiBone *bone = mesh->mBones[boneIndex];
 			if(bone->mName == bone_name)
 			{
 				return bone;
 			}
+
+			printf("bone name: %s\n", bone->mName.C_Str());
 		}
 	}
 
 	return NULL;
 }
-
+// testing only
 void EditorSceneImporterAssimp::_generate_node(
 	ImportState &state, 
 	aiScene *scene, 
+	Skeleton *skel,
 	const aiNode *p_assimp_node, 
 	Node *p_parent, Vector<MeshInstance*>& mesh_list, 
 	int bone_parent_id) {
@@ -1277,7 +1286,6 @@ void EditorSceneImporterAssimp::_generate_node(
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
 	// can safely return null
 	aiBone* bone = get_bone_by_name(scene, p_assimp_node->mName);
-	bool ignore_creation = false;
 	if (p_assimp_node->mNumMeshes > 0) {
 		/* MESH NODE */
 		Ref<Mesh> mesh;
@@ -1394,26 +1402,31 @@ void EditorSceneImporterAssimp::_generate_node(
 	} else if (bone != NULL) {
 		printf("Found bone! %s, parent %d", p_assimp_node->mName.C_Str(), bone_parent_id);
 		// this transform is a bone
-		//skeleton->add_bone(node_name);
-		//skeleton->set_bone_rest(skeleton->get_bone_count(), node_transform);
+		skel->add_bone(node_name);
+		skel->set_bone_rest(skel->get_bone_count()-1, node_transform.affine_inverse());
+		
+		if(bone_parent_id != -1)
+		{
+			skel->set_bone_parent(bone_parent_id, bone_parent_id - 1);
+		}
 		bone_parent_id++; // increment this to auto count bone parent id
-		ignore_creation = true;
+		new_node = memnew(Spatial);
 	} else {
 		//generic node
 		new_node = memnew(Spatial);
 	}
 
 	// ignore skeleton and bone nodes.
-	if(!ignore_creation && new_node != NULL) 
+	if(new_node != NULL && p_parent != NULL) 
 	{
-		// new_node->set_name(node_name);
-		// new_node->set_transform(node_transform);
-		// p_parent->add_child(new_node);
-		// new_node->set_owner(state.root);
-		// state.node_map[node_name] = new_node;
+		new_node->set_name(node_name);
+		new_node->set_transform(node_transform);
+		p_parent->add_child(new_node);
+		new_node->set_owner(state.root);
+		state.node_map[node_name] = new_node;
 	}	
 
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_generate_node(state, scene, p_assimp_node->mChildren[i], new_node, mesh_list, bone_parent_id);
+		_generate_node(state, scene, skel, p_assimp_node->mChildren[i], new_node, mesh_list, bone_parent_id);
 	}
 }
