@@ -150,14 +150,13 @@ private:
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
-	void _generate_node(ImportState &state, const aiNode *p_assimp_node, Node *p_parent);
-	void _read_bones_from_assimp(ImportState &state, const aiNode *p_assimp_node);
+	void _generate_node(ImportState &state, aiScene* scene, const aiNode *p_assimp_node, Node *p_parent, Vector<MeshInstance*>& mesh_list, int bone_parent_id = -1);
 	
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
 
-	Spatial *_generate_scene(const String &p_path, const aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights);
+	Spatial *_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights);
 
 	String _assimp_anim_string_to_string(const aiString &p_string) const;
 	String _assimp_raw_string_to_string(const aiString &p_string) const;
