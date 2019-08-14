@@ -150,7 +150,7 @@ private:
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
-	void _generate_node(ImportState &state, aiScene* scene, const aiNode *p_assimp_node, Node *p_parent, Vector<MeshInstance*>& mesh_list, int bone_parent_id = -1);
+	void _generate_node(ImportState &state, aiScene* scene, Skeleton *skel, const aiNode *p_assimp_node, Node *p_parent, Vector<MeshInstance*>& mesh_list, int bone_parent_id = -1);
 	
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
