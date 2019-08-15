@@ -119,13 +119,15 @@ private:
 		String path;
 		const aiScene *assimp_scene;
 		uint32_t max_bone_weights;
+
 		Spatial *root;
 		Map<String, Ref<Mesh> > mesh_cache;
 		Map<int, Ref<Material> > material_cache;
 		Map<String, int> light_cache;
 		Map<String, int> camera_cache;
-		Vector<Skeleton *> skeletons;
-		Map<String, int> bone_owners; //maps bones to skeleton index owned by
+		//Vector<Skeleton *> skeletons;
+		Map<Skeleton *, Node*> armature_skeletons; // maps skeletons based on their armature nodes.
+		
 		Map<String, Node *> node_map;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
@@ -150,7 +152,7 @@ private:
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
-	void _generate_node(ImportState &state, aiScene* scene, Skeleton *skel, const aiNode *p_assimp_node, Node *p_parent, Vector<MeshInstance*>& mesh_list, int bone_parent_id = -1);
+	void _generate_node(ImportState &state, aiScene* scene, Skeleton * skeleton, const aiNode *p_assimp_node, Node *p_parent);
 	
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
