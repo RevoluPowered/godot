@@ -479,12 +479,15 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
 		// todo: let's get rid of bone owners and node_map if possible?
 
+		// todo: fix the mesh path
+		// todo: fix bug with disapearing mesh
 		
 		for(Map<Skeleton *, Node*>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair=key_value_pair->next() ) 
 		{
 			Skeleton * skeleton = key_value_pair->key();
 
 			bool is_bone = skeleton->find_bone(node_name) != -1;
+			print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
 			NodePath node_path;
 			
 			if (is_bone) {
@@ -496,6 +499,8 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				Node *node = state.node_map[node_name];
 				node_path = state.root->get_path_to(node);
 			}
+
+			print_verbose("Path " + node_path);
 
 			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
 		}	
@@ -1281,8 +1286,6 @@ aiBone* get_bone_by_name(aiScene* scene, aiString bone_name )
 		}
 	}
 
-	printf("Failed to find bone! %s", bone_name.C_Str());
-
 	return NULL;
 }
 // testing only
@@ -1340,8 +1343,6 @@ void EditorSceneImporterAssimp::_generate_node(
 	
 		mesh_node->set_mesh(mesh);
 		new_node = mesh_node;
-		state.mesh_list.push_back(mesh_node);
-
 	} else if (state.light_cache.has(node_name)) {
 
 		Light *light = NULL;
@@ -1427,8 +1428,9 @@ void EditorSceneImporterAssimp::_generate_node(
 			skeleton = memnew(Skeleton);
 			state.root->add_child(skeleton);
 			skeleton->set_owner(state.root);
+			print_verbose("test " + p_parent->get_name());
 			// store root node for this skeleton / used in animation playback and bone detection.
-			state.armature_skeletons.insert(skeleton, p_assimp_node);
+			state.armature_skeletons.insert(skeleton, p_parent);
 			// used because we translate bones on skeleton into world transform, then later we 'rest' them all.
 			skeleton->set_use_bones_in_world_transform(true);
 			print_verbose("Created new FBX skeleton for armature node");
