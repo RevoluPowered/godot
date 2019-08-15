@@ -204,9 +204,7 @@ public:
             print_verbose("Replacing " + name + " containing : with " + replaced_name);
             name = replaced_name;
         }
-
-        name = name.replace(".", ""); //can break things, specially bone names
-
+        
         return name;
     }
 
