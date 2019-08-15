@@ -28,6 +28,10 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
+
+// todo: instead of creating a texture and discarding it / instead create an image and use it directly instead of pointlessly instancing
+// why? performance benefit 2x - directly fetching from visual server, instead of keeping the one we already have available
+
 #include "assimp/DefaultLogger.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/LogStream.hpp"
@@ -307,6 +311,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		
 		Vector<MeshInstance*> mesh_list;
 
+ 		
 		
 		Skeleton * skel = memnew(Skeleton);
 
@@ -314,10 +319,15 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		skel->set_owner(state.root);
 		state.skeletons.push_back(skel);
 
+		// todo: properly fix transform for animated bones
+
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			_generate_node(state, (aiScene*)scene, skel, scene->mRootNode->mChildren[i], state.root, mesh_list, -1);
 		}
+
+		// convert world to local for skeleton bones
+		skel->localize_rests();
 	
 	}
 
@@ -1264,12 +1274,13 @@ aiBone* get_bone_by_name(aiScene* scene, aiString bone_name )
 			aiBone *bone = mesh->mBones[boneIndex];
 			if(bone->mName == bone_name)
 			{
+				printf("matched bone by name: %s\n", bone->mName.C_Str());
 				return bone;
 			}
-
-			printf("bone name: %s\n", bone->mName.C_Str());
 		}
 	}
+
+	printf("Failed to find bone! %s", bone_name.C_Str());
 
 	return NULL;
 }
@@ -1323,6 +1334,7 @@ void EditorSceneImporterAssimp::_generate_node(
 			mesh = _generate_mesh_from_surface_indices(state, &node_transform, surface_indices, skeleton, double_sided_material);
 			state.mesh_cache[mesh_key] = mesh;
 		}
+
 		MeshInstance *mesh_node = memnew(MeshInstance);
 		mesh = state.mesh_cache[mesh_key];
 	
@@ -1400,17 +1412,43 @@ void EditorSceneImporterAssimp::_generate_node(
 
 		new_node = camera;
 	} else if (bone != NULL) {
-		printf("Found bone! %s, parent %d", p_assimp_node->mName.C_Str(), bone_parent_id);
+		//printf("Found bone! %s, parent %d", p_assimp_node->mName.C_Str(), bone_parent_id);
+		
 		// this transform is a bone
 		skel->add_bone(node_name);
-		skel->set_bone_rest(skel->get_bone_count()-1, node_transform.affine_inverse());
+
+		skel->set_bone_rest(skel->get_bone_count()-1, node_transform);
 		
-		if(bone_parent_id != -1)
+		const aiNode *parent_node_assimp = p_assimp_node->mParent;
+		
+		// ensure we have a parent
+		if(parent_node_assimp != NULL)
 		{
-			skel->set_bone_parent(bone_parent_id, bone_parent_id - 1);
+			int parent_bone_id = skel->find_bone(AssimpUtils::get_assimp_string(parent_node_assimp->mName));
+			int current_bone_id = skel->find_bone(node_name);
+			print_verbose("Parent bone id "+ itos(parent_bone_id) + " current bone id" + itos(current_bone_id));
+
+			skel->set_bone_parent(current_bone_id, parent_bone_id );
 		}
-		bone_parent_id++; // increment this to auto count bone parent id
+
+
+		// note: second parameter detects other root nodes
+		if(state.armature_node == NULL || !state.armature_node->FindNode(armature->mName))
+		{
+			if (state.skeleton->get_parent()) {
+				state.skeleton->get_parent()->remove_child(state.skeleton);
+			}
+			mesh_node->add_child(state.skeleton);
+			//state.skeleton->set_owner(state.root);
+			state.armature_node = armature;
+		}
+		
+		
+		// bone_parent_id++; // increment this to auto count bone parent id
 		new_node = memnew(Spatial);
+
+
+
 	} else {
 		//generic node
 		new_node = memnew(Spatial);
