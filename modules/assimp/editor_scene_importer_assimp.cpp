@@ -129,7 +129,6 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 //aiProcess_GenSmoothNormals |
 								 aiProcess_JoinIdenticalVertices |
 								 aiProcess_ImproveCacheLocality |
-								 aiProcess_LimitBoneWeights |
 								 //aiProcess_RemoveRedundantMaterials | // Causes a crash
 								 aiProcess_SplitLargeMeshes |
 								 aiProcess_Triangulate |
@@ -318,6 +317,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		state.root->add_child(skel);
 		skel->set_owner(state.root);
 		state.skeletons.push_back(skel);
+		skel->set_use_bones_in_world_transform(true);
 
 		// todo: properly fix transform for animated bones
 
@@ -433,6 +433,8 @@ void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, cons
 	}
 }
 
+// animation tracks are per bone
+
 void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_animation_index, int p_bake_fps) {
 
 	ERR_FAIL_INDEX(p_animation_index, (int)state.assimp_scene->mNumAnimations);
@@ -482,20 +484,22 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			continue; //do not bother
 		}
 
+		// todo: let's get rid of bone owners and node_map if possible?
 		bool is_bone = state.bone_owners.has(node_name);
 		NodePath node_path;
-		Skeleton *skeleton = NULL;
+		Skeleton *skeleton = state.skeletons[0]; // todo: refactor :D
 
+		
 		if (is_bone) {
-			skeleton = state.skeletons[state.bone_owners[node_name]];
-			String path = state.root->get_path_to(skeleton);
-			path += ":" + node_name;
-			node_path = path;
-		} else {
+		 	skeleton = state.skeletons[0];
+		 	String path = state.root->get_path_to(skeleton);
+		 	path += ":" + node_name;
+		 	node_path = path;
+		 } else {
 
-			ERR_CONTINUE(!state.node_map.has(node_name));
-			Node *node = state.node_map[node_name];
-			node_path = state.root->get_path_to(node);
+		 	ERR_CONTINUE(!state.node_map.has(node_name));
+		 	Node *node = state.node_map[node_name];
+		 	node_path = state.root->get_path_to(node);
 		}
 
 		_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
@@ -1416,8 +1420,9 @@ void EditorSceneImporterAssimp::_generate_node(
 		
 		// this transform is a bone
 		skel->add_bone(node_name);
-
-		skel->set_bone_rest(skel->get_bone_count()-1, node_transform);
+		//Transform xform_parent = AssimpUtils::_get_global_assimp_node_transform(p_assimp_node->mParent->mTransformation);
+		Transform xform = AssimpUtils::_get_global_assimp_node_transform(p_assimp_node);
+		skel->set_bone_rest(skel->get_bone_count()-1, xform);
 		
 		const aiNode *parent_node_assimp = p_assimp_node->mParent;
 		
@@ -1432,20 +1437,20 @@ void EditorSceneImporterAssimp::_generate_node(
 		}
 
 
-		// note: second parameter detects other root nodes
-		if(state.armature_node == NULL || !state.armature_node->FindNode(armature->mName))
-		{
-			if (state.skeleton->get_parent()) {
-				state.skeleton->get_parent()->remove_child(state.skeleton);
-			}
-			mesh_node->add_child(state.skeleton);
-			//state.skeleton->set_owner(state.root);
-			state.armature_node = armature;
-		}
+		// // note: second parameter detects other root nodes
+		// if(state.armature_node == NULL || !state.armature_node->FindNode(armature->mName))
+		// {
+		// 	if (state.skeleton->get_parent()) {
+		// 		state.skeleton->get_parent()->remove_child(state.skeleton);
+		// 	}
+		// 	mesh_node->add_child(state.skeleton);
+		// 	//state.skeleton->set_owner(state.root);
+		// 	state.armature_node = armature;
+		// }
 		
 		
 		// bone_parent_id++; // increment this to auto count bone parent id
-		new_node = memnew(Spatial);
+		//new_node = memnew(Spatial);
 
 
 
