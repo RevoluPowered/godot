@@ -127,8 +127,10 @@ private:
 		Map<String, int> camera_cache;
 		//Vector<Skeleton *> skeletons;
 		Map<Skeleton *, Node*> armature_skeletons; // maps skeletons based on their armature nodes.
-		
+		Map<aiBone*, Skeleton*> bone_to_skeleton_lookup; // maps bones back into their skeleton
+		// very useful for when you need to ask assimp for the bone mesh
 		Map<String, Node *> node_map;
+		Map<const aiNode*, Node*> assimp_node_map;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};
@@ -153,7 +155,7 @@ private:
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
 	void _generate_node(ImportState &state, aiScene* scene, Skeleton * skeleton, const aiNode *p_assimp_node, Node *p_parent);
-	
+	void generate_mesh_phase_from_skeletal_mesh( ImportState &state, aiScene * scene, const aiNode *p_assimp_node, Node * p_parent);
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
