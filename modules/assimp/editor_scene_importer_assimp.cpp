@@ -1293,24 +1293,9 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 	aiScene * scene,
 	const aiNode *p_assimp_node, Node * p_parent) {
 
-	Spatial *new_node = NULL;
 	String node_name = AssimpUtils::get_assimp_string(p_assimp_node->mName);
 
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
-
-	//
-	
-	// // find skeleton from the 
-	// for(Map<Skeleton *, Node*>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair=key_value_pair->next() ) 
-	// {
-	// 	//skeleton = key_value_pair->key();
-	// 	Node* node = key_value_pair->value();
-	// 	if(node == p_parent)
-	// 	{
-	// 		print_verbose("Found valid skeleton for mesh");
-	// 		skeleton = key_value_pair->key();
-	// 	}
-	// }
 
 	// only process meshes
 	if (p_assimp_node->mNumMeshes > 0) {
@@ -1366,27 +1351,29 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		}
 
 		MeshInstance *mesh_node = memnew(MeshInstance);
-		mesh = state.mesh_cache[mesh_key];
-	
-		if(skeleton != NULL)
-		{
-			// allocate mesh to the correct skeleton
-			mesh_node->set_skeleton_path(skeleton->get_path());
-		}
+		mesh = state.mesh_cache[mesh_key];			
 		mesh_node->set_mesh(mesh);
-		new_node = mesh_node;
-	}
 
-	// ignore skeleton and bone nodes.
-	if(new_node != NULL && p_parent != NULL) 
-	{
-		new_node->set_name(node_name);
-		new_node->set_transform(node_transform);
-		p_parent->add_child(new_node);
-		new_node->set_owner(state.root);
-		state.node_map[node_name] = new_node;
-		state.assimp_node_map[p_assimp_node] = new_node;
-	}	
+		// ignore skeleton and bone nodes.
+		if(mesh_node != NULL && p_parent != NULL) 
+		{
+			mesh_node->set_name(node_name);
+			mesh_node->set_transform(node_transform);
+			p_parent->add_child(mesh_node);
+			mesh_node->set_owner(state.root);
+			
+			state.node_map[node_name] = mesh_node;
+			state.assimp_node_map[p_assimp_node] = mesh_node;
+		}	
+		
+		// re-parent skeleton to this mesh node
+		// then assign mesh to this skeleton
+		if(skeleton != NULL && mesh_node != NULL)
+		{		
+			// allocate mesh to the correct skeleton
+			mesh_node->set_skeleton_path(skeleton->get_path());		
+		}
+	}
 
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
 		generate_mesh_phase_from_skeletal_mesh(state, scene, p_assimp_node->mChildren[i], state.assimp_node_map[p_assimp_node]);
@@ -1511,7 +1498,7 @@ void EditorSceneImporterAssimp::_generate_node(
 			
 			// skeleton and armature in this format are 1:1 and must remain that way
 			// (p_parent in this instance only) should always be parented together.
-			state.root->add_child(skeleton);
+			p_parent->add_child(skeleton);
 			skeleton->set_owner(state.root);
 
 			print_verbose("test " + p_parent->get_name());
