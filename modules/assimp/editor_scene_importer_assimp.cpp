@@ -1552,7 +1552,7 @@ void EditorSceneImporterAssimp::_generate_node(
 
 			skeleton->set_bone_parent(current_bone_id, parent_bone_id );
 		}
-	} else {
+	} else if(p_assimp_node->mNumMeshes <= 0) {
 		//generic node
 		new_node = memnew(Spatial);
 	}
