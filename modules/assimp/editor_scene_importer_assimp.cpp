@@ -471,20 +471,12 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	for (size_t i = 0; i < anim->mNumChannels; i++) {
 		const aiNodeAnim *track = anim->mChannels[i];
 		String node_name = AssimpUtils::get_assimp_string(track->mNodeName);
-		/*
-		if (node_name.find(ASSIMP_FBX_KEY) != -1) {
-			String p_track_type = node_name.get_slice(ASSIMP_FBX_KEY, 1);
-			if (p_track_type == "_Translation" || p_track_type == "_Rotation" || p_track_type == "_Scaling") {
-				continue;
-			}
-		}
-*/
+
 		if (track->mNumRotationKeys == 0 && track->mNumPositionKeys == 0 && track->mNumScalingKeys == 0) {
 			continue; //do not bother
 		}
 
 		// todo: let's get rid of bone owners and node_map if possible?
-
 		// todo: fix the mesh path
 		// todo: fix bug with disapearing mesh
 		
@@ -505,8 +497,6 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				Node *node = state.node_map[node_name];
 				node_path = state.root->get_path_to(node);
 			}
-
-			//print_verbose("Path " + node_path);
 
 			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
 		}	
@@ -1494,7 +1484,7 @@ void EditorSceneImporterAssimp::_generate_node(
 
 		// prevent more than one skeleton existing per mesh
 		// * multiple root bones have this
-		// * this simply filters the node out if it has already been added.
+		// * this simply filters the node out if it has already been added then references the skeleton so we know the actual skeleton for this node
 		for(Map<Skeleton *, Node*>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair=key_value_pair->next() ) 
 		{
 			if(key_value_pair->value() == p_parent)
@@ -1526,7 +1516,7 @@ void EditorSceneImporterAssimp::_generate_node(
 			print_verbose("test " + p_parent->get_name());
 			// store root node for this skeleton / used in animation playback and bone detection.
 			state.armature_skeletons.insert(skeleton, p_parent);
-			// used because we translate bones on skeleton into world transform, then later we 'rest' them all.
+			
 			skeleton->set_use_bones_in_world_transform(true);
 			print_verbose("Created new FBX skeleton for armature node");
 		}
