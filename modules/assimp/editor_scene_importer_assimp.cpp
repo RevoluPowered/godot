@@ -130,7 +130,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_JoinIdenticalVertices |
 								 aiProcess_ImproveCacheLocality |
 								 //aiProcess_RemoveRedundantMaterials | // Causes a crash
-								 aiProcess_SplitLargeMeshes |
+								 //aiProcess_SplitLargeMeshes |
 								 aiProcess_Triangulate |
 								 aiProcess_GenUVCoords |
 								 //aiProcess_FindDegenerates |
@@ -144,7 +144,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 //aiProcess_OptimizeGraph |
 								 //aiProcess_Debone |
 								 aiProcess_EmbedTextures |
-								 aiProcess_SplitByBoneCount |
+								 //aiProcess_SplitByBoneCount |
 								 0;
 	aiScene *scene = (aiScene*)importer.ReadFile(s_path.c_str(), post_process_Steps);
 	printf("post process has run?\n");
@@ -1482,10 +1482,10 @@ void EditorSceneImporterAssimp::_generate_node(
 			if(key_value_pair->value() == p_parent)
 			{
 				// apply the skeleton for this mesh
-				skeleton = key_value_pair->key();
+				//skeleton = key_value_pair->key();
 
 				// force this off
-				do_not_create_armature = true;
+				//do_not_create_armature = true;
 			}
 		}
 
