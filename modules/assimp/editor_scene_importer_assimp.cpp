@@ -1368,9 +1368,13 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		// re-parent skeleton to this mesh node
 		// then assign mesh to this skeleton
 		if(skeleton != NULL && mesh_node != NULL)
-		{		
+		{
+			// skeleton and mesh in this format are 1:1 and must remain that way - we think?
+			mesh_node->add_child(skeleton);
+			skeleton->set_owner(state.root);
+
 			// allocate mesh to the correct skeleton
-			mesh_node->set_skeleton_path(skeleton->get_path());		
+			//mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));		
 		}
 	}
 
@@ -1495,16 +1499,11 @@ void EditorSceneImporterAssimp::_generate_node(
 			// create new skeleton on the root.
 			skeleton = memnew(Skeleton);
 			
-			// skeleton and armature in this format are 1:1 and must remain that way
-			// (p_parent in this instance only) should always be parented together.
-			p_parent->add_child(skeleton);
-			skeleton->set_owner(state.root);
-
 			print_verbose("test " + p_parent->get_name());
 			// store root node for this skeleton / used in animation playback and bone detection.
 			state.armature_skeletons.insert(skeleton, p_parent);
 			
-			skeleton->set_use_bones_in_world_transform(true);
+			//skeleton->set_use_bones_in_world_transform(true);
 			print_verbose("Created new FBX skeleton for armature node");
 		}
 
