@@ -1514,9 +1514,8 @@ void EditorSceneImporterAssimp::_generate_node(
 		// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
 		state.bone_to_skeleton_lookup.insert(bone, skeleton);
 
-		//Transform xform_parent = AssimpUtils::_get_global_assimp_node_transform(p_assimp_node->mParent->mTransformation);
-		Transform xform = AssimpUtils::_get_global_assimp_node_transform(p_assimp_node);
-		skeleton->set_bone_rest(skeleton->get_bone_count()-1, xform);
+		Transform xform = AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix);
+		skeleton->set_bone_rest(skeleton->get_bone_count()-1, xform.affine_inverse());
 		
 		const aiNode *parent_node_assimp = p_assimp_node->mParent;
 		
