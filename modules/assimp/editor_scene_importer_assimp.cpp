@@ -1377,6 +1377,11 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		MeshInstance *mesh_node = memnew(MeshInstance);
 		mesh = state.mesh_cache[mesh_key];
 	
+		if(skeleton != NULL)
+		{
+			// allocate mesh to the correct skeleton
+			mesh_node->set_skeleton_path(skeleton->get_path());
+		}
 		mesh_node->set_mesh(mesh);
 		new_node = mesh_node;
 	}
