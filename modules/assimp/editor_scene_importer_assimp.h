@@ -135,6 +135,18 @@ private:
 		AnimationPlayer *animation_player;
 	};
 
+	/** Recursive state is used to push state into functions instead of specifying them
+	* This makes the code easier to handle too and add extra arguments without breaking things
+	*/
+	struct RecursiveState {
+		Transform& node_transform;
+		Skeleton *skeleton;
+		Transform& new_node;
+		const String& node_name;
+		const aiNode* assimp_node;
+		const Node* parent_node;
+	};
+
 	struct BoneInfo {
 		uint32_t bone;
 		float weight;
@@ -154,7 +166,13 @@ private:
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
-	void _generate_node(ImportState &state, aiScene* scene, Skeleton * skeleton, const aiNode *p_assimp_node, Node *p_parent);
+	
+	// simple object creation functions
+	void create_light( ImportState &state, RecursiveState& recursive_state );
+	void create_camera( ImportState &state, RecursiveState& recursive_state );
+	void create_bone( ImportState &state, RecursiveState& recursive_state );
+
+	void _generate_node(ImportState &state, Skeleton * skeleton, const aiNode *assimp_node, Node *parent_node);
 	void generate_mesh_phase_from_skeletal_mesh( ImportState &state, aiScene * scene, const aiNode *p_assimp_node, Node * p_parent);
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
