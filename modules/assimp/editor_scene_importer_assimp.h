@@ -126,11 +126,11 @@ private:
 		Map<String, int> light_cache;
 		Map<String, int> camera_cache;
 		//Vector<Skeleton *> skeletons;
-		Map<Skeleton *, Node*> armature_skeletons; // maps skeletons based on their armature nodes.
-		Map<aiBone*, Skeleton*> bone_to_skeleton_lookup; // maps bones back into their skeleton
+		Map<Skeleton *, const Node*> armature_skeletons; // maps skeletons based on their armature nodes.
+		Map<const aiBone*, Skeleton*> bone_to_skeleton_lookup; // maps bones back into their skeleton
 		// very useful for when you need to ask assimp for the bone mesh
 		Map<String, Node *> node_map;
-		Map<const aiNode*, Node*> assimp_node_map;
+		Map<const aiNode*, const Node*> assimp_node_map;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};
@@ -141,10 +141,11 @@ private:
 	struct RecursiveState {
 		Transform& node_transform;
 		Skeleton *skeleton;
-		Transform& new_node;
+		Spatial* new_node;
 		const String& node_name;
 		const aiNode* assimp_node;
 		const Node* parent_node;
+		const aiBone* bone;
 	};
 
 	struct BoneInfo {
