@@ -1043,6 +1043,11 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				int bone_index = p_skeleton->find_bone(bone_name);
 				ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
+				
+				ERR_CONTINUE_MSG(bone_index == -1, "Error -1 bone index detected (find_bone) for bone: " + bone_name);
+				// this also refers to bones without vertexes.
+				//ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
+
 				for (size_t w = 0; w < bone->mNumWeights; w++) {
 
 					aiVertexWeight ai_weights = bone->mWeights[w];
@@ -1159,7 +1164,6 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 		Mesh::PrimitiveType primitive = Mesh::PRIMITIVE_TRIANGLES;
 		Map<uint32_t, String> morph_mesh_idx_names;
 		for (size_t j = 0; j < ai_mesh->mNumAnimMeshes; j++) {
-
 			if (i == 0) {
 				//only do this the first time
 				String ai_anim_mesh_name = AssimpUtils::get_assimp_string(ai_mesh->mAnimMeshes[j]->mName);
@@ -1467,6 +1471,9 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 	// set to true when you want to use skeleton reference from cache.
 	bool do_not_create_armature = false;
 
+	// Report errors for bone creation - this is a serious error
+	ERR_FAIL_COND_MSG(recursive_state.parent_node == NULL, "Parent node is null - skeletal validation failed!");
+
 	// prevent more than one skeleton existing per mesh
 	// * multiple root bones have this
 	// * this simply filters the node out if it has already been added then references the skeleton so we know the actual skeleton for this node
@@ -1517,6 +1524,10 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 
 		recursive_state.skeleton->set_bone_parent(current_bone_id, parent_bone_id);
 	}
+
+	// parent node assignment required since we didn't instance anything 
+	// todo: this should be fixed at arch level rather than edge case detection level.
+	//recursive_state.new_node = recursive_state.parent_node;
 }
 
 // testing only
@@ -1528,9 +1539,10 @@ void EditorSceneImporterAssimp::_generate_node(
 	String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
 
+	
 	// can safely return null - is this node a bone?
 	aiBone *bone = get_bone_by_name(state.assimp_scene, assimp_node->mName);
-
+	
 	// out arguments helper - for pushing state down into creation functions
 	RecursiveState recursive_state(node_transform, skeleton, new_node, node_name, assimp_node, parent_node, bone);
 
@@ -1540,12 +1552,16 @@ void EditorSceneImporterAssimp::_generate_node(
 	} else if (state.camera_cache.has(node_name)) {
 		create_camera(state, recursive_state);
 	} else if (bone != NULL) {
+		// new node not allocated here - bad design needs fixed.
 		create_bone(state, recursive_state);
 	} else if (assimp_node->mNumMeshes <= 0) {
 		//generic node
 		recursive_state.new_node = memnew(Spatial);
 	}
 
+	// todo: leak caused by recursive_state.parent_node null - so creates object but doesn't reference it!
+	ERR_FAIL_COND_MSG(recursive_state.parent_node == NULL, "Parent node is null, this is a serious error");
+	ERR_FAIL_COND_MSG(recursive_state.new_node == NULL, "New node is null, this is a safe error to ignore!");
 	// ignore skeleton and bone nodes.
 	if (recursive_state.new_node != NULL && recursive_state.parent_node != NULL) {
 		// todo: migrate this into it's own function
@@ -1553,7 +1569,11 @@ void EditorSceneImporterAssimp::_generate_node(
 		recursive_state.new_node->set_transform(recursive_state.node_transform);
 		recursive_state.parent_node->add_child(recursive_state.new_node);
 		recursive_state.new_node->set_owner(state.root);
+
+		// cache node mapping
 		state.node_map[recursive_state.node_name] = recursive_state.new_node;
+
+		// assimp node to godot node lookup table
 		state.assimp_node_map[recursive_state.assimp_node] = recursive_state.new_node;
 	}
 
