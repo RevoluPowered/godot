@@ -1287,8 +1287,9 @@ aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
  */
 void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		ImportState &state,
-		aiScene *scene,
-		const aiNode *p_assimp_node, Node *p_parent) {
+		const aiScene *scene,
+		const aiNode *p_assimp_node, 
+		Node *p_parent) {
 
 	String node_name = AssimpUtils::get_assimp_string(p_assimp_node->mName);
 
@@ -1371,7 +1372,7 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 	}
 
 	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		generate_mesh_phase_from_skeletal_mesh(state, scene, p_assimp_node->mChildren[i], state.assimp_node_map[p_assimp_node]);
+		generate_mesh_phase_from_skeletal_mesh(state, scene, p_assimp_node->mChildren[i], (Node *)(state.assimp_node_map[p_assimp_node]));
 	}
 }
 
@@ -1529,17 +1530,10 @@ void EditorSceneImporterAssimp::_generate_node(
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
 
 	// can safely return null - is this node a bone?
-	aiBone *bone = get_bone_by_name(scene, assimp_node->mName);
+	aiBone *bone = get_bone_by_name(state.assimp_scene, assimp_node->mName);
 
 	// out arguments helper - for pushing state down into creation functions
-	RecursiveState recursive_state;
-	recursive_state.node_transform = node_transform;
-	recursive_state.bone = bone;
-	recursive_state.skeleton = skeleton;
-	recursive_state.new_node = new_node;
-	recursive_state.node_name = node_name;
-	recursive_state.assimp_node = assimp_node;
-	recursive_state.parent_node = parent_node;
+	RecursiveState recursive_state(node_transform, skeleton, new_node, node_name, assimp_node, parent_node, bone);
 
 	// Creation code
 	if (state.light_cache.has(node_name)) {
@@ -1556,16 +1550,16 @@ void EditorSceneImporterAssimp::_generate_node(
 	// ignore skeleton and bone nodes.
 	if (recursive_state.new_node != NULL && recursive_state.parent_node != NULL) {
 		// todo: migrate this into it's own function
-		new_node->set_name(recursive_state.node_name);
-		new_node->set_transform(recursive_state.node_transform);
-		p_parent->add_child(recursive_state.new_node);
-		new_node->set_owner(state.root);
+		recursive_state.new_node->set_name(recursive_state.node_name);
+		recursive_state.new_node->set_transform(recursive_state.node_transform);
+		recursive_state.parent_node->add_child(recursive_state.new_node);
+		recursive_state.new_node->set_owner(state.root);
 		state.node_map[recursive_state.node_name] = recursive_state.new_node;
 		state.assimp_node_map[recursive_state.assimp_node] = recursive_state.new_node;
 	}
 
-	// recurse into all child elements
-	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		_generate_node(state, recursive_state.skeleton, p_assimp_node->mChildren[i], recursive_state.new_node);
+	// recurse into all child elementss
+	for (size_t i = 0; i < recursive_state.assimp_node->mNumChildren; i++) {
+		_generate_node(state, recursive_state.skeleton, recursive_state.assimp_node->mChildren[i], recursive_state.new_node);
 	}
 }
