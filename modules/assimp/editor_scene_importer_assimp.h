@@ -139,12 +139,28 @@ private:
 	* This makes the code easier to handle too and add extra arguments without breaking things
 	*/
 	struct RecursiveState {
+		RecursiveState( 
+			Transform& _node_transform,
+			Skeleton * _skeleton,
+			Spatial* _new_node,
+			const String& _node_name,
+			const aiNode* _assimp_node,
+			Node* _parent_node,
+			const aiBone* _bone
+		) : node_transform(_node_transform),
+			skeleton(_skeleton),
+			new_node(_new_node),
+			node_name(_node_name),
+			assimp_node(_assimp_node),
+			parent_node(_parent_node),
+			bone(_bone) {}
+
 		Transform& node_transform;
 		Skeleton *skeleton;
 		Spatial* new_node;
 		const String& node_name;
 		const aiNode* assimp_node;
-		const Node* parent_node;
+		Node* parent_node;
 		const aiBone* bone;
 	};
 
@@ -174,7 +190,7 @@ private:
 	void create_bone( ImportState &state, RecursiveState& recursive_state );
 
 	void _generate_node(ImportState &state, Skeleton * skeleton, const aiNode *assimp_node, Node *parent_node);
-	void generate_mesh_phase_from_skeletal_mesh( ImportState &state, aiScene * scene, const aiNode *p_assimp_node, Node * p_parent);
+	void generate_mesh_phase_from_skeletal_mesh( ImportState &state, const aiScene * scene, const aiNode *p_assimp_node, Node * p_parent);
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
