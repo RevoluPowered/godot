@@ -1576,6 +1576,13 @@ void EditorSceneImporterAssimp::_generate_node(
 		ImportState &state,
 		Skeleton *skeleton,
 		const aiNode *assimp_node, Node *parent_node) {
+
+	// sanity check
+	ERR_FAIL_COND(state.root == NULL);
+	ERR_FAIL_COND(state.assimp_scene == NULL);
+	ERR_FAIL_COND(assimp_node == NULL);
+	ERR_FAIL_COND(parent_node == NULL);
+		
 	Spatial *new_node = NULL;
 	String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
