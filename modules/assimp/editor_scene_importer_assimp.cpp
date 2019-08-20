@@ -1388,11 +1388,12 @@ void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial * ne
 	// assign properties to new godot note
 	new_node->set_name(Name);
 	new_node->set_transform(transform);
-	new_node->set_owner(state.root);
 
 	// add element as child to parent
 	parent_node->add_child(new_node);
 
+	// owner must be set after
+	new_node->set_owner(state.root);
 	// cache node mapping results by name and then by aiNode* 
 	state.node_map[Name] = new_node;
 	state.assimp_node_map[node] = new_node;
