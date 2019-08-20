@@ -1532,6 +1532,14 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 		// create new skeleton on the root.
 		recursive_state.skeleton = memnew(Skeleton);
 
+		ERR_FAIL_COND(state.root == NULL);
+		ERR_FAIL_COND(recursive_state.skeleton == NULL);
+		// root must be informed of its new child
+		state.root->add_child(recursive_state.skeleton);
+		
+		// owner must be set after adding to tree
+		recursive_state.skeleton->set_owner(state.root);
+
 		print_verbose("Parent armature node is called " + recursive_state.parent_node->get_name());
 		// store root node for this skeleton / used in animation playback and bone detection.
 		state.armature_skeletons.insert(recursive_state.skeleton, recursive_state.parent_node);
