@@ -54,10 +54,10 @@
 class AssimpStream : public Assimp::LogStream {
 public:
 	// Constructor
-	AssimpStream(){}
+	AssimpStream() {}
 
 	// Destructor
-	~AssimpStream(){}
+	~AssimpStream() {}
 	// Write something using your own functionality
 	void write(const char *message) {
 		print_verbose(String("Open Asset Import: ") + String(message).strip_edges());
@@ -126,11 +126,11 @@ private:
 		Map<String, int> light_cache;
 		Map<String, int> camera_cache;
 		//Vector<Skeleton *> skeletons;
-		Map<Skeleton *, const Node*> armature_skeletons; // maps skeletons based on their armature nodes.
-		Map<const aiBone*, Skeleton*> bone_to_skeleton_lookup; // maps bones back into their skeleton
+		Map<Skeleton *, const Node *> armature_skeletons; // maps skeletons based on their armature nodes.
+		Map<const aiBone *, Skeleton *> bone_to_skeleton_lookup; // maps bones back into their skeleton
 		// very useful for when you need to ask assimp for the bone mesh
 		Map<String, Node *> node_map;
-		Map<const aiNode*, const Node*> assimp_node_map;
+		Map<const aiNode *, const Node *> assimp_node_map;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};
@@ -139,29 +139,29 @@ private:
 	* This makes the code easier to handle too and add extra arguments without breaking things
 	*/
 	struct RecursiveState {
-		RecursiveState( 
-			Transform& _node_transform,
-			Skeleton * _skeleton,
-			Spatial* _new_node,
-			const String& _node_name,
-			const aiNode* _assimp_node,
-			Node* _parent_node,
-			const aiBone* _bone
-		) : node_transform(_node_transform),
-			skeleton(_skeleton),
-			new_node(_new_node),
-			node_name(_node_name),
-			assimp_node(_assimp_node),
-			parent_node(_parent_node),
-			bone(_bone) {}
+		RecursiveState(
+				Transform &_node_transform,
+				Skeleton *_skeleton,
+				Spatial *_new_node,
+				const String &_node_name,
+				const aiNode *_assimp_node,
+				Node *_parent_node,
+				const aiBone *_bone) :
+				node_transform(_node_transform),
+				skeleton(_skeleton),
+				new_node(_new_node),
+				node_name(_node_name),
+				assimp_node(_assimp_node),
+				parent_node(_parent_node),
+				bone(_bone) {}
 
-		Transform& node_transform;
+		Transform &node_transform;
 		Skeleton *skeleton;
-		Spatial* new_node;
-		const String& node_name;
-		const aiNode* assimp_node;
-		Node* parent_node;
-		const aiBone* bone;
+		Spatial *new_node;
+		const String &node_name;
+		const aiNode *assimp_node;
+		Node *parent_node;
+		const aiBone *bone;
 	};
 
 	struct BoneInfo {
@@ -176,26 +176,25 @@ private:
 		const aiNode *node;
 	};
 
-	
 	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
 	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
 
 	Ref<Texture> _load_texture(ImportState &state, String p_path);
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
-	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
-	
+	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform *parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
+
 	// utility for node creation
-	void attach_new_node(ImportState &state, Spatial * new_node, const aiNode * node, Node * parent_node, String Name, Transform& transform);
+	void attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform);
 	// simple object creation functions
-	void create_light(ImportState &state, RecursiveState& recursive_state);
-	void create_camera(ImportState &state, RecursiveState& recursive_state);
-	void create_bone(ImportState &state, RecursiveState& recursive_state);
-	void create_mesh(ImportState &state, RecursiveState& recursive_state);
+	void create_light(ImportState &state, RecursiveState &recursive_state);
+	void create_camera(ImportState &state, RecursiveState &recursive_state);
+	void create_bone(ImportState &state, RecursiveState &recursive_state);
+	void create_mesh(ImportState &state, RecursiveState &recursive_state);
 
 	// recursive node generator
-	void _generate_node(ImportState &state, Skeleton * skeleton, const aiNode *assimp_node, Node *parent_node);
+	void _generate_node(ImportState &state, Skeleton *skeleton, const aiNode *assimp_node, Node *parent_node);
 	// runs after _generate_node as it must then use pre-created godot skeleton.
-	void generate_mesh_phase_from_skeletal_mesh( ImportState &state, const aiNode *assimp_node, Node * parent_node);
+	void generate_mesh_phase_from_skeletal_mesh(ImportState &state, const aiNode *assimp_node, Node *parent_node);
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);

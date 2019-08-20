@@ -110,7 +110,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 	std::string s_path(w_path.begin(), w_path.end());
 	importer.SetPropertyBool(AI_CONFIG_PP_FD_REMOVE, true);
 	// Cannot remove pivot points because the static mesh will be in the wrong place
-	importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, true);
+	importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 	int32_t max_bone_weights = 4;
 	//if (p_flags & IMPORT_ANIMATION_EIGHT_WEIGHTS) {
 	//	const int eight_bones = 8;
@@ -1284,8 +1284,7 @@ aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
 /**
  * Create a new mesh for the node supplied
  */
-void EditorSceneImporterAssimp::create_mesh( ImportState &state, RecursiveState &recursive_state)
-{
+void EditorSceneImporterAssimp::create_mesh(ImportState &state, RecursiveState &recursive_state) {
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
@@ -1337,28 +1336,24 @@ void EditorSceneImporterAssimp::create_mesh( ImportState &state, RecursiveState 
 
 	MeshInstance *mesh_node = memnew(MeshInstance);
 	mesh = state.mesh_cache[mesh_key];
-	mesh_node->set_mesh(mesh);	
+	mesh_node->set_mesh(mesh);
 	recursive_state.new_node = mesh_node;
 
-
 	// attach new node - done slightly differently since new_node is not in use here.
-	attach_new_node(state, 
-		recursive_state.new_node, 
-		recursive_state.assimp_node, 
-		recursive_state.parent_node, 
-		recursive_state.node_name, 
-		recursive_state.node_transform
-	);
+	attach_new_node(state,
+			recursive_state.new_node,
+			recursive_state.assimp_node,
+			recursive_state.parent_node,
+			recursive_state.node_name,
+			recursive_state.node_transform);
 
 	// set this once and for all
-	if(skeleton != NULL)
-	{
+	if (skeleton != NULL) {
 		skeleton->set_transform(recursive_state.node_transform);
 
 		// must be done after added to tree
 		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
 	}
-
 }
 
 /** generate_mesh_phase_from_skeletal_mesh
@@ -1366,7 +1361,7 @@ void EditorSceneImporterAssimp::create_mesh( ImportState &state, RecursiveState 
  */
 void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		ImportState &state,
-		const aiNode *assimp_node, 
+		const aiNode *assimp_node,
 		Node *parent_node) {
 
 	ERR_FAIL_COND(parent_node == NULL);
@@ -1379,15 +1374,14 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 	// new_node, bone and skeleton are okay to be null in the second pass
 	RecursiveState recursive_state(node_transform, NULL, NULL, node_name, assimp_node, parent_node, NULL);
 
-
 	// only process meshes
 	if (recursive_state.assimp_node->mNumMeshes > 0) {
 		create_mesh(state, recursive_state);
 	}
-	
+
 	for (size_t i = 0; i < recursive_state.assimp_node->mNumChildren; i++) {
-		generate_mesh_phase_from_skeletal_mesh(state, recursive_state.assimp_node->mChildren[i], 
-			recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
+		generate_mesh_phase_from_skeletal_mesh(state, recursive_state.assimp_node->mChildren[i],
+				recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
 	}
 }
 
@@ -1395,12 +1389,12 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
  * attach_new_node
  * configures node, assigns parent node
 **/
-void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial * new_node, const aiNode * node, Node * parent_node, String Name, Transform& transform ) {
+void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform) {
 	ERR_FAIL_COND(new_node == NULL);
 	ERR_FAIL_COND(node == NULL);
 	ERR_FAIL_COND(parent_node == NULL);
 	ERR_FAIL_COND(state.root == NULL);
-	
+
 	// assign properties to new godot note
 	new_node->set_name(Name);
 	new_node->set_transform(transform);
@@ -1411,7 +1405,7 @@ void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial * ne
 	// owner must be set after
 	new_node->set_owner(state.root);
 
-	// cache node mapping results by name and then by aiNode* 
+	// cache node mapping results by name and then by aiNode*
 	state.node_map[Name] = new_node;
 	state.assimp_node_map[node] = new_node;
 }
@@ -1435,7 +1429,7 @@ void EditorSceneImporterAssimp::create_light(ImportState &state, RecursiveState 
 
 		Transform light_transform;
 		light_transform.set_look_at(pos, pos + dir, up);
-		
+
 		recursive_state.node_transform *= light_transform;
 
 	} else if (ai_light->mType == aiLightSource_POINT) {
@@ -1466,18 +1460,15 @@ void EditorSceneImporterAssimp::create_light(ImportState &state, RecursiveState 
 	}
 	ERR_FAIL_COND(light == NULL);
 
-
 	light->set_color(Color(ai_light->mColorDiffuse.r, ai_light->mColorDiffuse.g, ai_light->mColorDiffuse.b));
 	recursive_state.new_node = light;
 
-
-	attach_new_node(state, 
-		recursive_state.new_node, 
-		recursive_state.assimp_node, 
-		recursive_state.parent_node, 
-		recursive_state.node_name, 
-		recursive_state.node_transform
-	);
+	attach_new_node(state,
+			recursive_state.new_node,
+			recursive_state.assimp_node,
+			recursive_state.parent_node,
+			recursive_state.node_name,
+			recursive_state.node_transform);
 }
 
 /**
@@ -1504,15 +1495,13 @@ void EditorSceneImporterAssimp::create_camera(ImportState &state, RecursiveState
 
 	recursive_state.new_node = camera;
 
-	attach_new_node(state, 
-		recursive_state.new_node, 
-		recursive_state.assimp_node, 
-		recursive_state.parent_node, 
-		recursive_state.node_name, 
-		recursive_state.node_transform
-	);
+	attach_new_node(state,
+			recursive_state.new_node,
+			recursive_state.assimp_node,
+			recursive_state.parent_node,
+			recursive_state.node_name,
+			recursive_state.node_transform);
 }
-
 
 /**
  * Create Bone 
@@ -1554,7 +1543,7 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 		ERR_FAIL_COND(recursive_state.skeleton == NULL);
 		// root must be informed of its new child
 		state.root->add_child(recursive_state.skeleton);
-		
+
 		// owner must be set after adding to tree
 		recursive_state.skeleton->set_owner(state.root);
 
@@ -1599,7 +1588,7 @@ void EditorSceneImporterAssimp::_generate_node(
 	ERR_FAIL_COND(state.assimp_scene == NULL);
 	ERR_FAIL_COND(assimp_node == NULL);
 	ERR_FAIL_COND(parent_node == NULL);
-		
+
 	Spatial *new_node = NULL;
 	String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
 	Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
@@ -1620,18 +1609,17 @@ void EditorSceneImporterAssimp::_generate_node(
 	} else if (assimp_node->mNumMeshes <= 0) {
 		//generic node
 		recursive_state.new_node = memnew(Spatial);
-		attach_new_node(state, 
-			recursive_state.new_node, 
-			recursive_state.assimp_node, 
-			recursive_state.parent_node, 
-			recursive_state.node_name, 
-			recursive_state.node_transform
-		);
+		attach_new_node(state,
+				recursive_state.new_node,
+				recursive_state.assimp_node,
+				recursive_state.parent_node,
+				recursive_state.node_name,
+				recursive_state.node_transform);
 	}
 
 	// recurse into all child elements
 	for (size_t i = 0; i < recursive_state.assimp_node->mNumChildren; i++) {
-		_generate_node(state, recursive_state.skeleton, recursive_state.assimp_node->mChildren[i], 
-			recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
+		_generate_node(state, recursive_state.skeleton, recursive_state.assimp_node->mChildren[i],
+				recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
 	}
 }
