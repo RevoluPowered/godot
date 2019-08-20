@@ -1298,14 +1298,16 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, RecursiveState &
 		if (ai_mesh->mNumBones > 0) {
 			// we only need the first bone to retrieve the skeleton
 			aiBone *first = ai_mesh->mBones[0];
+			ERR_FAIL_COND(first == NULL);
 			skeleton = state.bone_to_skeleton_lookup[first];
-			ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 
 			if (skeleton == NULL) {
 				print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
 			} else {
 				print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
 			}
+			// I really need the skeleton and bone to be known as this is something flaky in model exporters.
+			ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 		}
 		surface_indices.push_back(mesh_index);
 	}
@@ -1558,6 +1560,7 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 	// this transform is a bone
 	recursive_state.skeleton->add_bone(recursive_state.node_name);
 
+	ERR_FAIL_COND(recursive_state.skeleton == NULL); // serious bug we must now exit.
 	// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
 	state.bone_to_skeleton_lookup.insert(recursive_state.bone, recursive_state.skeleton);
 
@@ -1572,7 +1575,7 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 		int parent_bone_id = recursive_state.skeleton->find_bone(AssimpUtils::get_assimp_string(parent_node_assimp->mName));
 		int current_bone_id = recursive_state.skeleton->find_bone(recursive_state.node_name);
 		print_verbose("Parent bone id " + itos(parent_bone_id) + " current bone id" + itos(current_bone_id));
-
+		print_verbose("Bone debug: " + AssimpUtils::get_assimp_string(parent_node_assimp->mName));
 		recursive_state.skeleton->set_bone_parent(current_bone_id, parent_bone_id);
 	}
 }
