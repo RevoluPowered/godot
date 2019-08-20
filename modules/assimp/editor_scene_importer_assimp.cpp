@@ -150,7 +150,6 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 //aiProcess_SplitByBoneCount |
 								 0;
 	aiScene *scene = (aiScene *)importer.ReadFile(s_path.c_str(), post_process_Steps);
-	printf("post process has run?\n");
 	ERR_EXPLAIN(String("Open Asset Import failed to open: ") + String(importer.GetErrorString()));
 	ERR_FAIL_COND_V(scene == NULL, NULL);
 	return _generate_scene(p_path, scene, p_flags, p_bake_fps, max_bone_weights);
@@ -328,7 +327,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		// now populate mesh - as we need to do this at the same time as we have a fully imported skeleton
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			print_verbose("generating mesh phase from skeletal mesh");
-			generate_mesh_phase_from_skeletal_mesh(state, (aiScene *)scene, scene->mRootNode->mChildren[i], state.root);
+			generate_mesh_phase_from_skeletal_mesh(state, scene->mRootNode->mChildren[i], state.root);
 		}
 	}
 
@@ -1281,102 +1280,119 @@ aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
 	return NULL;
 }
 
+/**
+ * Create a new mesh for the node supplied
+ */
+void EditorSceneImporterAssimp::create_mesh( ImportState &state, RecursiveState &recursive_state)
+{
+	/* MESH NODE */
+	Ref<Mesh> mesh;
+	Skeleton *skeleton = NULL;
+	// see if we have mesh cache for this.
+	Vector<int> surface_indices;
+	for (uint32_t i = 0; i < recursive_state.assimp_node->mNumMeshes; i++) {
+		int mesh_index = recursive_state.assimp_node->mMeshes[i];
+		aiMesh *ai_mesh = state.assimp_scene->mMeshes[recursive_state.assimp_node->mMeshes[i]];
+
+		// Map<aiBone*, Skeleton*> // this is what we need
+		if (ai_mesh->mNumBones > 0) {
+			// we only need the first bone to retrieve the skeleton
+			aiBone *first = ai_mesh->mBones[0];
+			skeleton = state.bone_to_skeleton_lookup[first];
+			ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
+
+			if (skeleton == NULL) {
+				print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
+			} else {
+				print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
+			}
+		}
+		surface_indices.push_back(mesh_index);
+	}
+
+	surface_indices.sort();
+	String mesh_key;
+	for (int i = 0; i < surface_indices.size(); i++) {
+		if (i > 0) {
+			mesh_key += ":";
+		}
+		mesh_key += itos(surface_indices[i]);
+	}
+
+	if (!state.mesh_cache.has(mesh_key)) {
+		//adding cache
+		aiString cull_mode; //cull is on mesh, which is kind of stupid tbh
+		bool double_sided_material = false;
+		if (recursive_state.assimp_node->mMetaData) {
+			recursive_state.assimp_node->mMetaData->Get("Culling", cull_mode);
+		}
+		if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
+			double_sided_material = true;
+		}
+
+		mesh = _generate_mesh_from_surface_indices(state, &recursive_state.node_transform, surface_indices, skeleton, double_sided_material);
+		state.mesh_cache[mesh_key] = mesh;
+	}
+
+	MeshInstance *mesh_node = memnew(MeshInstance);
+	mesh = state.mesh_cache[mesh_key];
+	mesh_node->set_mesh(mesh);	
+	recursive_state.new_node = mesh_node;
+
+
+	// attach new node - done slightly differently since new_node is not in use here.
+	attach_new_node(state, 
+		recursive_state.new_node, 
+		recursive_state.assimp_node, 
+		recursive_state.parent_node, 
+		recursive_state.node_name, 
+		recursive_state.node_transform
+	);
+
+	// set this once and for all
+	if(skeleton != NULL)
+	{
+		skeleton->set_transform(recursive_state.node_transform);
+
+		// must be done after added to tree
+		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
+	}
+
+}
+
 /** generate_mesh_phase_from_skeletal_mesh
  * This must be executed after generate_nodes because the skeleton doesn't exist until that has completed the first pass
  */
 void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(
 		ImportState &state,
-		const aiScene *scene,
-		const aiNode *p_assimp_node, 
-		Node *p_parent) {
+		const aiNode *assimp_node, 
+		Node *parent_node) {
 
-	String node_name = AssimpUtils::get_assimp_string(p_assimp_node->mName);
+	ERR_FAIL_COND(parent_node == NULL);
+	ERR_FAIL_COND(assimp_node == NULL);
 
-	Transform node_transform = AssimpUtils::assimp_matrix_transform(p_assimp_node->mTransformation);
+	String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
+	Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
+
+	// out arguments helper - for pushing state down into creation functions
+	// new_node, bone and skeleton are okay to be null in the second pass
+	RecursiveState recursive_state(node_transform, NULL, NULL, node_name, assimp_node, parent_node, NULL);
+
 
 	// only process meshes
-	if (p_assimp_node->mNumMeshes > 0) {
-		/* MESH NODE */
-		Ref<Mesh> mesh;
-		Skeleton *skeleton = NULL;
-		// see if we have mesh cache for this.
-		Vector<int> surface_indices;
-		for (uint32_t i = 0; i < p_assimp_node->mNumMeshes; i++) {
-			int mesh_index = p_assimp_node->mMeshes[i];
-			aiMesh *ai_mesh = state.assimp_scene->mMeshes[p_assimp_node->mMeshes[i]];
-
-			// Map<aiBone*, Skeleton*> // this is what we need
-			if (ai_mesh->mNumBones > 0) {
-				// we only need the first bone to retrieve the skeleton
-				aiBone *first = ai_mesh->mBones[0];
-				skeleton = state.bone_to_skeleton_lookup[first];
-				if (skeleton == NULL) {
-					print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
-				} else {
-					print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
-				}
-			}
-			surface_indices.push_back(mesh_index);
-		}
-
-		surface_indices.sort();
-		String mesh_key;
-		for (int i = 0; i < surface_indices.size(); i++) {
-			if (i > 0) {
-				mesh_key += ":";
-			}
-			mesh_key += itos(surface_indices[i]);
-		}
-
-		if (!state.mesh_cache.has(mesh_key)) {
-			//adding cache
-			aiString cull_mode; //cull is on mesh, which is kind of stupid tbh
-			bool double_sided_material = false;
-			if (p_assimp_node->mMetaData) {
-				p_assimp_node->mMetaData->Get("Culling", cull_mode);
-			}
-			if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
-				double_sided_material = true;
-			}
-
-			mesh = _generate_mesh_from_surface_indices(state, &node_transform, surface_indices, skeleton, double_sided_material);
-			state.mesh_cache[mesh_key] = mesh;
-		}
-
-		MeshInstance *mesh_node = memnew(MeshInstance);
-		mesh = state.mesh_cache[mesh_key];
-		mesh_node->set_mesh(mesh);
-
-		// ignore skeleton and bone nodes.
-		if (mesh_node != NULL && p_parent != NULL) {
-			mesh_node->set_name(node_name);
-			mesh_node->set_transform(node_transform);
-			p_parent->add_child(mesh_node);
-			mesh_node->set_owner(state.root);
-
-			state.node_map[node_name] = mesh_node;
-			state.assimp_node_map[p_assimp_node] = mesh_node;
-		}
-
-		// re-parent skeleton to this mesh node
-		// then assign mesh to this skeleton
-		if (skeleton != NULL && mesh_node != NULL) {
-			// skeleton and mesh in this format are 1:1 and must remain that way - we think?
-			mesh_node->add_child(skeleton);
-			skeleton->set_owner(state.root);
-
-			// allocate mesh to the correct skeleton
-			//mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
-		}
+	if (recursive_state.assimp_node->mNumMeshes > 0) {
+		create_mesh(state, recursive_state);
 	}
-
-	for (size_t i = 0; i < p_assimp_node->mNumChildren; i++) {
-		generate_mesh_phase_from_skeletal_mesh(state, scene, p_assimp_node->mChildren[i], (Node *)(state.assimp_node_map[p_assimp_node]));
+	
+	for (size_t i = 0; i < recursive_state.assimp_node->mNumChildren; i++) {
+		generate_mesh_phase_from_skeletal_mesh(state, recursive_state.assimp_node->mChildren[i], 
+			recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
 	}
 }
 
-/** attach_new_node
-  * configures node, assigns parent node
+/** 
+ * attach_new_node
+ * configures node, assigns parent node
 **/
 void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial * new_node, const aiNode * node, Node * parent_node, String Name, Transform& transform ) {
 	ERR_FAIL_COND(new_node == NULL);
@@ -1393,6 +1409,7 @@ void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial * ne
 
 	// owner must be set after
 	new_node->set_owner(state.root);
+
 	// cache node mapping results by name and then by aiNode* 
 	state.node_map[Name] = new_node;
 	state.assimp_node_map[node] = new_node;
