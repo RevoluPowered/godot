@@ -1297,17 +1297,23 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, RecursiveState &
 		// Map<aiBone*, Skeleton*> // this is what we need
 		if (ai_mesh->mNumBones > 0) {
 			// we only need the first bone to retrieve the skeleton
-			aiBone *first = ai_mesh->mBones[0];
+			const aiBone *first = ai_mesh->mBones[0];
+			
 			ERR_FAIL_COND(first == NULL);
-			skeleton = state.bone_to_skeleton_lookup[first];
+			
+			Map<const aiBone*, Skeleton*>::Element *match = state.bone_to_skeleton_lookup.find(first);
+			if(match != NULL)
+			{
+				skeleton = match->value();
 
-			if (skeleton == NULL) {
-				print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
-			} else {
-				print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
+				if (skeleton == NULL) {
+					print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
+				} else {
+					print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
+				}
+				// I really need the skeleton and bone to be known as this is something flaky in model exporters.
+				ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 			}
-			// I really need the skeleton and bone to be known as this is something flaky in model exporters.
-			ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 		}
 		surface_indices.push_back(mesh_index);
 	}
@@ -1561,6 +1567,9 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 	recursive_state.skeleton->add_bone(recursive_state.node_name);
 
 	ERR_FAIL_COND(recursive_state.skeleton == NULL); // serious bug we must now exit.
+
+	print_verbose("Bone added to lookup: " + AssimpUtils::get_assimp_string(recursive_state.bone->mName));
+	print_verbose("Skeleton attached to: " + recursive_state.skeleton->get_name());
 	// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
 	state.bone_to_skeleton_lookup.insert(recursive_state.bone, recursive_state.skeleton);
 
