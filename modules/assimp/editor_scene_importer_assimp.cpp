@@ -1297,12 +1297,11 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, RecursiveState &
 		if (ai_mesh->mNumBones > 0) {
 			// we only need the first bone to retrieve the skeleton
 			const aiBone *first = ai_mesh->mBones[0];
-			
+
 			ERR_FAIL_COND(first == NULL);
-			
-			Map<const aiBone*, Skeleton*>::Element *match = state.bone_to_skeleton_lookup.find(first);
-			if(match != NULL)
-			{
+
+			Map<const aiBone *, Skeleton *>::Element *match = state.bone_to_skeleton_lookup.find(first);
+			if (match != NULL) {
 				skeleton = match->value();
 
 				if (skeleton == NULL) {
