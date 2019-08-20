@@ -184,6 +184,8 @@ private:
 	Ref<Material> _generate_material_from_index(ImportState &state, int p_index, bool p_double_sided);
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, Transform * parent_node, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
 	
+	// utility for node creation
+	void attach_new_node(ImportState &state, Spatial * new_node, const aiNode * node, Node * parent_node, String Name, Transform& transform );
 	// simple object creation functions
 	void create_light( ImportState &state, RecursiveState& recursive_state );
 	void create_camera( ImportState &state, RecursiveState& recursive_state );
