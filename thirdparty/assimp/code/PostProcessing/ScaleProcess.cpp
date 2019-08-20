@@ -104,7 +104,7 @@ void ScaleProcess::Execute( aiScene* pScene ) {
         }
     }
 
-    for( uint meshID = 0; meshID < pScene->mNumMeshes; meshID++)
+    for( unsigned int meshID = 0; meshID < pScene->mNumMeshes; meshID++)
     {
         aiMesh *mesh = pScene->mMeshes[meshID]; 
         
