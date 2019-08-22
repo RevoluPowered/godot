@@ -131,7 +131,7 @@ private:
 		// very useful for when you need to ask assimp for the bone mesh
 		Map<String, Node *> node_map;
 		Map<const aiNode *, const Node *> assimp_node_map;
-		Map<String, Ref<Image>> path_to_image_cache;
+		Map<String, Ref<Image> > path_to_image_cache;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};
@@ -189,7 +189,7 @@ private:
 	void create_camera(ImportState &state, RecursiveState &recursive_state);
 	void create_bone(ImportState &state, RecursiveState &recursive_state);
 	// non recursive - linear so must not use recursive arguments
-	void create_mesh(ImportState &state, const aiNode * assimp_node, const String& node_name, Node* current_node, Node* parent_node, Transform node_transform );
+	void create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
 
 	// recursive node generator
 	void _generate_node(ImportState &state, Skeleton *skeleton, const aiNode *assimp_node, Node *parent_node);
