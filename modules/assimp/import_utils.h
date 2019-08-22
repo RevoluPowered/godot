@@ -45,7 +45,6 @@
 
 #include <string>
 
-
 #define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor", 0, 0
 #define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness", 0, 0
 #define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness", 0, 0
@@ -63,7 +62,6 @@
 
 #define AI_MATKEY_FBX_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
 #define AI_MATKEY_FBX_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
-
 
 #define AI_MATKEY_FBX_MAYA_STINGRAY_DISPLACEMENT_SCALING_FACTOR "$raw.Maya|displacementscaling", 0, 0
 #define AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR "$raw.Maya|base_color", 0, 0
@@ -85,14 +83,12 @@
 #define AI_MATKEY_FBX_MAYA_STINGRAY_AO_TEXTURE "$raw.Maya|TEX_ao_map|file", aiTextureType_UNKNOWN, 0
 #define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo", aiTextureType_UNKNOWN, 0
 
-
 /**
  * Assimp Utils
  * Conversion tools / glue code to convert from assimp to godot
 */
 class AssimpUtils {
 public:
-
 	/**
 	 * calculate tangents for mesh data from assimp data
 	 */
@@ -334,7 +330,5 @@ public:
 		texture->set_flags(flags);
 	}
 };
-
-
 
 #endif // IMPORT_UTILS_IMPORTER_ASSIMP_H
