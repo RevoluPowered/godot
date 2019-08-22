@@ -45,12 +45,57 @@
 
 #include <string>
 
+
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor", 0, 0
+#define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness", 0, 0
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness", 0, 0
+
+#define AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE "$raw.Maya|emissionColor|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR "$raw.Maya|emission", 0, 0
+#define AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE "$raw.Maya|metalness|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_METALNESS_UV_XFORM "$raw.Maya|metalness|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE "$raw.Maya|diffuseRoughness|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_UV_XFORM "$raw.Maya|diffuseRoughness|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE "$raw.Maya|baseColor|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM "$raw.Maya|baseColor|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
+
+#define AI_MATKEY_FBX_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
+
+
+#define AI_MATKEY_FBX_MAYA_STINGRAY_DISPLACEMENT_SCALING_FACTOR "$raw.Maya|displacementscaling", 0, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR "$raw.Maya|base_color", 0, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR "$raw.Maya|emissive", 0, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR "$raw.Maya|metallic", 0, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR "$raw.Maya|roughness", 0, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR "$raw.Maya|emissive_intensity", 0, 0
+
+#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE "$raw.Maya|TEX_normal_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_UV_XFORM "$raw.Maya|TEX_normal_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE "$raw.Maya|TEX_color_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM "$raw.Maya|TEX_color_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE "$raw.Maya|TEX_metallic_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_UV_XFORM "$raw.Maya|TEX_metallic_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE "$raw.Maya|TEX_roughness_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_UV_XFORM "$raw.Maya|TEX_roughness_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE "$raw.Maya|TEX_emissive_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_UV_XFORM "$raw.Maya|TEX_emissive_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_TEXTURE "$raw.Maya|TEX_ao_map|file", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo", aiTextureType_UNKNOWN, 0
+
+
 /**
  * Assimp Utils
  * Conversion tools / glue code to convert from assimp to godot
 */
 class AssimpUtils {
 public:
+
+	/**
+	 * calculate tangents for mesh data from assimp data
+	 */
 	static void calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w) {
 		const aiVector3D normals = ai_mesh->mAnimMeshes[i]->mNormals[tri_index];
 		const Vector3 godot_normal = Vector3(normals.x, normals.y, normals.z);
@@ -97,99 +142,6 @@ public:
 			COORD_LEFT = 1
 		};
 	};
-
-	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture) {
-		ERR_FAIL_COND(map_mode == NULL);
-		aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
-		//for (size_t i = 0; i < 3; i++) {
-		tex_mode = map_mode[0];
-		//}
-		int32_t flags = Texture::FLAGS_DEFAULT;
-		if (tex_mode == aiTextureMapMode_Wrap) {
-			//Default
-		} else if (tex_mode == aiTextureMapMode_Clamp) {
-			flags = flags & ~Texture::FLAG_REPEAT;
-		} else if (tex_mode == aiTextureMapMode_Mirror) {
-			flags = flags | Texture::FLAG_MIRRORED_REPEAT;
-		}
-		texture->set_flags(flags);
-	}
-
-	/** find the texture path for the supplied fbx path inside godot
-     * very simple lookup for subfolders etc for a texture which may or may not be in a directory
-     */
-	static void find_texture_path(const String &r_p_path, String &r_path, bool &r_found) {
-
-		_Directory dir;
-
-		List<String> exts;
-		ImageLoader::get_recognized_extensions(&exts);
-
-		Vector<String> split_path = r_path.get_basename().split("*");
-		if (split_path.size() == 2) {
-			r_found = true;
-			return;
-		}
-
-		if (dir.file_exists(r_p_path.get_base_dir() + r_path.get_file())) {
-			r_path = r_p_path.get_base_dir() + r_path.get_file();
-			r_found = true;
-			return;
-		}
-
-		for (int32_t i = 0; i < exts.size(); i++) {
-			if (r_found) {
-				return;
-			}
-			if (r_found == false) {
-				find_texture_path(r_p_path, dir, r_path, r_found, "." + exts[i]);
-			}
-		}
-	}
-
-	/** find the texture path for the supplied fbx path inside godot
-     * very simple lookup for subfolders etc for a texture which may or may not be in a directory
-     */
-	static void find_texture_path(const String &p_path, _Directory &dir, String &path, bool &found, String extension) {
-		String name = path.get_basename() + extension;
-		if (dir.file_exists(name)) {
-			found = true;
-			path = name;
-			return;
-		}
-		String name_ignore_sub_directory = p_path.get_base_dir().plus_file(path.get_file().get_basename()) + extension;
-		if (dir.file_exists(name_ignore_sub_directory)) {
-			found = true;
-			path = name_ignore_sub_directory;
-			return;
-		}
-
-		String name_find_texture_sub_directory = p_path.get_base_dir() + "/textures/" + path.get_file().get_basename() + extension;
-		if (dir.file_exists(name_find_texture_sub_directory)) {
-			found = true;
-			path = name_find_texture_sub_directory;
-			return;
-		}
-		String name_find_texture_upper_sub_directory = p_path.get_base_dir() + "/Textures/" + path.get_file().get_basename() + extension;
-		if (dir.file_exists(name_find_texture_upper_sub_directory)) {
-			found = true;
-			path = name_find_texture_upper_sub_directory;
-			return;
-		}
-		String name_find_texture_outside_sub_directory = p_path.get_base_dir() + "/../textures/" + path.get_file().get_basename() + extension;
-		if (dir.file_exists(name_find_texture_outside_sub_directory)) {
-			found = true;
-			path = name_find_texture_outside_sub_directory;
-			return;
-		}
-
-		String name_find_upper_texture_outside_sub_directory = p_path.get_base_dir() + "/../Textures/" + path.get_file().get_basename() + extension;
-		if (dir.file_exists(name_find_upper_texture_outside_sub_directory)) {
-			found = true;
-			path = name_find_upper_texture_outside_sub_directory;
-			return;
-		}
-	}
 
 	/** Get assimp string
     * automatically filters the string data
@@ -285,6 +237,160 @@ public:
 		}
 		return xform;
 	}
+
+	/**
+	 * Find hardcoded textures from assimp which could be in many different directories
+	 */
+	static void find_texture_path(const String &p_path, _Directory &dir, String &path, bool &found, String extension) {
+		Vector<String> paths;
+		paths.push_back(path.get_basename() + extension);
+		paths.push_back(path + extension);
+		paths.push_back(path);
+		paths.push_back(p_path.get_base_dir().plus_file(path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file(path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file(path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file()));
+		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file().get_basename() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file() + extension));
+		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file()));
+		for (size_t i = 0; i < paths.size(); i++) {
+			if (dir.file_exists(paths[i])) {
+				found = true;
+				path = paths[i];
+				return;
+			}
+		}
+	}
+
+	/** find the texture path for the supplied fbx path inside godot
+     * very simple lookup for subfolders etc for a texture which may or may not be in a directory
+     */
+	static void find_texture_path(const String &r_p_path, String &r_path, bool &r_found) {
+		_Directory dir;
+
+		List<String> exts;
+		ImageLoader::get_recognized_extensions(&exts);
+
+		Vector<String> split_path = r_path.get_basename().split("*");
+		if (split_path.size() == 2) {
+			r_found = true;
+			return;
+		}
+
+		if (dir.file_exists(r_p_path.get_base_dir() + r_path.get_file())) {
+			r_path = r_p_path.get_base_dir() + r_path.get_file();
+			r_found = true;
+			return;
+		}
+
+		for (int32_t i = 0; i < exts.size(); i++) {
+			if (r_found) {
+				return;
+			}
+			if (r_found == false) {
+				find_texture_path(r_p_path, dir, r_path, r_found, "." + exts[i]);
+			}
+		}
+	}
+
+	/**
+	 * set_texture_mapping_mode
+	 * Helper to check the mapping mode of the texture (repeat, clamp and mirror)
+	 */
+	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture) {
+		ERR_FAIL_COND(map_mode == NULL);
+		aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
+		//for (size_t i = 0; i < 3; i++) {
+		tex_mode = map_mode[0];
+		//}
+		int32_t flags = Texture::FLAGS_DEFAULT;
+		if (tex_mode == aiTextureMapMode_Wrap) {
+			//Default
+		} else if (tex_mode == aiTextureMapMode_Clamp) {
+			flags = flags & ~Texture::FLAG_REPEAT;
+		} else if (tex_mode == aiTextureMapMode_Mirror) {
+			flags = flags | Texture::FLAG_MIRRORED_REPEAT;
+		}
+		texture->set_flags(flags);
+	}
+
+
+	/**
+	 *  LOAD IMAGE
+	 */
+	static Ref<Image> load_image(const aiScene *p_scene, String p_path) {
+		Vector<String> split_path = p_path.get_basename().split("*");
+		if (split_path.size() == 2) {
+			size_t texture_idx = split_path[1].to_int();
+			ERR_FAIL_COND_V(texture_idx >= p_scene->mNumTextures, Ref<Image>());
+			aiTexture *tex = p_scene->mTextures[texture_idx];
+			String filename = get_raw_string_from_assimp(tex->mFilename);
+			filename = filename.get_file();
+			print_verbose("Open Asset Import: Loading embedded texture " + filename);
+			if (tex->mHeight == 0) {
+				if (tex->CheckFormat("png")) {
+					Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					return img;
+				} else if (tex->CheckFormat("jpg")) {
+					Ref<Image> img = Image::_jpg_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					return img;
+				} else if (tex->CheckFormat("dds")) {
+					ERR_EXPLAIN("Open Asset Import: Embedded dds not implemented");
+					ERR_FAIL_COND_V(true, Ref<Image>());
+				}
+			} else {
+				Ref<Image> img;
+				img.instance();
+				PoolByteArray arr;
+				uint32_t size = tex->mWidth * tex->mHeight;
+				arr.resize(size);
+				memcpy(arr.write().ptr(), tex->pcData, size);
+				ERR_FAIL_COND_V(arr.size() % 4 != 0, Ref<Image>());
+				//ARGB8888 to RGBA8888
+				for (int32_t i = 0; i < arr.size() / 4; i++) {
+					arr.write().ptr()[(4 * i) + 3] = arr[(4 * i) + 0];
+					arr.write().ptr()[(4 * i) + 0] = arr[(4 * i) + 1];
+					arr.write().ptr()[(4 * i) + 1] = arr[(4 * i) + 2];
+					arr.write().ptr()[(4 * i) + 2] = arr[(4 * i) + 3];
+				}
+				img->create(tex->mWidth, tex->mHeight, true, Image::FORMAT_RGBA8, arr);
+				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+				return img;
+			}
+			return Ref<Image>();
+		}
+		else
+		{
+			Ref<Texture> texture = ResourceLoader::load(p_path);
+			return texture->get_data();
+		}
+		
+		return Ref<Image>();
+	}
 };
+
+
 
 #endif // IMPORT_UTILS_IMPORTER_ASSIMP_H
