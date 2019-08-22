@@ -1592,7 +1592,10 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 	}
 }
 
-// testing only
+/**
+ * Generate node
+ * Recursive call to iterate over all nodes
+ */
 void EditorSceneImporterAssimp::_generate_node(
 		ImportState &state,
 		Skeleton *skeleton,
