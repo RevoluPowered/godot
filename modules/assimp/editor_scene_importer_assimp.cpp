@@ -1652,7 +1652,7 @@ Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiSce
 		print_verbose("Open Asset Import: Loading embedded texture " + filename);
 		if (tex->mHeight == 0) {
 			if (tex->CheckFormat("png")) {
-				Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);				
+				Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
 				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
 				state.path_to_image_cache.insert(p_path, img);
 				return img;
@@ -1690,7 +1690,7 @@ Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiSce
 		Ref<Texture> texture = ResourceLoader::load(p_path);
 		Ref<Image> image = texture->get_data();
 		state.path_to_image_cache.insert(p_path, image);
-		return image;		
+		return image;
 	}
 
 	return Ref<Image>();
