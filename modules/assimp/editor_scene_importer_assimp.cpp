@@ -1634,6 +1634,14 @@ void EditorSceneImporterAssimp::_generate_node(
  * Load or load from cache image :)
  */
 Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiScene *p_scene, String p_path) {
+
+	Map<String, Ref<Image> >::Element *match = state.path_to_image_cache.find(p_path);
+
+	// if our cache contains this image then don't bother
+	if (match) {
+		return match->get();
+	}
+
 	Vector<String> split_path = p_path.get_basename().split("*");
 	if (split_path.size() == 2) {
 		size_t texture_idx = split_path[1].to_int();
@@ -1644,12 +1652,14 @@ Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiSce
 		print_verbose("Open Asset Import: Loading embedded texture " + filename);
 		if (tex->mHeight == 0) {
 			if (tex->CheckFormat("png")) {
-				Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+				Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);				
 				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+				state.path_to_image_cache.insert(p_path, img);
 				return img;
 			} else if (tex->CheckFormat("jpg")) {
 				Ref<Image> img = Image::_jpg_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
 				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+				state.path_to_image_cache.insert(p_path, img);
 				return img;
 			} else if (tex->CheckFormat("dds")) {
 				ERR_EXPLAIN("Open Asset Import: Embedded dds not implemented");
@@ -1672,20 +1682,15 @@ Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiSce
 			}
 			img->create(tex->mWidth, tex->mHeight, true, Image::FORMAT_RGBA8, arr);
 			ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+			state.path_to_image_cache.insert(p_path, img);
 			return img;
 		}
 		return Ref<Image>();
 	} else {
-		Map<String, Ref<Image> >::Element *match = state.path_to_image_cache.find(p_path);
-
-		// if our cache contains this image then don't bother
-		if (match) {
-			return match->get();
-		} else {
-			Ref<Texture> texture = ResourceLoader::load(p_path);
-			state.path_to_image_cache.insert(p_path, texture);
-			return texture->get_data();
-		}
+		Ref<Texture> texture = ResourceLoader::load(p_path);
+		Ref<Image> image = texture->get_data();
+		state.path_to_image_cache.insert(p_path, image);
+		return image;		
 	}
 
 	return Ref<Image>();
