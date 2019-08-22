@@ -712,7 +712,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				bool found = false;
 				AssimpUtils::find_texture_path(state.path, path, found);
 				if (found) {
-					Ref<Resource> img = load_image(state,state.assimp_scene, path);
+					Ref<Resource> img = load_image(state, state.assimp_scene, path);
 					if (img.is_valid()) {
 						Ref<ImageTexture> texture;
 						texture.instance();
@@ -733,7 +733,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -761,7 +761,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -787,7 +787,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -812,7 +812,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -844,7 +844,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				bool found = false;
 				AssimpUtils::find_texture_path(state.path, path, found);
 				if (found) {
-					Ref<Image> img = load_image(state,state.assimp_scene, path);
+					Ref<Image> img = load_image(state, state.assimp_scene, path);
 					if (img.is_valid()) {
 						Ref<ImageTexture> texture;
 						texture.instance();
@@ -875,7 +875,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -909,7 +909,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -939,7 +939,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -959,7 +959,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -993,7 +993,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -1025,7 +1025,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				bool found = false;
 				AssimpUtils::find_texture_path(state.path, path, found);
 				if (found) {
-					Ref<Image> img = load_image(state,state.assimp_scene, path);
+					Ref<Image> img = load_image(state, state.assimp_scene, path);
 					if (img.is_valid()) {
 						Ref<ImageTexture> texture;
 						texture.instance();
@@ -1055,7 +1055,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -1078,7 +1078,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -1104,7 +1104,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -1127,7 +1127,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
 					if (found) {
-						Ref<Image> img = load_image(state,state.assimp_scene, path);
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
 						if (img.is_valid()) {
 							Ref<ImageTexture> texture;
 							texture.instance();
@@ -1676,20 +1676,16 @@ Ref<Image> EditorSceneImporterAssimp::load_image(ImportState &state, const aiSce
 		}
 		return Ref<Image>();
 	} else {
-		Map<String, Ref<Image>>::Element *match = state.path_to_image_cache.find(p_path);
+		Map<String, Ref<Image> >::Element *match = state.path_to_image_cache.find(p_path);
 
 		// if our cache contains this image then don't bother
-		if(match)
-		{
+		if (match) {
 			return match->get();
-		}
-		else
-		{
+		} else {
 			Ref<Texture> texture = ResourceLoader::load(p_path);
 			state.path_to_image_cache.insert(p_path, texture);
 			return texture->get_data();
 		}
-		
 	}
 
 	return Ref<Image>();
