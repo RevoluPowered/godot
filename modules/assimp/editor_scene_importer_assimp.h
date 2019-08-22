@@ -131,6 +131,7 @@ private:
 		// very useful for when you need to ask assimp for the bone mesh
 		Map<String, Node *> node_map;
 		Map<const aiNode *, const Node *> assimp_node_map;
+		Map<String, Ref<Image>> path_to_image_cache;
 		bool fbx; //for some reason assimp does some things different for FBX
 		AnimationPlayer *animation_player;
 	};
@@ -228,6 +229,7 @@ public:
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
+	Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path);
 };
 #endif
 #endif
