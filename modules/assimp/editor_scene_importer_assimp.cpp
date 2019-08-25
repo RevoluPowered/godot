@@ -662,7 +662,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 		// fire replacement for face handling
 		for (size_t j = 0; j < ai_mesh->mNumFaces; j++) {
 			const aiFace face = ai_mesh->mFaces[j];
-			for (int32_t k = 0; k < face.mNumIndices; k++) {
+			for (unsigned int k = 0; k < face.mNumIndices; k++) {
 				st->add_index(face.mIndices[k]);
 			}
 		}
@@ -703,28 +703,28 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 		aiTextureType tex_normal = aiTextureType_NORMALS;
 		{
 			aiString ai_filename = aiString();
-			String filename = "";
-			aiTextureMapMode map_mode[2];
+			{
+				aiTextureMapMode map_mode[2];
 
-			if (AI_SUCCESS == ai_material->GetTexture(tex_normal, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-				filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
-				String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-				bool found = false;
-				AssimpUtils::find_texture_path(state.path, path, found);
-				if (found) {
-					Ref<Resource> img = load_image(state, state.assimp_scene, path);
-					if (img.is_valid()) {
-						Ref<ImageTexture> texture;
-						texture.instance();
-						texture->create_from_image(img);
-						texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
-						AssimpUtils::set_texture_mapping_mode(map_mode, texture);
-						mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-						mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
+				if (AI_SUCCESS == ai_material->GetTexture(tex_normal, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
+					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
+					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+					bool found = false;
+					AssimpUtils::find_texture_path(state.path, path, found);
+					if (found) {
+						Ref<Resource> img = load_image(state, state.assimp_scene, path);
+						if (img.is_valid()) {
+							Ref<ImageTexture> texture;
+							texture.instance();
+							texture->create_from_image(img);
+							texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
+							AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+							mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+							mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
+						}
 					}
 				}
 			}
-
 			{
 				aiString tex_fbx_pbs_emissive_path;
 				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, tex_fbx_pbs_emissive_path)) {
@@ -752,11 +752,10 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			}
 
 			{
-				aiString ai_filename = aiString();
-				String filename = "";
+				ai_filename = aiString();
 
 				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_NORMAL_TEXTURE, ai_filename)) {
-					filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
+					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
@@ -776,13 +775,11 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			aiTextureType tex_emissive = aiTextureType_EMISSIVE;
 
 			if (ai_material->GetTextureCount(tex_emissive) > 0) {
-
-				aiString ai_filename = aiString();
-				String filename = "";
+				ai_filename = aiString();
 				aiTextureMapMode map_mode[2];
 
 				if (AI_SUCCESS == ai_material->GetTexture(tex_emissive, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-					filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
+					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
@@ -802,12 +799,10 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 
 			aiTextureType tex_albedo = aiTextureType_DIFFUSE;
 			if (ai_material->GetTextureCount(tex_albedo) > 0) {
-
-				aiString ai_filename = aiString();
-				String filename = "";
+				ai_filename = aiString();
 				aiTextureMapMode map_mode[2];
 				if (AI_SUCCESS == ai_material->GetTexture(tex_albedo, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-					filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
+					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
 					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
 					bool found = false;
 					AssimpUtils::find_texture_path(state.path, path, found);
@@ -838,33 +833,36 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			}
 
 			aiString tex_gltf_base_color_path = aiString();
-			if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &tex_gltf_base_color_path, NULL, NULL, NULL, NULL, map_mode)) {
-				String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_base_color_path);
-				String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-				bool found = false;
-				AssimpUtils::find_texture_path(state.path, path, found);
-				if (found) {
-					Ref<Image> img = load_image(state, state.assimp_scene, path);
-					if (img.is_valid()) {
-						Ref<ImageTexture> texture;
-						texture.instance();
-						texture->create_from_image(img);
-						if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
-							AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+			{
+				aiTextureMapMode map_mode[2];
+				if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &tex_gltf_base_color_path, NULL, NULL, NULL, NULL, map_mode)) {
+					String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_base_color_path);
+					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+					bool found = false;
+					AssimpUtils::find_texture_path(state.path, path, found);
+					if (found) {
+						Ref<Image> img = load_image(state, state.assimp_scene, path);
+						if (img.is_valid()) {
+							Ref<ImageTexture> texture;
+							texture.instance();
+							texture->create_from_image(img);
+							if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
+								AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+							}
+							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+						}
+					}
+				} else {
+					aiColor4D pbr_base_color;
+					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, pbr_base_color)) {
+						if (Math::is_equal_approx(pbr_base_color.a, 1.0f) == false) {
 							mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 							mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
 						}
-						mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+						mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
 					}
-				}
-			} else {
-				aiColor4D pbr_base_color;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, pbr_base_color)) {
-					if (Math::is_equal_approx(pbr_base_color.a, 1.0f) == false) {
-						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-						mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					}
-					mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
 				}
 			}
 			{
