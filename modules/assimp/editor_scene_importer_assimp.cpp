@@ -28,25 +28,17 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-// todo: instead of creating a texture and discarding it / instead create an image and use it directly instead of pointlessly instancing
-// todo: memory leak on spatial node / not being cleaned up properly (below)
-/* todo: fix WARNING: cleanup: Leaked instance: Spatial:31345 - Node name:
-* ObjectDB Instances still exist!
-*   At: core/object.cpp:2098.
-*/
-// why? performance benefit 2x - directly fetching from visual server, instead of keeping the one we already have available
-
-#include "assimp/DefaultLogger.hpp"
-#include "assimp/Importer.hpp"
-#include "assimp/LogStream.hpp"
-#include "assimp/Logger.hpp"
-#include "assimp/SceneCombiner.h"
-#include "assimp/cexport.h"
-#include "assimp/cimport.h"
-#include "assimp/matrix4x4.h"
-#include "assimp/pbrmaterial.h"
-#include "assimp/postprocess.h"
-#include "assimp/scene.h"
+#include <assimp/SceneCombiner.h>
+#include <assimp/cexport.h>
+#include <assimp/cimport.h>
+#include <assimp/matrix4x4.h>
+#include <assimp/pbrmaterial.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <assimp/DefaultLogger.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/LogStream.hpp>
+#include <assimp/Logger.hpp>
 
 #include "core/bind/core_bind.h"
 #include "core/io/image_loader.h"
@@ -307,8 +299,6 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 
 	if (scene->mRootNode) {
 
-		// todo: properly fix transform for animated bones
-
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			_generate_node(state, NULL, scene->mRootNode->mChildren[i], state.root);
@@ -470,10 +460,6 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		if (track->mNumRotationKeys == 0 && track->mNumPositionKeys == 0 && track->mNumScalingKeys == 0) {
 			continue; //do not bother
 		}
-
-		// todo: let's get rid of bone owners and node_map if possible?
-		// todo: fix the mesh path
-		// todo: fix bug with disappearing mesh
 
 		for (Map<Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
 			Skeleton *skeleton = key_value_pair->key();
@@ -651,7 +637,6 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			const aiVector3D pos = ai_mesh->mVertices[j];
 
 			// note we must include node offset transform as this is relative to world space not local space.
-			// todo: check if we can do this somewhere better.
 			Vector3 godot_pos = Vector3(pos.x, pos.y, pos.z);
 			st->add_vertex(godot_pos);
 		}
