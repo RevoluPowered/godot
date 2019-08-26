@@ -44,12 +44,12 @@
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
 
-#include "assimp/DefaultLogger.hpp"
-#include "assimp/LogStream.hpp"
-#include "assimp/Logger.hpp"
-#include "assimp/matrix4x4.h"
-#include "assimp/scene.h"
-#include "assimp/types.h"
+#include <assimp/matrix4x4.h>
+#include <assimp/scene.h>
+#include <assimp/types.h>
+#include <assimp/DefaultLogger.hpp>
+#include <assimp/LogStream.hpp>
+#include <assimp/Logger.hpp>
 
 class AssimpStream : public Assimp::LogStream {
 public:

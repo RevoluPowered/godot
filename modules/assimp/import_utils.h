@@ -31,17 +31,17 @@
 #ifndef IMPORT_UTILS_IMPORTER_ASSIMP_H
 #define IMPORT_UTILS_IMPORTER_ASSIMP_H
 
-#include "assimp/DefaultLogger.hpp"
-#include "assimp/Importer.hpp"
-#include "assimp/LogStream.hpp"
-#include "assimp/Logger.hpp"
-#include "assimp/SceneCombiner.h"
-#include "assimp/cexport.h"
-#include "assimp/cimport.h"
-#include "assimp/matrix4x4.h"
-#include "assimp/pbrmaterial.h"
-#include "assimp/postprocess.h"
-#include "assimp/scene.h"
+#include <assimp/SceneCombiner.h>
+#include <assimp/cexport.h>
+#include <assimp/cimport.h>
+#include <assimp/matrix4x4.h>
+#include <assimp/pbrmaterial.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <assimp/DefaultLogger.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/LogStream.hpp>
+#include <assimp/Logger.hpp>
 
 #include <string>
 
@@ -192,7 +192,7 @@ public:
 		return xform;
 	}
 
-	/** Get fbx fps for time mode meta data - todo: migrate into assimp
+	/** Get fbx fps for time mode meta data
      */
 	static float get_fbx_fps(int32_t time_mode, const aiScene *p_scene) {
 		switch (time_mode) {
