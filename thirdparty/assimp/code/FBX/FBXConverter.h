@@ -82,6 +82,7 @@ enum class FbxUnit {
     m,
     km,
     NumUnits,
+
     Undefined
 };
 
@@ -91,7 +92,7 @@ enum class FbxUnit {
  *  @param doc Parsed FBX document
  *  @param removeEmptyBones Will remove bones, which do not have any references to vertices.
  */
-void ConvertToAssimpScene(aiScene* out, Importer* importer, const Document& doc, bool removeEmptyBones, FbxUnit unit);
+void ConvertToAssimpScene(aiScene* out, const Document& doc, bool removeEmptyBones, FbxUnit unit);
 
 /** Dummy class to encapsulate the conversion process */
 class FBXConverter {
@@ -122,7 +123,7 @@ public:
     };
 
 public:
-    FBXConverter(aiScene* out, Importer* importer, const Document& doc, bool removeEmptyBones, FbxUnit unit);
+    FBXConverter(aiScene* out, const Document& doc, bool removeEmptyBones, FbxUnit unit);
     ~FBXConverter();
 
 private:
@@ -148,9 +149,6 @@ private:
 
     // ------------------------------------------------------------------------------------------------
     void GetUniqueName( const std::string &name, std::string& uniqueName );
-    
-    // ------------------------------------------------------------------------------------------------
-    void RecursiveNodeConverter( aiNode * node, ai_real scale );
 
     // ------------------------------------------------------------------------------------------------
     // this returns unified names usable within assimp identifiers (i.e. no space characters -
@@ -433,12 +431,8 @@ private:
     void ConvertGlobalSettings();
 
     // ------------------------------------------------------------------------------------------------
-    // Will return unit scaling for units used in file
-    ai_real GetUnitScale( FbxUnit unit );
-
-    // ------------------------------------------------------------------------------------------------
     //  Will perform the conversion from a given unit to the requested unit.
-    void ConvertToUnitScale(ai_real scale);
+    void ConvertToUnitScale(FbxUnit unit);
 
     // ------------------------------------------------------------------------------------------------
     // copy generated meshes, animations, lights, cameras and textures to the output scene
@@ -477,7 +471,6 @@ private:
     aiScene* const out;
     const FBX::Document& doc;
     FbxUnit mCurrentUnit;
-    Importer *mImporter;
 };
 
 }

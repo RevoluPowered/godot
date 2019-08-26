@@ -447,14 +447,14 @@ int JoinVerticesProcess::ProcessMesh( aiMesh* pMesh, unsigned int meshIndex)
              *  workaround, we're just removing these bones. If they're animated,
              *  model geometry might be modified but at least there's no risk of a crash.
              */
-            // delete bone;
-            // --pMesh->mNumBones;
-            // for (unsigned int n = a; n < pMesh->mNumBones; ++n)  {
-            //     pMesh->mBones[n] = pMesh->mBones[n+1];
-            // }
+            delete bone;
+            --pMesh->mNumBones;
+            for (unsigned int n = a; n < pMesh->mNumBones; ++n)  {
+                pMesh->mBones[n] = pMesh->mBones[n+1];
+            }
 
-            //--a;
-            //ASSIMP_LOG_WARN("Removing bone -> no weights remaining");
+            --a;
+            ASSIMP_LOG_WARN("Removing bone -> no weights remaining");
         }
     }
     return pMesh->mNumVertices;

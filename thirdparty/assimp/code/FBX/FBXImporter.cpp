@@ -129,9 +129,6 @@ const aiImporterDesc* FBXImporter::GetInfo () const
 // Setup configuration properties for the loader
 void FBXImporter::SetupProperties(const Importer* pImp)
 {
-    // assign importer
-    importer = (Importer*)pImp;
-
     settings.readAllLayers = pImp->GetPropertyBool(AI_CONFIG_IMPORT_FBX_READ_ALL_GEOMETRY_LAYERS, true);
     settings.readAllMaterials = pImp->GetPropertyBool(AI_CONFIG_IMPORT_FBX_READ_ALL_MATERIALS, false);
     settings.readMaterials = pImp->GetPropertyBool(AI_CONFIG_IMPORT_FBX_READ_MATERIALS, true);
@@ -194,7 +191,10 @@ void FBXImporter::InternReadFile( const std::string& pFile, aiScene* pScene, IOS
         }
 
         // convert the FBX DOM to aiScene
-        ConvertToAssimpScene(pScene, importer, doc, settings.removeEmptyBones, unit);
+        ConvertToAssimpScene(pScene, doc, settings.removeEmptyBones, unit);
+        
+        // units is relative to CM :) we need it in meters for assimp
+        SetFileScale( doc.GlobalSettings().UnitScaleFactor() * 0.01f);
 
         std::for_each(tokens.begin(),tokens.end(),Util::delete_fun<Token>());
     }

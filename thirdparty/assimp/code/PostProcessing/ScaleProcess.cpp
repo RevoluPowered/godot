@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
+#include <assimp/BaseImporter.h>
 
 namespace Assimp {
 
@@ -69,15 +69,25 @@ bool ScaleProcess::IsActive( unsigned int pFlags ) const {
 }
 
 void ScaleProcess::SetupProperties( const Importer* pImp ) {
+    // User scaling
     mScale = pImp->GetPropertyFloat( AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 1.0f );
+
+    // File scaling * Application Scaling
+    float importerScale = pImp->GetPropertyFloat( AI_CONFIG_APP_SCALE_KEY, 1.0f );
+
+    // apply scale to the scale 
+    // helps prevent bugs with backward compatibility for anyone using normal scaling.
+    mScale *= importerScale;
 }
 
 void ScaleProcess::Execute( aiScene* pScene ) {
-    if(mScale == 1.0f) return; // nothing to scale
-    printf("scaling aiScene to %f scale\n", mScale);    
-
-    ai_assert(mScale != 0);
-    ai_assert(nullptr != pScene && nullptr != pScene->mRootNode);
+    if(mScale == 1.0f)  {
+        return; // nothing to scale
+    }
+    
+    ai_assert( mScale != 0 );
+    ai_assert( nullptr != pScene );
+    ai_assert( nullptr != pScene->mRootNode );
 
     if ( nullptr == pScene ) {
         return;
@@ -160,13 +170,6 @@ void ScaleProcess::Execute( aiScene* pScene ) {
 }
 
 void ScaleProcess::traverseNodes( aiNode *node, unsigned int nested_node_id ) {    
-    // for(unsigned int x = 0; x < nested_node_id; x++)
-    // {
-    //     //printf("-");
-    // }
-
-    //printf("[%d] %s\n", nested_node_id, node->mName.C_Str());
-
     applyScaling( node );
 
     for( size_t i = 0; i < node->mNumChildren; i++)
