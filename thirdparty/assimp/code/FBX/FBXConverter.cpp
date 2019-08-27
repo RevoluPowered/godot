@@ -119,7 +119,6 @@ namespace Assimp {
 
             ConvertGlobalSettings();
             TransferDataToScene();
-            ConvertToUnitScale(unit);
 
             // if we didn't read any meshes set the AI_SCENE_FLAGS_INCOMPLETE
             // to make sure the scene passes assimp's validation. FBX files
@@ -3535,46 +3534,6 @@ void FBXConverter::SetShadingPropertiesRaw(aiMaterial* out_mat, const PropertyTa
             out->mMetaData->Set(12, "TimeSpanStart", doc.GlobalSettings().TimeSpanStart());
             out->mMetaData->Set(13, "TimeSpanStop", doc.GlobalSettings().TimeSpanStop());
             out->mMetaData->Set(14, "CustomFrameRate", doc.GlobalSettings().CustomFrameRate());
-        }
-
-        void FBXConverter::ConvertToUnitScale( FbxUnit unit ) {
-            if (mCurrentUnit == unit) {
-                return;
-            }
-
-            ai_real scale = 1.0;
-            if (mCurrentUnit == FbxUnit::cm) {
-                if (unit == FbxUnit::m) {
-                    scale = (ai_real)0.01;
-                } else if (unit == FbxUnit::km) {
-                    scale = (ai_real)0.00001;
-                }
-            } else if (mCurrentUnit == FbxUnit::m) {
-                if (unit == FbxUnit::cm) {
-                    scale = (ai_real)100.0;
-                } else if (unit == FbxUnit::km) {
-                    scale = (ai_real)0.001;
-                }
-            } else if (mCurrentUnit == FbxUnit::km) {
-                if (unit == FbxUnit::cm) {
-                    scale = (ai_real)100000.0;
-                } else if (unit == FbxUnit::m) {
-                    scale = (ai_real)1000.0;
-                }
-            }
-            
-            for (auto mesh : meshes) {
-                if (nullptr == mesh) {
-                    continue;
-                }
-
-                if (mesh->HasPositions()) {
-                    for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-                        aiVector3D &pos = mesh->mVertices[i];
-                        pos *= scale;
-                    }
-                }
-            }
         }
 
         void FBXConverter::TransferDataToScene()
