@@ -648,18 +648,6 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 				st->add_index(face.mIndices[k]);
 			}
 		}
-		// old face logic
-		// for (size_t j = 0; j < ai_mesh->mNumFaces; j++) {
-		// 	const aiFace face = ai_mesh->mFaces[j];
-		// 	ERR_CONTINUE(face.mNumIndices != 3);
-		// 	Vector<size_t> order;
-		// 	order.push_back(2);
-		// 	order.push_back(1);
-		// 	order.push_back(0);
-		// 	for (int32_t k = 0; k < order.size(); k++) {
-		// 		st->add_index(face.mIndices[order[k]]);
-		// 	}
-		// }
 
 		if (ai_mesh->HasTangentsAndBitangents() == false && has_uvs) {
 			st->generate_tangents();
