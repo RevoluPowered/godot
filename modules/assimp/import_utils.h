@@ -329,6 +329,103 @@ public:
 		}
 		texture->set_flags(flags);
 	}
+
+	/**
+	 * Load or load from cache image :)
+	 */
+	static Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path) {
+
+		Map<String, Ref<Image> >::Element *match = state.path_to_image_cache.find(p_path);
+
+		// if our cache contains this image then don't bother
+		if (match) {
+			return match->get();
+		}
+
+		Vector<String> split_path = p_path.get_basename().split("*");
+		if (split_path.size() == 2) {
+			size_t texture_idx = split_path[1].to_int();
+			ERR_FAIL_COND_V(texture_idx >= p_scene->mNumTextures, Ref<Image>());
+			aiTexture *tex = p_scene->mTextures[texture_idx];
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex->mFilename);
+			filename = filename.get_file();
+			print_verbose("Open Asset Import: Loading embedded texture " + filename);
+			if (tex->mHeight == 0) {
+				if (tex->CheckFormat("png")) {
+					Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					state.path_to_image_cache.insert(p_path, img);
+					return img;
+				} else if (tex->CheckFormat("jpg")) {
+					Ref<Image> img = Image::_jpg_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					state.path_to_image_cache.insert(p_path, img);
+					return img;
+				} else if (tex->CheckFormat("dds")) {
+					ERR_EXPLAIN("Open Asset Import: Embedded dds not implemented");
+					ERR_FAIL_COND_V(true, Ref<Image>());
+				}
+			} else {
+				Ref<Image> img;
+				img.instance();
+				PoolByteArray arr;
+				uint32_t size = tex->mWidth * tex->mHeight;
+				arr.resize(size);
+				memcpy(arr.write().ptr(), tex->pcData, size);
+				ERR_FAIL_COND_V(arr.size() % 4 != 0, Ref<Image>());
+				//ARGB8888 to RGBA8888
+				for (int32_t i = 0; i < arr.size() / 4; i++) {
+					arr.write().ptr()[(4 * i) + 3] = arr[(4 * i) + 0];
+					arr.write().ptr()[(4 * i) + 0] = arr[(4 * i) + 1];
+					arr.write().ptr()[(4 * i) + 1] = arr[(4 * i) + 2];
+					arr.write().ptr()[(4 * i) + 2] = arr[(4 * i) + 3];
+				}
+				img->create(tex->mWidth, tex->mHeight, true, Image::FORMAT_RGBA8, arr);
+				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+				state.path_to_image_cache.insert(p_path, img);
+				return img;
+			}
+			return Ref<Image>();
+		} else {
+			Ref<Texture> texture = ResourceLoader::load(p_path);
+			Ref<Image> image = texture->get_data();
+			state.path_to_image_cache.insert(p_path, image);
+			return image;
+		}
+
+		return Ref<Image>();
+	}
+
+	/** GetAssimpTexture
+	 *  Designed to retrieve textures for you
+	 */
+	static bool GetAssimpTexture(
+			AssimpImporter::ImportState &state,
+			aiMaterial *ai_material,
+			aiTextureType texture_type,
+			String &filename,
+			String &path,
+			Ref<ImageTexture> texture,
+			aiTextureMapMode *map_mode) {
+		aiString ai_filename = aiString();
+		if (AI_SUCCESS == ai_material->GetTexture(texture_type, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
+			filename = get_raw_string_from_assimp(ai_filename);
+			path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			bool found = false;
+			find_texture_path(state.path, path, found);
+			if (found) {
+				Ref<Resource> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+				if (img.is_valid()) {
+					texture.instance();
+					texture->create_from_image(img);
+					texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
 };
 
 #endif // IMPORT_UTILS_IMPORTER_ASSIMP_H
