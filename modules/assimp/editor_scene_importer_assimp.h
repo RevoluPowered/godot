@@ -51,6 +51,12 @@
 #include <assimp/LogStream.hpp>
 #include <assimp/Logger.hpp>
 
+#include "import_state.h"
+#include "import_utils.h"
+
+
+using namespace AssimpImporter;
+
 class AssimpStream : public Assimp::LogStream {
 public:
 	// Constructor
@@ -64,42 +70,6 @@ public:
 	}
 };
 
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor", 0, 0
-#define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness", 0, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness", 0, 0
-
-#define AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE "$raw.Maya|metalness|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_METALNESS_UV_XFORM "$raw.Maya|metalness|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE "$raw.Maya|diffuseRoughness|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_UV_XFORM "$raw.Maya|diffuseRoughness|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE "$raw.Maya|baseColor|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM "$raw.Maya|baseColor|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
-
-#define AI_MATKEY_FBX_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
-
-#define AI_MATKEY_FBX_MAYA_STINGRAY_DISPLACEMENT_SCALING_FACTOR "$raw.Maya|displacementscaling", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR "$raw.Maya|base_color", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR "$raw.Maya|emissive", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR "$raw.Maya|metallic", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR "$raw.Maya|roughness", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR "$raw.Maya|emissive_intensity", 0, 0
-
-#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE "$raw.Maya|TEX_normal_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_UV_XFORM "$raw.Maya|TEX_normal_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE "$raw.Maya|TEX_color_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM "$raw.Maya|TEX_color_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE "$raw.Maya|TEX_metallic_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_UV_XFORM "$raw.Maya|TEX_metallic_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE "$raw.Maya|TEX_roughness_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_UV_XFORM "$raw.Maya|TEX_roughness_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE "$raw.Maya|TEX_emissive_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_UV_XFORM "$raw.Maya|TEX_emissive_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_TEXTURE "$raw.Maya|TEX_ao_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo", aiTextureType_UNKNOWN, 0
-
 class EditorSceneImporterAssimp : public EditorSceneImporter {
 private:
 	GDCLASS(EditorSceneImporterAssimp, EditorSceneImporter);
@@ -112,57 +82,6 @@ private:
 			INTERP_CATMULLROMSPLINE,
 			INTERP_CUBIC_SPLINE
 		};
-	};
-
-	struct ImportState {
-
-		String path;
-		const aiScene *assimp_scene;
-		uint32_t max_bone_weights;
-
-		Spatial *root;
-		Map<String, Ref<Mesh> > mesh_cache;
-		Map<int, Ref<Material> > material_cache;
-		Map<String, int> light_cache;
-		Map<String, int> camera_cache;
-		//Vector<Skeleton *> skeletons;
-		Map<Skeleton *, const Spatial *> armature_skeletons; // maps skeletons based on their armature nodes.
-		Map<const aiBone *, Skeleton *> bone_to_skeleton_lookup; // maps bones back into their skeleton
-		// very useful for when you need to ask assimp for the bone mesh
-		Map<String, Node *> node_map;
-		Map<const aiNode *, const Node *> assimp_node_map;
-		Map<String, Ref<Image> > path_to_image_cache;
-		bool fbx; //for some reason assimp does some things different for FBX
-		AnimationPlayer *animation_player;
-	};
-
-	/** Recursive state is used to push state into functions instead of specifying them
-	* This makes the code easier to handle too and add extra arguments without breaking things
-	*/
-	struct RecursiveState {
-		RecursiveState(
-				Transform &_node_transform,
-				Skeleton *_skeleton,
-				Spatial *_new_node,
-				const String &_node_name,
-				const aiNode *_assimp_node,
-				Node *_parent_node,
-				const aiBone *_bone) :
-				node_transform(_node_transform),
-				skeleton(_skeleton),
-				new_node(_new_node),
-				node_name(_node_name),
-				assimp_node(_assimp_node),
-				parent_node(_parent_node),
-				bone(_bone) {}
-
-		Transform &node_transform;
-		Skeleton *skeleton;
-		Spatial *new_node;
-		const String &node_name;
-		const aiNode *assimp_node;
-		Node *parent_node;
-		const aiBone *bone;
 	};
 
 	struct BoneInfo {
@@ -180,7 +99,7 @@ private:
 	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
 	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
 
-	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, Skeleton *p_skeleton = NULL, bool p_double_sided_material = false);
+	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode * assimp_node, Skeleton *p_skeleton = NULL);
 
 	// utility for node creation
 	void attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform);

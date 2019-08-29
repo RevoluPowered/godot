@@ -43,45 +43,54 @@
 #include <assimp/LogStream.hpp>
 #include <assimp/Logger.hpp>
 
+// use alpha scissor fixes issues on textures
+
 #include <string>
 
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor", 0, 0
-#define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness", 0, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness", 0, 0
+#include "core/io/image_loader.h"
+#include "import_state.h"
 
-#define AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE "$raw.Maya|emissionColor|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR "$raw.Maya|emission", 0, 0
-#define AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE "$raw.Maya|metalness|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_METALNESS_UV_XFORM "$raw.Maya|metalness|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE "$raw.Maya|diffuseRoughness|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_UV_XFORM "$raw.Maya|diffuseRoughness|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE "$raw.Maya|baseColor|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM "$raw.Maya|baseColor|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
+using namespace AssimpImporter;
 
-#define AI_MATKEY_FBX_NORMAL_TEXTURE "$raw.Maya|normalCamera|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_PROPERTIES aiTextureType_UNKNOWN, 0
+#define AI_NULL 0, 0
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor"
+#define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness"
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness"
 
-#define AI_MATKEY_FBX_MAYA_STINGRAY_DISPLACEMENT_SCALING_FACTOR "$raw.Maya|displacementscaling", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR "$raw.Maya|base_color", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR "$raw.Maya|emissive", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR "$raw.Maya|metallic", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR "$raw.Maya|roughness", 0, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR "$raw.Maya|emissive_intensity", 0, 0
+#define AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE "$raw.Maya|emissionColor|file"
+#define AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR "$raw.Maya|emission"
+#define AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE "$raw.Maya|metalness|file"
+#define AI_MATKEY_FBX_MAYA_METALNESS_UV_XFORM "$raw.Maya|metalness|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE "$raw.Maya|diffuseRoughness|file"
+#define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_UV_XFORM "$raw.Maya|diffuseRoughness|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE "$raw.Maya|baseColor|file"
+#define AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM "$raw.Maya|baseColor|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE "$raw.Maya|normalCamera|file"
+#define AI_MATKEY_FBX_MAYA_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo"
 
-#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE "$raw.Maya|TEX_normal_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_UV_XFORM "$raw.Maya|TEX_normal_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE "$raw.Maya|TEX_color_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM "$raw.Maya|TEX_color_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE "$raw.Maya|TEX_metallic_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_UV_XFORM "$raw.Maya|TEX_metallic_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE "$raw.Maya|TEX_roughness_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_UV_XFORM "$raw.Maya|TEX_roughness_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE "$raw.Maya|TEX_emissive_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_UV_XFORM "$raw.Maya|TEX_emissive_map|uvtrafo", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_TEXTURE "$raw.Maya|TEX_ao_map|file", aiTextureType_UNKNOWN, 0
-#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo", aiTextureType_UNKNOWN, 0
+#define AI_MATKEY_FBX_NORMAL_TEXTURE "$raw.Maya|normalCamera|file"
+#define AI_MATKEY_FBX_NORMAL_UV_XFORM "$raw.Maya|normalCamera|uvtrafo"
+
+#define AI_MATKEY_FBX_MAYA_STINGRAY_DISPLACEMENT_SCALING_FACTOR "$raw.Maya|displacementscaling"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR "$raw.Maya|base_color"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR "$raw.Maya|emissive"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR "$raw.Maya|metallic"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR "$raw.Maya|roughness"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR "$raw.Maya|emissive_intensity"
+
+#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE "$raw.Maya|TEX_normal_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_UV_XFORM "$raw.Maya|TEX_normal_map|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE "$raw.Maya|TEX_color_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM "$raw.Maya|TEX_color_map|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE "$raw.Maya|TEX_metallic_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_UV_XFORM "$raw.Maya|TEX_metallic_map|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE "$raw.Maya|TEX_roughness_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_UV_XFORM "$raw.Maya|TEX_roughness_map|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE "$raw.Maya|TEX_emissive_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_UV_XFORM "$raw.Maya|TEX_emissive_map|uvtrafo"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_TEXTURE "$raw.Maya|TEX_ao_map|file"
+#define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo"
 
 /**
  * Assimp Utils
@@ -313,7 +322,8 @@ public:
 	 * set_texture_mapping_mode
 	 * Helper to check the mapping mode of the texture (repeat, clamp and mirror)
 	 */
-	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture) {
+	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<ImageTexture> texture) {
+		ERR_FAIL_COND(texture.is_null());
 		ERR_FAIL_COND(map_mode == NULL);
 		aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
 		//for (size_t i = 0; i < 3; i++) {
@@ -328,6 +338,146 @@ public:
 			flags = flags | Texture::FLAG_MIRRORED_REPEAT;
 		}
 		texture->set_flags(flags);
+	}
+
+	/**
+	 * Load or load from cache image :)
+	 */
+	static Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path) {
+
+		Map<String, Ref<Image> >::Element *match = state.path_to_image_cache.find(p_path);
+
+		// if our cache contains this image then don't bother
+		if (match) {
+			return match->get();
+		}
+
+		Vector<String> split_path = p_path.get_basename().split("*");
+		if (split_path.size() == 2) {
+			size_t texture_idx = split_path[1].to_int();
+			ERR_FAIL_COND_V(texture_idx >= p_scene->mNumTextures, Ref<Image>());
+			aiTexture *tex = p_scene->mTextures[texture_idx];
+			String filename = AssimpUtils::get_raw_string_from_assimp(tex->mFilename);
+			filename = filename.get_file();
+			print_verbose("Open Asset Import: Loading embedded texture " + filename);
+			if (tex->mHeight == 0) {
+				if (tex->CheckFormat("png")) {
+					Ref<Image> img = Image::_png_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					state.path_to_image_cache.insert(p_path, img);
+					return img;
+				} else if (tex->CheckFormat("jpg")) {
+					Ref<Image> img = Image::_jpg_mem_loader_func((uint8_t *)tex->pcData, tex->mWidth);
+					ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+					state.path_to_image_cache.insert(p_path, img);
+					return img;
+				} else if (tex->CheckFormat("dds")) {
+					ERR_EXPLAIN("Open Asset Import: Embedded dds not implemented");
+					ERR_FAIL_COND_V(true, Ref<Image>());
+				}
+			} else {
+				Ref<Image> img;
+				img.instance();
+				PoolByteArray arr;
+				uint32_t size = tex->mWidth * tex->mHeight;
+				arr.resize(size);
+				memcpy(arr.write().ptr(), tex->pcData, size);
+				ERR_FAIL_COND_V(arr.size() % 4 != 0, Ref<Image>());
+				//ARGB8888 to RGBA8888
+				for (int32_t i = 0; i < arr.size() / 4; i++) {
+					arr.write().ptr()[(4 * i) + 3] = arr[(4 * i) + 0];
+					arr.write().ptr()[(4 * i) + 0] = arr[(4 * i) + 1];
+					arr.write().ptr()[(4 * i) + 1] = arr[(4 * i) + 2];
+					arr.write().ptr()[(4 * i) + 2] = arr[(4 * i) + 3];
+				}
+				img->create(tex->mWidth, tex->mHeight, true, Image::FORMAT_RGBA8, arr);
+				ERR_FAIL_COND_V(img.is_null(), Ref<Image>());
+				state.path_to_image_cache.insert(p_path, img);
+				return img;
+			}
+			return Ref<Image>();
+		} else {
+			Ref<Texture> texture = ResourceLoader::load(p_path);
+			Ref<Image> image = texture->get_data();
+			state.path_to_image_cache.insert(p_path, image);
+			return image;
+		}
+
+		return Ref<Image>();
+	}
+
+	// static bool GetAssimpTextureProperty(
+	// 	AssimpImporter::ImportState &state,
+	// 	const char * property_key,
+	// 	aiMaterial *ai_material,
+	// 	aiTextureType texture_type,
+	// 	String &filename,
+	// 	String &path,
+	// 	Ref<ImageTexture> texture
+
+	// ) {
+	// 	aiString key = aiString(property_key);
+	// 	if (key == aiString("")) {
+	// 		ERR_EXPLAIN("key is missing for GetAssimpTexture report this");
+	// 		ERR_FAIL_V_MSG(false, "key is missing for GetAssimpTexture");
+	// 	}
+	// 	aiString texture_path;
+	// 	if (AI_SUCCESS == ai_material->Get(key, texture_type, 0)) {
+	// 		filename = get_raw_string_from_assimp(texture_path);
+	// 		path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+	// 		bool found = false;
+	// 		find_texture_path(state.path, path, found);
+	// 		if (found) {
+	// 			Ref<ImageTexture> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+	// 			if (img.is_valid()) {
+	// 				texture.instance();
+	// 				texture->create_from_image(img);
+	// 				texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
+	// 				return true;
+	// 			}
+	// 		}
+	// 	}
+	// 	return false;
+	// }
+
+	static bool CreateAssimpTexture(
+			AssimpImporter::ImportState &state,
+			aiString texture_path,
+			String &filename,
+			String &path,
+			AssimpImageData &image_state) {
+		filename = get_raw_string_from_assimp(texture_path);
+		path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+		bool found = false;
+		find_texture_path(state.path, path, found);
+		if (found) {
+			image_state.raw_image = AssimpUtils::load_image(state, state.assimp_scene, path);
+			if (image_state.raw_image.is_valid()) {
+				image_state.texture.instance();
+				image_state.texture->create_from_image(image_state.raw_image);
+				image_state.texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);				
+				return true;
+			}
+		}
+
+		return false;
+	}
+	/** GetAssimpTexture
+	 *  Designed to retrieve textures for you
+	 */
+	static bool GetAssimpTexture(
+			AssimpImporter::ImportState &state,
+			aiMaterial *ai_material,
+			aiTextureType texture_type,
+			String &filename,
+			String &path,
+			AssimpImageData &image_state) {
+		aiString ai_filename = aiString();
+		if (AI_SUCCESS == ai_material->GetTexture(texture_type, 0, &ai_filename, NULL, NULL, NULL, NULL, image_state.map_mode)) {
+			return CreateAssimpTexture(state, ai_filename, filename, path, image_state);
+		}
+
+		return false;
 	}
 };
 
