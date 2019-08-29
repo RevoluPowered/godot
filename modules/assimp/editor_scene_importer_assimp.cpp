@@ -531,7 +531,11 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 //
 // Mesh Generation from indicies ? why do we need so much mesh code
 // [debt needs looked into]
-Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, Skeleton *p_skeleton, bool p_double_sided_material) {
+Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
+		ImportState &state,
+		const Vector<int> &p_surface_indices,
+		const aiNode *assimp_node,
+		Skeleton *p_skeleton) {
 
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
@@ -670,33 +674,38 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 			mat->set_name(AssimpUtils::get_assimp_string(mat_name));
 		}
 
+		// Culling handling for meshes
 
+		// cull all back faces
 		mat->set_cull_mode(SpatialMaterial::CULL_BACK);
 
+		// Now process materials
 		aiTextureType tex_diffuse = aiTextureType_DIFFUSE;
 		{
 			String filename, path;
 			AssimpImageData image_data;
 
 			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_diffuse, filename, path, image_data)) {
-
 				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
 
+				// anything transparent must be culled
 				if (image_data.raw_image->detect_alpha() != Image::ALPHA_NONE) {
 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
 				}
 
 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, image_data.texture);
-			} else {
-				aiColor4D clr_diffuse;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, clr_diffuse)) {
-					if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
-						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-						mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					}
-					mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
+			}
+
+			aiColor4D clr_diffuse;
+			if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, clr_diffuse)) {
+				if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
+					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
 				}
+				mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
 			}
 		}
 
@@ -931,7 +940,7 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 			double_sided_material = true;
 		}
 
-		mesh = _generate_mesh_from_surface_indices(state, surface_indices, skeleton, double_sided_material);
+		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skeleton);
 		state.mesh_cache[mesh_key] = mesh;
 	}
 
