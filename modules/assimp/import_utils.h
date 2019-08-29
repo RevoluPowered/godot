@@ -52,6 +52,8 @@
 
 using namespace AssimpImporter;
 
+#define AI_PROPERTIES aiTextureType_UNKNOWN, 0
+#define AI_NULL 0, 0
 #define AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR "$raw.Maya|baseColor"
 #define AI_MATKEY_FBX_MAYA_METALNESS_FACTOR "$raw.Maya|metalness"
 #define AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR "$raw.Maya|diffuseRoughness"
@@ -320,7 +322,8 @@ public:
 	 * set_texture_mapping_mode
 	 * Helper to check the mapping mode of the texture (repeat, clamp and mirror)
 	 */
-	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture) {
+	static void set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<ImageTexture> texture) {
+		ERR_FAIL_COND(texture.is_null());
 		ERR_FAIL_COND(map_mode == NULL);
 		aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
 		//for (size_t i = 0; i < 3; i++) {
@@ -403,7 +406,62 @@ public:
 		return Ref<Image>();
 	}
 
+	// static bool GetAssimpTextureProperty(
+	// 	AssimpImporter::ImportState &state,
+	// 	const char * property_key,
+	// 	aiMaterial *ai_material,
+	// 	aiTextureType texture_type,
+	// 	String &filename,
+	// 	String &path,
+	// 	Ref<ImageTexture> texture
 
+	// ) {
+	// 	aiString key = aiString(property_key);
+	// 	if (key == aiString("")) {
+	// 		ERR_EXPLAIN("key is missing for GetAssimpTexture report this");
+	// 		ERR_FAIL_V_MSG(false, "key is missing for GetAssimpTexture");
+	// 	}
+	// 	aiString texture_path;
+	// 	if (AI_SUCCESS == ai_material->Get(key, texture_type, 0)) {
+	// 		filename = get_raw_string_from_assimp(texture_path);
+	// 		path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+	// 		bool found = false;
+	// 		find_texture_path(state.path, path, found);
+	// 		if (found) {
+	// 			Ref<ImageTexture> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+	// 			if (img.is_valid()) {
+	// 				texture.instance();
+	// 				texture->create_from_image(img);
+	// 				texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
+	// 				return true;
+	// 			}
+	// 		}
+	// 	}
+	// 	return false;
+	// }
+
+	static bool CreateAssimpTexture(
+			AssimpImporter::ImportState &state,
+			aiString texture_path,
+			String &filename,
+			String &path,
+			AssimpImageData &image_state) {
+		filename = get_raw_string_from_assimp(texture_path);
+		path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+		bool found = false;
+		find_texture_path(state.path, path, found);
+		if (found) {
+			image_state.raw_image = AssimpUtils::load_image(state, state.assimp_scene, path);
+			if (image_state.raw_image.is_valid()) {
+				image_state.texture.instance();
+				image_state.texture->create_from_image(image_state.raw_image);
+				image_state.texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);				
+				return true;
+			}
+		}
+
+		return false;
+	}
 	/** GetAssimpTexture
 	 *  Designed to retrieve textures for you
 	 */
@@ -413,48 +471,10 @@ public:
 			aiTextureType texture_type,
 			String &filename,
 			String &path,
-			Ref<ImageTexture> texture,
-			aiTextureMapMode *map_mode = NULL,
-			aiString key = aiString("")) {
-		if (map_mode != NULL) {
-			aiString ai_filename = aiString();
-			if (AI_SUCCESS == ai_material->GetTexture(texture_type, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-				filename = get_raw_string_from_assimp(ai_filename);
-				path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-				bool found = false;
-				find_texture_path(state.path, path, found);
-				if (found) {
-					Ref<ImageTexture> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-					if (img.is_valid()) {
-						texture.instance();
-						texture->create_from_image(img);
-						texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
-						return true;
-					}
-				}
-			}
-		} else {
-			if(key == aiString(""))
-			{
-				ERR_EXPLAIN("key is missing for GetAssimpTexture report this");
-				ERR_FAIL_V_MSG(false, "key is missing for GetAssimpTexture");
-			}
-			// aiString texture_path;
-			// if (AI_SUCCESS == ai_material->Get(key, texture_type, 0, texture_path,)) {
-			// 	filename = get_raw_string_from_assimp(texture_path);
-			// 	path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-			// 	bool found = false;
-			// 	find_texture_path(state.path, path, found);
-			// 	if (found) {
-			// 		Ref<ImageTexture> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-			// 		if (img.is_valid()) {
-			// 			texture.instance();
-			// 			texture->create_from_image(img);
-			// 			texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
-			// 			return true;
-			// 		}
-			// 	}
-			//}
+			AssimpImageData &image_state) {
+		aiString ai_filename = aiString();
+		if (AI_SUCCESS == ai_material->GetTexture(texture_type, 0, &ai_filename, NULL, NULL, NULL, NULL, image_state.map_mode)) {
+			return CreateAssimpTexture(state, ai_filename, filename, path, image_state);
 		}
 
 		return false;

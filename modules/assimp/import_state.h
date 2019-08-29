@@ -76,6 +76,12 @@ struct ImportState {
 	AnimationPlayer *animation_player;
 };
 
+struct AssimpImageData{
+	Ref<Image> raw_image;
+	Ref<ImageTexture> texture;
+	aiTextureMapMode *map_mode;
+};
+
 /** Recursive state is used to push state into functions instead of specifying them
 	* This makes the code easier to handle too and add extra arguments without breaking things
 	*/
