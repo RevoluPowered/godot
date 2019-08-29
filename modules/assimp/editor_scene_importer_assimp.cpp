@@ -672,446 +672,366 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportS
 
 		aiTextureType tex_normal = aiTextureType_NORMALS;
 		{
-			aiString ai_filename = aiString();
-			{
-				aiTextureMapMode map_mode[2];
-
-				if (AI_SUCCESS == ai_material->GetTexture(tex_normal, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Resource> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
-							AssimpUtils::set_texture_mapping_mode(map_mode, texture);
-							mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
-						}
-					}
-				}
-			}
-			{
-				aiString tex_fbx_pbs_emissive_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, tex_fbx_pbs_emissive_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_emissive_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							texture->set_storage(ImageTexture::STORAGE_COMPRESS_LOSSY);
-							mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, texture);
-						}
-					}
-				} else {
-					float pbr_emission = 0.0f;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR, pbr_emission)) {
-						mat->set_emission(Color(pbr_emission, pbr_emission, pbr_emission, 1.0f));
-					}
-				}
+			aiTextureMapMode map_mode[2];
+			String filename = "";
+			String path = "";
+			Ref<Image> texture = NULL;
+			
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_normal, filename, path, texture, map_mode)) {
+				AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+				mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+				mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
 			}
 
-			{
-				ai_filename = aiString();
-
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_NORMAL_TEXTURE, ai_filename)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
-						}
-					}
-				}
-			}
-
-			aiTextureType tex_emissive = aiTextureType_EMISSIVE;
-
-			if (ai_material->GetTextureCount(tex_emissive) > 0) {
-				ai_filename = aiString();
-				aiTextureMapMode map_mode[2];
-
-				if (AI_SUCCESS == ai_material->GetTexture(tex_emissive, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							AssimpUtils::set_texture_mapping_mode(map_mode, texture);
-							mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, texture);
-						}
-					}
-				}
-			}
-
-			aiTextureType tex_albedo = aiTextureType_DIFFUSE;
-			if (ai_material->GetTextureCount(tex_albedo) > 0) {
-				ai_filename = aiString();
-				aiTextureMapMode map_mode[2];
-				if (AI_SUCCESS == ai_material->GetTexture(tex_albedo, 0, &ai_filename, NULL, NULL, NULL, NULL, map_mode)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(ai_filename);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							if (img.is_valid() && img->detect_alpha() != Image::ALPHA_BIT) {
-								AssimpUtils::set_texture_mapping_mode(map_mode, texture);
-								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-							}
-							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
-						}
-					}
-				}
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, aiTextureType_UNKNOWN, filename, path, texture, NULL, aiString(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE))) {
+				mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
+				mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, texture);
 			} else {
-				aiColor4D clr_diffuse;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, clr_diffuse)) {
-					if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
-						mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-						mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					}
-					mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
+				float pbr_emission = 0.0f;
+				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR, aiTextureType_UNKNOWN, 0, pbr_emission)) {
+					mat->set_emission(Color(pbr_emission, pbr_emission, pbr_emission, 1.0f));
 				}
 			}
 
-			aiString tex_gltf_base_color_path = aiString();
-			{
-				aiTextureMapMode map_mode[2];
-				if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &tex_gltf_base_color_path, NULL, NULL, NULL, NULL, map_mode)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_base_color_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
-								AssimpUtils::set_texture_mapping_mode(map_mode, texture);
-								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-							}
-							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
-						}
-					}
-				} else {
-					aiColor4D pbr_base_color;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, pbr_base_color)) {
-						if (Math::is_equal_approx(pbr_base_color.a, 1.0f) == false) {
-							mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-							mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-						}
-						mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
-					}
-				}
-			}
-			{
-				aiString tex_fbx_pbs_base_color_path = aiString();
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
-								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-							}
-							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
-						}
-					}
-				} else {
-					aiColor4D pbr_base_color;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR, pbr_base_color)) {
-						mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
-					}
-				}
-
-				aiUVTransform pbr_base_color_uv_xform;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM, pbr_base_color_uv_xform)) {
-					mat->set_uv1_offset(Vector3(pbr_base_color_uv_xform.mTranslation.x, pbr_base_color_uv_xform.mTranslation.y, 0.0f));
-					mat->set_uv1_scale(Vector3(pbr_base_color_uv_xform.mScaling.x, pbr_base_color_uv_xform.mScaling.y, 1.0f));
-				}
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, aiTextureType_UNKNOWN, filename, path, texture, NULL, aiString(AI_MATKEY_FBX_NORMAL_TEXTURE))) {
+				mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+				mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
 			}
 
-			{
-				aiString tex_fbx_pbs_normal_path = aiString();
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE, tex_fbx_pbs_normal_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_normal_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
-						}
-					}
-				}
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, aiTextureType_EMISSIVE, filename, path, texture, map_mode)) {
+				mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
+				mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, texture);
 			}
 
-			// aiString cull_mode;
-			// if (parent_node_assimp->mMetaData) {
-			// 	parent_node_assimp->mMetaData->Get("Culling", cull_mode);
+			if (ai_material->GetTextureCount(aiTextureType_DIFFUSE) > 0 && AssimpUtils::GetAssimpTexture(state, ai_material, aiTextureType_DIFFUSE, filename, path, texture, map_mode)) {
+				if (texture->detect_alpha() != Image::ALPHA_BIT) {
+					AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+					mat->set_flag(SpatialMaterial::FLAG_USE_ALPHA_SCISSOR, true);
+					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+				}
+				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+			} else {
+				// aiColor4D clr_diffuse;
+				// if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, aiTextureType_NONE, 0, clr_diffuse)) {
+				// 	if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
+				// 		mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+				// 		mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+				// 	}
+				// 	mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
+				// }
+			}
+
+			// aiString tex_gltf_base_color_path = aiString();
+			// {
+			// 	aiTextureMapMode map_mode[2];
+			// 	if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &tex_gltf_base_color_path, NULL, NULL, NULL, NULL, map_mode)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_base_color_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
+			// 					AssimpUtils::set_texture_mapping_mode(map_mode, texture);
+			// 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+			// 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+			// 				}
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		aiColor4D pbr_base_color;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, pbr_base_color)) {
+			// 			if (Math::is_equal_approx(pbr_base_color.a, 1.0f) == false) {
+			// 				mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+			// 				mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+			// 			}
+			// 			mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
+			// 		}
+			// 	}
 			// }
-			// if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
-			// 	mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
+			// {
+			// 	aiString tex_fbx_pbs_base_color_path = aiString();
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
+			// 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+			// 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+			// 				}
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		aiColor4D pbr_base_color;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_FACTOR, pbr_base_color)) {
+			// 			mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
+			// 		}
+			// 	}
+
+			// 	aiUVTransform pbr_base_color_uv_xform;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_BASE_COLOR_UV_XFORM, pbr_base_color_uv_xform)) {
+			// 		mat->set_uv1_offset(Vector3(pbr_base_color_uv_xform.mTranslation.x, pbr_base_color_uv_xform.mTranslation.y, 0.0f));
+			// 		mat->set_uv1_scale(Vector3(pbr_base_color_uv_xform.mScaling.x, pbr_base_color_uv_xform.mScaling.y, 1.0f));
+			// 	}
 			// }
 
-			mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
+			// {
+			// 	aiString tex_fbx_pbs_normal_path = aiString();
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_NORMAL_TEXTURE, tex_fbx_pbs_normal_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_normal_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
+			// 			}
+			// 		}
+			// 	}
+			// }
 
-			{
-				aiString tex_fbx_stingray_normal_path = aiString();
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE, tex_fbx_stingray_normal_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_stingray_normal_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-							mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
-						}
-					}
-				}
-			}
+			// // aiString cull_mode;
+			// // if (parent_node_assimp->mMetaData) {
+			// // 	parent_node_assimp->mMetaData->Get("Culling", cull_mode);
+			// // }
+			// // if (cull_mode.length != 0 && cull_mode == aiString("CullingOff")) {
+			// // 	mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
+			// // }
 
-			{
-				aiString tex_fbx_pbs_base_color_path = aiString();
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
-								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-							}
-							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
-						}
-					}
-				} else {
-					aiColor4D pbr_base_color;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR, pbr_base_color)) {
-						mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
-					}
-				}
+			// mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
 
-				aiUVTransform pbr_base_color_uv_xform;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM, pbr_base_color_uv_xform)) {
-					mat->set_uv1_offset(Vector3(pbr_base_color_uv_xform.mTranslation.x, pbr_base_color_uv_xform.mTranslation.y, 0.0f));
-					mat->set_uv1_scale(Vector3(pbr_base_color_uv_xform.mScaling.x, pbr_base_color_uv_xform.mScaling.y, 1.0f));
-				}
-			}
+			// {
+			// 	aiString tex_fbx_stingray_normal_path = aiString();
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_NORMAL_TEXTURE, tex_fbx_stingray_normal_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_stingray_normal_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, texture);
+			// 			}
+			// 		}
+			// 	}
+			// }
 
-			{
-				aiString tex_fbx_pbs_emissive_path = aiString();
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE, tex_fbx_pbs_emissive_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_emissive_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							if (img->detect_alpha() == Image::ALPHA_BLEND) {
-								mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-								mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-							}
-							mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
-						}
-					}
-				} else {
-					aiColor4D pbr_emmissive_color;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR, pbr_emmissive_color)) {
-						mat->set_emission(Color(pbr_emmissive_color.r, pbr_emmissive_color.g, pbr_emmissive_color.b, pbr_emmissive_color.a));
-					}
-				}
+			// {
+			// 	aiString tex_fbx_pbs_base_color_path = aiString();
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_TEXTURE, tex_fbx_pbs_base_color_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_base_color_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				if (img.is_valid() && img->detect_alpha() == Image::ALPHA_BLEND) {
+			// 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+			// 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+			// 				}
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		aiColor4D pbr_base_color;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_BASE_COLOR_FACTOR, pbr_base_color)) {
+			// 			mat->set_albedo(Color(pbr_base_color.r, pbr_base_color.g, pbr_base_color.b, pbr_base_color.a));
+			// 		}
+			// 	}
 
-				real_t pbr_emission_intensity;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR, pbr_emission_intensity)) {
-					mat->set_emission_energy(pbr_emission_intensity);
-				}
-			}
+			// 	aiUVTransform pbr_base_color_uv_xform;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_COLOR_UV_XFORM, pbr_base_color_uv_xform)) {
+			// 		mat->set_uv1_offset(Vector3(pbr_base_color_uv_xform.mTranslation.x, pbr_base_color_uv_xform.mTranslation.y, 0.0f));
+			// 		mat->set_uv1_scale(Vector3(pbr_base_color_uv_xform.mScaling.x, pbr_base_color_uv_xform.mScaling.y, 1.0f));
+			// 	}
+			// }
 
-			aiString tex_gltf_pbr_metallicroughness_path;
-			if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &tex_gltf_pbr_metallicroughness_path)) {
-				String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_pbr_metallicroughness_path);
-				String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-				bool found = false;
-				AssimpUtils::find_texture_path(state.path, path, found);
-				if (found) {
-					Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-					if (img.is_valid()) {
-						Ref<ImageTexture> texture;
-						texture.instance();
-						texture->create_from_image(img);
-						mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
-						mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_BLUE);
-						mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
-						mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GREEN);
-					}
-				}
-			} else {
-				float pbr_roughness = 0.0f;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, pbr_roughness)) {
-					mat->set_roughness(pbr_roughness);
-				}
-				float pbr_metallic = 0.0f;
+			// {
+			// 	aiString tex_fbx_pbs_emissive_path = aiString();
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_TEXTURE, tex_fbx_pbs_emissive_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_emissive_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				if (img->detect_alpha() == Image::ALPHA_BLEND) {
+			// 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+			// 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+			// 				}
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, texture);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		aiColor4D pbr_emmissive_color;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_FACTOR, pbr_emmissive_color)) {
+			// 			mat->set_emission(Color(pbr_emmissive_color.r, pbr_emmissive_color.g, pbr_emmissive_color.b, pbr_emmissive_color.a));
+			// 		}
+			// 	}
 
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR, pbr_metallic)) {
-					mat->set_metallic(pbr_metallic);
-				}
-			}
-			{
-				aiString tex_fbx_pbs_metallic_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE, tex_fbx_pbs_metallic_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
-							mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
-						}
-					}
-				} else {
-					float pbr_metallic = 0.0f;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR, pbr_metallic)) {
-						mat->set_metallic(pbr_metallic);
-					}
-				}
+			// 	real_t pbr_emission_intensity;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_EMISSIVE_INTENSITY_FACTOR, pbr_emission_intensity)) {
+			// 		mat->set_emission_energy(pbr_emission_intensity);
+			// 	}
+			// }
 
-				aiString tex_fbx_pbs_rough_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
-							mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
-						}
-					}
-				} else {
-					float pbr_roughness = 0.04f;
+			// aiString tex_gltf_pbr_metallicroughness_path;
+			// if (AI_SUCCESS == ai_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &tex_gltf_pbr_metallicroughness_path)) {
+			// 	String filename = AssimpUtils::get_raw_string_from_assimp(tex_gltf_pbr_metallicroughness_path);
+			// 	String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 	bool found = false;
+			// 	AssimpUtils::find_texture_path(state.path, path, found);
+			// 	if (found) {
+			// 		Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 		if (img.is_valid()) {
+			// 			Ref<ImageTexture> texture;
+			// 			texture.instance();
+			// 			texture->create_from_image(img);
+			// 			mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
+			// 			mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_BLUE);
+			// 			mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
+			// 			mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GREEN);
+			// 		}
+			// 	}
+			// } else {
+			// 	float pbr_roughness = 0.0f;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, pbr_roughness)) {
+			// 		mat->set_roughness(pbr_roughness);
+			// 	}
+			// 	float pbr_metallic = 0.0f;
 
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR, pbr_roughness)) {
-						mat->set_roughness(pbr_roughness);
-					}
-				}
-			}
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR, pbr_metallic)) {
+			// 		mat->set_metallic(pbr_metallic);
+			// 	}
+			// }
+			// {
+			// 	aiString tex_fbx_pbs_metallic_path;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_TEXTURE, tex_fbx_pbs_metallic_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
+			// 				mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		float pbr_metallic = 0.0f;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_METALLIC_FACTOR, pbr_metallic)) {
+			// 			mat->set_metallic(pbr_metallic);
+			// 		}
+			// 	}
 
-			{
-				aiString tex_fbx_pbs_metallic_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE, tex_fbx_pbs_metallic_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
-							mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
-						}
-					}
-				} else {
-					float pbr_metallic = 0.0f;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_METALNESS_FACTOR, pbr_metallic)) {
-						mat->set_metallic(pbr_metallic);
-					}
-				}
+			// 	aiString tex_fbx_pbs_rough_path;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
+			// 				mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		float pbr_roughness = 0.04f;
 
-				aiString tex_fbx_pbs_rough_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
-					String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
-					String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
-					bool found = false;
-					AssimpUtils::find_texture_path(state.path, path, found);
-					if (found) {
-						Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
-						if (img.is_valid()) {
-							Ref<ImageTexture> texture;
-							texture.instance();
-							texture->create_from_image(img);
-							mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
-							mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
-						}
-					}
-				} else {
-					float pbr_roughness = 0.04f;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_STINGRAY_ROUGHNESS_FACTOR, pbr_roughness)) {
+			// 			mat->set_roughness(pbr_roughness);
+			// 		}
+			// 	}
+			// }
 
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR, pbr_roughness)) {
-						mat->set_roughness(pbr_roughness);
-					}
-				}
-			}
+			// {
+			// 	aiString tex_fbx_pbs_metallic_path;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_METALNESS_TEXTURE, tex_fbx_pbs_metallic_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_metallic_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, texture);
+			// 				mat->set_metallic_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		float pbr_metallic = 0.0f;
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_METALNESS_FACTOR, pbr_metallic)) {
+			// 			mat->set_metallic(pbr_metallic);
+			// 		}
+			// 	}
+
+			// 	aiString tex_fbx_pbs_rough_path;
+			// 	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_TEXTURE, tex_fbx_pbs_rough_path)) {
+			// 		String filename = AssimpUtils::get_raw_string_from_assimp(tex_fbx_pbs_rough_path);
+			// 		String path = state.path.get_base_dir().plus_file(filename.replace("\\", "/"));
+			// 		bool found = false;
+			// 		AssimpUtils::find_texture_path(state.path, path, found);
+			// 		if (found) {
+			// 			Ref<Image> img = AssimpUtils::load_image(state, state.assimp_scene, path);
+			// 			if (img.is_valid()) {
+			// 				Ref<ImageTexture> texture;
+			// 				texture.instance();
+			// 				texture->create_from_image(img);
+			// 				mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, texture);
+			// 				mat->set_roughness_texture_channel(SpatialMaterial::TEXTURE_CHANNEL_GRAYSCALE);
+			// 			}
+			// 		}
+			// 	} else {
+			// 		float pbr_roughness = 0.04f;
+
+			// 		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_DIFFUSE_ROUGHNESS_FACTOR, pbr_roughness)) {
+			// 			mat->set_roughness(pbr_roughness);
+			// 		}
+			// 	}
+			// }
 
 			Array array_mesh = st->commit_to_arrays();
 			Array morphs;
