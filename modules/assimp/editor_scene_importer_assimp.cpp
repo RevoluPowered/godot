@@ -114,9 +114,9 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
-								 aiProcess_GlobalScale | // fixed for FBX
+								 aiProcess_GlobalScale | // imports models and listens to their file scale for CM to M conversions
 								 //aiProcess_FlipUVs |
-								 aiProcess_FlipWindingOrder |
+								 aiProcess_FlipWindingOrder | // very important for culling so that it is done in the correct order.
 								 //aiProcess_DropNormals |
 								 //aiProcess_GenSmoothNormals |
 								 //aiProcess_JoinIdenticalVertices |
@@ -132,7 +132,7 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_FindInstances |
 								 //aiProcess_FixInfacingNormals |
 								 //aiProcess_ValidateDataStructure |
-								 //aiProcess_OptimizeMeshes |
+								 aiProcess_OptimizeMeshes |
 								 //aiProcess_OptimizeGraph |
 								 //aiProcess_Debone |
 								 aiProcess_EmbedTextures |
