@@ -762,6 +762,32 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 			}
 		}
 
+		aiTextureType tex_specular = aiTextureType_SPECULAR;
+		{
+			String filename, path;
+			Ref<ImageTexture> texture;
+			AssimpImageData image_data;
+
+			// Process texture normal map
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_specular, filename, path, image_data)) {
+				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+				mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, image_data.texture);
+			}
+		}
+
+		aiTextureType tex_roughness = aiTextureType_SHININESS;
+		{
+			String filename, path;
+			Ref<ImageTexture> texture;
+			AssimpImageData image_data;
+
+			// Process texture normal map
+			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_roughness, filename, path, image_data)) {
+				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+				mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, image_data.texture);
+			}
+		}
+
 		Array array_mesh = st->commit_to_arrays();
 		Array morphs;
 		morphs.resize(ai_mesh->mNumAnimMeshes);
