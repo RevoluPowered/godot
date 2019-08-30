@@ -79,7 +79,7 @@ struct ImportState {
 struct AssimpImageData{
 	Ref<Image> raw_image;
 	Ref<ImageTexture> texture;
-	aiTextureMapMode *map_mode;
+	aiTextureMapMode *map_mode = NULL;
 };
 
 /** Recursive state is used to push state into functions instead of specifying them

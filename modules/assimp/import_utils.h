@@ -326,9 +326,9 @@ public:
 		ERR_FAIL_COND(texture.is_null());
 		ERR_FAIL_COND(map_mode == NULL);
 		aiTextureMapMode tex_mode = aiTextureMapMode::aiTextureMapMode_Wrap;
-		//for (size_t i = 0; i < 3; i++) {
+
 		tex_mode = map_mode[0];
-		//}
+		
 		int32_t flags = Texture::FLAGS_DEFAULT;
 		if (tex_mode == aiTextureMapMode_Wrap) {
 			//Default
