@@ -131,8 +131,8 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_TransformUVCoords |
 								 aiProcess_FindInstances |
 								 //aiProcess_FixInfacingNormals |
-								 aiProcess_ValidateDataStructure |
-								 aiProcess_OptimizeMeshes |
+								 //aiProcess_ValidateDataStructure |
+								 //aiProcess_OptimizeMeshes |
 								 //aiProcess_OptimizeGraph |
 								 //aiProcess_Debone |
 								 // aiProcess_EmbedTextures |
@@ -531,359 +531,368 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 //
 // Mesh Generation from indicies ? why do we need so much mesh code
 // [debt needs looked into]
-Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
+Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_for_node(
 		ImportState &state,
 		const Vector<int> &p_surface_indices,
 		const aiNode *assimp_node,
+		const aiMesh *assimp_mesh,
 		Skeleton *p_skeleton) {
 
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 	bool has_uvs = false;
 
+	// Blend shapes must be created first as we are generating surfaces in this function
+	for (size_t j = 0; j < assimp_mesh->mNumAnimMeshes; ++j) {
+		String ai_anim_mesh_name = AssimpUtils::get_assimp_string(assimp_mesh->mAnimMeshes[j]->mName);
+		if (ai_anim_mesh_name.empty()) {
+			ai_anim_mesh_name = String("morph_") + itos(j);
+		}
+		mesh->add_blend_shape(ai_anim_mesh_name);
+		mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+	}
+
 	//
 	// Process Vertex Weights
 	//
-	for (int i = 0; i < p_surface_indices.size(); i++) {
-		const unsigned int mesh_idx = p_surface_indices[i];
-		const aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_idx];
 
-		Map<uint32_t, Vector<BoneInfo> > vertex_weights;
+	Map<uint32_t, Vector<BoneInfo> > vertex_weights;
 
-		if (p_skeleton) {
-			for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
-				aiBone *bone = ai_mesh->mBones[b];
-				String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-				int bone_index = p_skeleton->find_bone(bone_name);
-				ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
+	if (p_skeleton) {
+		for (size_t b = 0; b < assimp_mesh->mNumBones; b++) {
+			aiBone *bone = assimp_mesh->mBones[b];
+			String bone_name = AssimpUtils::get_assimp_string(bone->mName);
+			int bone_index = p_skeleton->find_bone(bone_name);
+			ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
-				for (size_t w = 0; w < bone->mNumWeights; w++) {
+			for (size_t w = 0; w < bone->mNumWeights; w++) {
 
-					aiVertexWeight ai_weights = bone->mWeights[w];
+				aiVertexWeight ai_weights = bone->mWeights[w];
 
-					BoneInfo bi;
+				BoneInfo bi;
 
-					uint32_t vertex_index = ai_weights.mVertexId;
-					bi.bone = bone_index;
-					bi.weight = ai_weights.mWeight;
+				uint32_t vertex_index = ai_weights.mVertexId;
+				bi.bone = bone_index;
+				bi.weight = ai_weights.mWeight;
 
-					if (!vertex_weights.has(vertex_index)) {
-						vertex_weights[vertex_index] = Vector<BoneInfo>();
-					}
-
-					vertex_weights[vertex_index].push_back(bi);
+				if (!vertex_weights.has(vertex_index)) {
+					vertex_weights[vertex_index] = Vector<BoneInfo>();
 				}
+
+				vertex_weights[vertex_index].push_back(bi);
 			}
 		}
-
-		//
-		// Create mesh from data from assimp
-		//
-
-		Ref<SurfaceTool> st;
-		st.instance();
-		st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-		for (size_t j = 0; j < ai_mesh->mNumVertices; j++) {
-
-			// Get the texture coordinates if they exist
-			if (ai_mesh->HasTextureCoords(0)) {
-				has_uvs = true;
-				st->add_uv(Vector2(ai_mesh->mTextureCoords[0][j].x, 1.0f - ai_mesh->mTextureCoords[0][j].y));
-			}
-
-			if (ai_mesh->HasTextureCoords(1)) {
-				has_uvs = true;
-				st->add_uv2(Vector2(ai_mesh->mTextureCoords[1][j].x, 1.0f - ai_mesh->mTextureCoords[1][j].y));
-			}
-
-			// Assign vertex colors
-			if (ai_mesh->HasVertexColors(0)) {
-				Color color = Color(ai_mesh->mColors[0]->r, ai_mesh->mColors[0]->g, ai_mesh->mColors[0]->b, ai_mesh->mColors[0]->a);
-				st->add_color(color);
-			}
-
-			// Work out normal calculations? - this needs work it doesn't work properly on huestos
-			if (ai_mesh->mNormals != NULL) {
-				const aiVector3D normals = ai_mesh->mNormals[j];
-				const Vector3 godot_normal = Vector3(normals.x, normals.y, normals.z);
-				st->add_normal(godot_normal);
-				if (ai_mesh->HasTangentsAndBitangents()) {
-					const aiVector3D tangents = ai_mesh->mTangents[j];
-					const Vector3 godot_tangent = Vector3(tangents.x, tangents.y, tangents.z);
-					const aiVector3D bitangent = ai_mesh->mBitangents[j];
-					const Vector3 godot_bitangent = Vector3(bitangent.x, bitangent.y, bitangent.z);
-					float d = godot_normal.cross(godot_tangent).dot(godot_bitangent) > 0.0f ? 1.0f : -1.0f;
-					st->add_tangent(Plane(tangents.x, tangents.y, tangents.z, d));
-				}
-			}
-
-			// We have vertex weights right?
-			if (vertex_weights.has(j)) {
-
-				Vector<BoneInfo> bone_info = vertex_weights[j];
-				Vector<int> bones;
-				bones.resize(bone_info.size());
-				Vector<float> weights;
-				weights.resize(bone_info.size());
-
-				// todo? do we really need to loop over all bones? - assimp may have helper to find all influences on this vertex.
-				for (int k = 0; k < bone_info.size(); k++) {
-					bones.write[k] = bone_info[k].bone;
-					weights.write[k] = bone_info[k].weight;
-				}
-
-				st->add_bones(bones);
-				st->add_weights(weights);
-			}
-
-			// Assign vertex
-			const aiVector3D pos = ai_mesh->mVertices[j];
-
-			// note we must include node offset transform as this is relative to world space not local space.
-			Vector3 godot_pos = Vector3(pos.x, pos.y, pos.z);
-			st->add_vertex(godot_pos);
-		}
-
-		// fire replacement for face handling
-		for (size_t j = 0; j < ai_mesh->mNumFaces; j++) {
-			const aiFace face = ai_mesh->mFaces[j];
-			for (unsigned int k = 0; k < face.mNumIndices; k++) {
-				st->add_index(face.mIndices[k]);
-			}
-		}
-
-		if (ai_mesh->HasTangentsAndBitangents() == false && has_uvs) {
-			st->generate_tangents();
-		}
-
-		aiMaterial *ai_material = state.assimp_scene->mMaterials[ai_mesh->mMaterialIndex];
-		Ref<SpatialMaterial> mat;
-		mat.instance();
-
-		int32_t mat_two_sided = 0;
-		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_TWOSIDED, mat_two_sided)) {
-			if (mat_two_sided > 0) {
-				mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
-			}
-		}
-
-		const String mesh_name = AssimpUtils::get_assimp_string(ai_mesh->mName);
-		aiString mat_name;
-		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_NAME, mat_name)) {
-			mat->set_name(AssimpUtils::get_assimp_string(mat_name));
-		}
-
-		// Culling handling for meshes
-
-		// cull all back faces
-		mat->set_cull_mode(SpatialMaterial::CULL_BACK);
-
-		// Now process materials
-		aiTextureType tex_diffuse = aiTextureType_DIFFUSE;
-		{
-			String filename, path;
-			AssimpImageData image_data;
-
-			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_diffuse, filename, path, image_data)) {
-				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
-
-				// anything transparent must be culled
-				if (image_data.raw_image->detect_alpha() != Image::ALPHA_NONE) {
-					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
-				}
-
-				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, image_data.texture);
-			}
-
-			aiColor4D clr_diffuse;
-			if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, clr_diffuse)) {
-				if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
-					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
-					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
-				}
-				mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
-			}
-		}
-
-		aiTextureType tex_normal = aiTextureType_NORMALS;
-		{
-			String filename, path;
-			Ref<ImageTexture> texture;
-			AssimpImageData image_data;
-
-			// Process texture normal map
-			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_normal, filename, path, image_data)) {
-				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
-				mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-				mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, image_data.texture);
-			} else {
-				aiString texture_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_NORMAL_TEXTURE, AI_PROPERTIES, texture_path)) {
-					if (AssimpUtils::CreateAssimpTexture(state, texture_path, filename, path, image_data)) {
-						mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
-						mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, image_data.texture);
-					}
-				}
-			}
-		}
-
-		aiTextureType tex_emissive = aiTextureType_EMISSIVE;
-		{
-			String filename = "";
-			String path = "";
-			Ref<Image> texture;
-			AssimpImageData image_data;
-
-			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_emissive, filename, path, image_data)) {
-				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
-				mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
-				mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, image_data.texture);
-			} else {
-				// Process emission textures
-				aiString texture_emissive_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, AI_PROPERTIES, texture_emissive_path)) {
-					if (AssimpUtils::CreateAssimpTexture(state, texture_emissive_path, filename, path, image_data)) {
-						mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
-						mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, image_data.texture);
-					}
-				} else {
-					float pbr_emission = 0.0f;
-					if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR, AI_NULL, pbr_emission)) {
-						mat->set_emission(Color(pbr_emission, pbr_emission, pbr_emission, 1.0f));
-					}
-				}
-			}
-		}
-
-		aiTextureType tex_specular = aiTextureType_SPECULAR;
-		{
-			String filename, path;
-			Ref<ImageTexture> texture;
-			AssimpImageData image_data;
-
-			// Process texture normal map
-			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_specular, filename, path, image_data)) {
-				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
-				mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, image_data.texture);
-			}
-		}
-
-		aiTextureType tex_roughness = aiTextureType_SHININESS;
-		{
-			String filename, path;
-			Ref<ImageTexture> texture;
-			AssimpImageData image_data;
-
-			// Process texture normal map
-			if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_roughness, filename, path, image_data)) {
-				AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
-				mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, image_data.texture);
-			}
-		}
-
-		Array array_mesh = st->commit_to_arrays();
-		Array morphs;
-		morphs.resize(ai_mesh->mNumAnimMeshes);
-		Mesh::PrimitiveType primitive = Mesh::PRIMITIVE_TRIANGLES;
-		Map<uint32_t, String> morph_mesh_idx_names;
-		for (size_t j = 0; j < ai_mesh->mNumAnimMeshes; j++) {
-
-			String ai_anim_mesh_name = AssimpUtils::get_assimp_string(ai_mesh->mAnimMeshes[j]->mName);
-			mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
-			if (ai_anim_mesh_name.empty()) {
-				ai_anim_mesh_name = String("morph_") + itos(j);
-			}
-			mesh->add_blend_shape(ai_anim_mesh_name);
-			morph_mesh_idx_names.insert(j, ai_anim_mesh_name);
-			Array array_copy;
-			array_copy.resize(VisualServer::ARRAY_MAX);
-
-			for (int l = 0; l < VisualServer::ARRAY_MAX; l++) {
-				array_copy[l] = array_mesh[l].duplicate(true);
-			}
-
-			const size_t num_vertices = ai_mesh->mAnimMeshes[j]->mNumVertices;
-			array_copy[Mesh::ARRAY_INDEX] = Variant();
-			if (ai_mesh->mAnimMeshes[j]->HasPositions()) {
-				PoolVector3Array vertices;
-				vertices.resize(num_vertices);
-				for (size_t l = 0; l < num_vertices; l++) {
-					const aiVector3D ai_pos = ai_mesh->mAnimMeshes[j]->mVertices[l];
-					Vector3 position = Vector3(ai_pos.x, ai_pos.y, ai_pos.z);
-					vertices.write()[l] = position;
-				}
-				PoolVector3Array new_vertices = array_copy[VisualServer::ARRAY_VERTEX].duplicate(true);
-				ERR_CONTINUE(vertices.size() != new_vertices.size());
-				for (int32_t l = 0; l < new_vertices.size(); l++) {
-					PoolVector3Array::Write w = new_vertices.write();
-					w[l] = vertices[l];
-				}
-				array_copy[VisualServer::ARRAY_VERTEX] = new_vertices;
-			}
-
-			int32_t color_set = 0;
-			if (ai_mesh->mAnimMeshes[j]->HasVertexColors(color_set)) {
-				PoolColorArray colors;
-				colors.resize(num_vertices);
-				for (size_t l = 0; l < num_vertices; l++) {
-					const aiColor4D ai_color = ai_mesh->mAnimMeshes[j]->mColors[color_set][l];
-					Color color = Color(ai_color.r, ai_color.g, ai_color.b, ai_color.a);
-					colors.write()[l] = color;
-				}
-				PoolColorArray new_colors = array_copy[VisualServer::ARRAY_COLOR].duplicate(true);
-				ERR_CONTINUE(colors.size() != new_colors.size());
-				for (int32_t l = 0; l < colors.size(); l++) {
-					PoolColorArray::Write w = new_colors.write();
-					w[l] = colors[l];
-				}
-				array_copy[VisualServer::ARRAY_COLOR] = new_colors;
-			}
-
-			if (ai_mesh->mAnimMeshes[j]->HasNormals()) {
-				PoolVector3Array normals;
-				normals.resize(num_vertices);
-				for (size_t l = 0; l < num_vertices; l++) {
-					const aiVector3D ai_normal = ai_mesh->mAnimMeshes[j]->mNormals[l];
-					Vector3 normal = Vector3(ai_normal.x, ai_normal.y, ai_normal.z);
-					normals.write()[l] = normal;
-				}
-				PoolVector3Array new_normals = array_copy[VisualServer::ARRAY_NORMAL].duplicate(true);
-				ERR_CONTINUE(normals.size() != new_normals.size());
-				for (int l = 0; l < normals.size(); l++) {
-					PoolVector3Array::Write w = new_normals.write();
-					w[l] = normals[l];
-				}
-				array_copy[VisualServer::ARRAY_NORMAL] = new_normals;
-			}
-
-			if (ai_mesh->mAnimMeshes[j]->HasTangentsAndBitangents()) {
-				PoolColorArray tangents;
-				tangents.resize(num_vertices);
-				PoolColorArray::Write w = tangents.write();
-				for (size_t l = 0; l < num_vertices; l++) {
-					AssimpUtils::calc_tangent_from_mesh(ai_mesh, j, l, l, w);
-				}
-				PoolRealArray new_tangents = array_copy[VisualServer::ARRAY_TANGENT].duplicate(true);
-				ERR_CONTINUE(new_tangents.size() != tangents.size() * 4);
-				for (int32_t l = 0; l < tangents.size(); l++) {
-					new_tangents.write()[l + 0] = tangents[l].r;
-					new_tangents.write()[l + 1] = tangents[l].g;
-					new_tangents.write()[l + 2] = tangents[l].b;
-					new_tangents.write()[l + 3] = tangents[l].a;
-				}
-				array_copy[VisualServer::ARRAY_TANGENT] = new_tangents;
-			}
-
-			morphs[j] = array_copy;
-		}
-		mesh->add_surface_from_arrays(primitive, array_mesh, morphs);
-		mesh->surface_set_material(i, mat);
-		mesh->surface_set_name(i, AssimpUtils::get_assimp_string(ai_mesh->mName));
 	}
+
+	//
+	// Create mesh from data from assimp
+	//
+
+	Ref<SurfaceTool> st;
+	st.instance();
+	st->begin(Mesh::PRIMITIVE_TRIANGLES);
+
+	for (size_t j = 0; j < assimp_mesh->mNumVertices; j++) {
+
+		// Get the texture coordinates if they exist
+		if (assimp_mesh->HasTextureCoords(0)) {
+			has_uvs = true;
+			st->add_uv(Vector2(assimp_mesh->mTextureCoords[0][j].x, 1.0f - assimp_mesh->mTextureCoords[0][j].y));
+		}
+
+		if (assimp_mesh->HasTextureCoords(1)) {
+			has_uvs = true;
+			st->add_uv2(Vector2(assimp_mesh->mTextureCoords[1][j].x, 1.0f - assimp_mesh->mTextureCoords[1][j].y));
+		}
+
+		// Assign vertex colors
+		if (assimp_mesh->HasVertexColors(0)) {
+			Color color = Color(assimp_mesh->mColors[0]->r, assimp_mesh->mColors[0]->g, assimp_mesh->mColors[0]->b, assimp_mesh->mColors[0]->a);
+			st->add_color(color);
+		}
+
+		// Work out normal calculations? - this needs work it doesn't work properly on huestos
+		if (assimp_mesh->mNormals != NULL) {
+			const aiVector3D normals = assimp_mesh->mNormals[j];
+			const Vector3 godot_normal = Vector3(normals.x, normals.y, normals.z);
+			st->add_normal(godot_normal);
+			if (assimp_mesh->HasTangentsAndBitangents()) {
+				const aiVector3D tangents = assimp_mesh->mTangents[j];
+				const Vector3 godot_tangent = Vector3(tangents.x, tangents.y, tangents.z);
+				const aiVector3D bitangent = assimp_mesh->mBitangents[j];
+				const Vector3 godot_bitangent = Vector3(bitangent.x, bitangent.y, bitangent.z);
+				float d = godot_normal.cross(godot_tangent).dot(godot_bitangent) > 0.0f ? 1.0f : -1.0f;
+				st->add_tangent(Plane(tangents.x, tangents.y, tangents.z, d));
+			}
+		}
+
+		// We have vertex weights right?
+		if (vertex_weights.has(j)) {
+
+			Vector<BoneInfo> bone_info = vertex_weights[j];
+			Vector<int> bones;
+			bones.resize(bone_info.size());
+			Vector<float> weights;
+			weights.resize(bone_info.size());
+
+			// todo? do we really need to loop over all bones? - assimp may have helper to find all influences on this vertex.
+			for (int k = 0; k < bone_info.size(); k++) {
+				bones.write[k] = bone_info[k].bone;
+				weights.write[k] = bone_info[k].weight;
+			}
+
+			st->add_bones(bones);
+			st->add_weights(weights);
+		}
+
+		// Assign vertex
+		const aiVector3D pos = assimp_mesh->mVertices[j];
+
+		// note we must include node offset transform as this is relative to world space not local space.
+		Vector3 godot_pos = Vector3(pos.x, pos.y, pos.z);
+		st->add_vertex(godot_pos);
+	}
+
+	// fire replacement for face handling
+	for (size_t j = 0; j < assimp_mesh->mNumFaces; j++) {
+		const aiFace face = assimp_mesh->mFaces[j];
+		for (unsigned int k = 0; k < face.mNumIndices; k++) {
+			st->add_index(face.mIndices[k]);
+		}
+	}
+
+	if (assimp_mesh->HasTangentsAndBitangents() == false && has_uvs) {
+		st->generate_tangents();
+	}
+
+	aiMaterial *ai_material = state.assimp_scene->mMaterials[assimp_mesh->mMaterialIndex];
+	Ref<SpatialMaterial> mat;
+	mat.instance();
+
+	int32_t mat_two_sided = 0;
+	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_TWOSIDED, mat_two_sided)) {
+		if (mat_two_sided > 0) {
+			mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
+		}
+	}
+
+	const String mesh_name = AssimpUtils::get_assimp_string(assimp_mesh->mName);
+	aiString mat_name;
+	if (AI_SUCCESS == ai_material->Get(AI_MATKEY_NAME, mat_name)) {
+		mat->set_name(AssimpUtils::get_assimp_string(mat_name));
+	}
+
+	// Culling handling for meshes
+
+	// cull all back faces
+	mat->set_cull_mode(SpatialMaterial::CULL_BACK);
+
+	// Now process materials
+	aiTextureType tex_diffuse = aiTextureType_DIFFUSE;
+	{
+		String filename, path;
+		AssimpImageData image_data;
+
+		if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_diffuse, filename, path, image_data)) {
+			AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+
+			// anything transparent must be culled
+			if (image_data.raw_image->detect_alpha() != Image::ALPHA_NONE) {
+				mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+				mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+				mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+			}
+
+			mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, image_data.texture);
+		}
+
+		aiColor4D clr_diffuse;
+		if (AI_SUCCESS == ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, clr_diffuse)) {
+			if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
+				mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
+				mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
+				mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+			}
+			mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
+		}
+	}
+
+	aiTextureType tex_normal = aiTextureType_NORMALS;
+	{
+		String filename, path;
+		Ref<ImageTexture> texture;
+		AssimpImageData image_data;
+
+		// Process texture normal map
+		if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_normal, filename, path, image_data)) {
+			AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+			mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+			mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, image_data.texture);
+		} else {
+			aiString texture_path;
+			if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_NORMAL_TEXTURE, AI_PROPERTIES, texture_path)) {
+				if (AssimpUtils::CreateAssimpTexture(state, texture_path, filename, path, image_data)) {
+					mat->set_feature(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING, true);
+					mat->set_texture(SpatialMaterial::TEXTURE_NORMAL, image_data.texture);
+				}
+			}
+		}
+	}
+
+	aiTextureType tex_emissive = aiTextureType_EMISSIVE;
+	{
+		String filename = "";
+		String path = "";
+		Ref<Image> texture;
+		AssimpImageData image_data;
+
+		if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_emissive, filename, path, image_data)) {
+			AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+			mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
+			mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, image_data.texture);
+		} else {
+			// Process emission textures
+			aiString texture_emissive_path;
+			if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, AI_PROPERTIES, texture_emissive_path)) {
+				if (AssimpUtils::CreateAssimpTexture(state, texture_emissive_path, filename, path, image_data)) {
+					mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
+					mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, image_data.texture);
+				}
+			} else {
+				float pbr_emission = 0.0f;
+				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSIVE_FACTOR, AI_NULL, pbr_emission)) {
+					mat->set_emission(Color(pbr_emission, pbr_emission, pbr_emission, 1.0f));
+				}
+			}
+		}
+	}
+
+	aiTextureType tex_specular = aiTextureType_SPECULAR;
+	{
+		String filename, path;
+		Ref<ImageTexture> texture;
+		AssimpImageData image_data;
+
+		// Process texture normal map
+		if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_specular, filename, path, image_data)) {
+			AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+			mat->set_texture(SpatialMaterial::TEXTURE_METALLIC, image_data.texture);
+		}
+	}
+
+	aiTextureType tex_roughness = aiTextureType_SHININESS;
+	{
+		String filename, path;
+		Ref<ImageTexture> texture;
+		AssimpImageData image_data;
+
+		// Process texture normal map
+		if (AssimpUtils::GetAssimpTexture(state, ai_material, tex_roughness, filename, path, image_data)) {
+			AssimpUtils::set_texture_mapping_mode(image_data.map_mode, image_data.texture);
+			mat->set_texture(SpatialMaterial::TEXTURE_ROUGHNESS, image_data.texture);
+		}
+	}
+
+	Array array_mesh = st->commit_to_arrays();
+	Array morphs;
+	morphs.resize(assimp_mesh->mNumAnimMeshes);
+
+	Mesh::PrimitiveType primitive = Mesh::PRIMITIVE_TRIANGLES;
+	for (size_t j = 0; j < assimp_mesh->mNumAnimMeshes; j++) {
+
+		String ai_anim_mesh_name = AssimpUtils::get_assimp_string(assimp_mesh->mAnimMeshes[j]->mName);
+
+		if (ai_anim_mesh_name.empty()) {
+			ai_anim_mesh_name = String("morph_") + itos(j);
+		}
+
+		Array array_copy;
+		array_copy.resize(VisualServer::ARRAY_MAX);
+
+		for (int l = 0; l < VisualServer::ARRAY_MAX; l++) {
+			array_copy[l] = array_mesh[l].duplicate(true);
+		}
+
+		const size_t num_vertices = assimp_mesh->mAnimMeshes[j]->mNumVertices;
+		array_copy[Mesh::ARRAY_INDEX] = Variant();
+		if (assimp_mesh->mAnimMeshes[j]->HasPositions()) {
+			PoolVector3Array vertices;
+			vertices.resize(num_vertices);
+			for (size_t l = 0; l < num_vertices; l++) {
+				const aiVector3D ai_pos = assimp_mesh->mAnimMeshes[j]->mVertices[l];
+				Vector3 position = Vector3(ai_pos.x, ai_pos.y, ai_pos.z);
+				vertices.write()[l] = position;
+			}
+			PoolVector3Array new_vertices = array_copy[VisualServer::ARRAY_VERTEX].duplicate(true);
+			ERR_CONTINUE(vertices.size() != new_vertices.size());
+			for (int32_t l = 0; l < new_vertices.size(); l++) {
+				PoolVector3Array::Write w = new_vertices.write();
+				w[l] = vertices[l];
+			}
+			array_copy[VisualServer::ARRAY_VERTEX] = new_vertices;
+		}
+
+		int32_t color_set = 0;
+		if (assimp_mesh->mAnimMeshes[j]->HasVertexColors(color_set)) {
+			PoolColorArray colors;
+			colors.resize(num_vertices);
+			for (size_t l = 0; l < num_vertices; l++) {
+				const aiColor4D ai_color = assimp_mesh->mAnimMeshes[j]->mColors[color_set][l];
+				Color color = Color(ai_color.r, ai_color.g, ai_color.b, ai_color.a);
+				colors.write()[l] = color;
+			}
+			PoolColorArray new_colors = array_copy[VisualServer::ARRAY_COLOR].duplicate(true);
+			ERR_CONTINUE(colors.size() != new_colors.size());
+			for (int32_t l = 0; l < colors.size(); l++) {
+				PoolColorArray::Write w = new_colors.write();
+				w[l] = colors[l];
+			}
+			array_copy[VisualServer::ARRAY_COLOR] = new_colors;
+		}
+
+		if (assimp_mesh->mAnimMeshes[j]->HasNormals()) {
+			PoolVector3Array normals;
+			normals.resize(num_vertices);
+			for (size_t l = 0; l < num_vertices; l++) {
+				const aiVector3D ai_normal = assimp_mesh->mAnimMeshes[j]->mNormals[l];
+				Vector3 normal = Vector3(ai_normal.x, ai_normal.y, ai_normal.z);
+				normals.write()[l] = normal;
+			}
+			PoolVector3Array new_normals = array_copy[VisualServer::ARRAY_NORMAL].duplicate(true);
+			ERR_CONTINUE(normals.size() != new_normals.size());
+			for (int l = 0; l < normals.size(); l++) {
+				PoolVector3Array::Write w = new_normals.write();
+				w[l] = normals[l];
+			}
+			array_copy[VisualServer::ARRAY_NORMAL] = new_normals;
+		}
+
+		if (assimp_mesh->mAnimMeshes[j]->HasTangentsAndBitangents()) {
+			PoolColorArray tangents;
+			tangents.resize(num_vertices);
+			PoolColorArray::Write w = tangents.write();
+			for (size_t l = 0; l < num_vertices; l++) {
+				AssimpUtils::calc_tangent_from_mesh(assimp_mesh, j, l, l, w);
+			}
+			PoolRealArray new_tangents = array_copy[VisualServer::ARRAY_TANGENT].duplicate(true);
+			ERR_CONTINUE(new_tangents.size() != tangents.size() * 4);
+			for (int32_t l = 0; l < tangents.size(); l++) {
+				new_tangents.write()[l + 0] = tangents[l].r;
+				new_tangents.write()[l + 1] = tangents[l].g;
+				new_tangents.write()[l + 2] = tangents[l].b;
+				new_tangents.write()[l + 3] = tangents[l].a;
+			}
+			array_copy[VisualServer::ARRAY_TANGENT] = new_tangents;
+		}
+
+		morphs[j] = array_copy;
+	}
+
+	mesh->add_surface_from_arrays(primitive, array_mesh, morphs);
+
+	String surface_name = AssimpUtils::get_assimp_string(assimp_mesh->mName);
+	mesh->surface_set_material(0, mat);
+	mesh->surface_set_name(0, surface_name);
 
 	return mesh;
 }
@@ -952,9 +961,15 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 		mesh_key += itos(surface_indices[i]);
 	}
 
+	// todo: what if we have more than one mesh per node? e.g. a blend shape AND a vertex mesh - possible
 	if (!state.mesh_cache.has(mesh_key)) {
-		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skeleton);
-		state.mesh_cache[mesh_key] = mesh;
+		//for each mesh on this assimp node
+		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
+			int mesh_index = assimp_node->mMeshes[i];
+			aiMesh *assimp_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
+			mesh = _generate_mesh_for_node(state, surface_indices, assimp_node, assimp_mesh, skeleton);
+			state.mesh_cache[mesh_key] = mesh;
+		}
 	}
 
 	//Transform transform = recursive_state.node_transform;

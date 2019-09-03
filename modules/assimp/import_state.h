@@ -52,8 +52,8 @@
 
 namespace AssimpImporter {
 /** Import state is for global scene import data
-	 * This makes the code simpler and contains useful lookups.
-	 */
+  * This makes the code simpler and contains useful lookups.
+  */
 struct ImportState {
 
 	String path;
@@ -83,8 +83,8 @@ struct AssimpImageData {
 };
 
 /** Recursive state is used to push state into functions instead of specifying them
-	* This makes the code easier to handle too and add extra arguments without breaking things
-	*/
+  * This makes the code easier to handle too and add extra arguments without breaking things
+  */
 struct RecursiveState {
 	RecursiveState(
 			Transform &_node_transform,
@@ -110,6 +110,32 @@ struct RecursiveState {
 	Node *parent_node;
 	const aiBone *bone;
 };
+
+/* Surface Cache used to process surface data so that it can all be configured
+ * This overcomes an issue where a mesh could already have surfaces - and you can't add a new blend shape when this is the case.
+ */
+struct SurfaceCache {
+	SurfaceCache(
+			Mesh::PrimitiveType _primitive,
+			Array _mesh,
+			Array _blend_shapes,
+			int _surface_index,
+			Ref<Material> _material,
+			String _surface_name) :
+			primitive_type(_primitive),
+			mesh(_mesh),
+			blend_shapes(_blend_shapes),
+			surface_index(_surface_index),
+			material(_material),
+			surface_name(_surface_name) {}
+	Mesh::PrimitiveType primitive_type;
+	Array mesh;
+	Array blend_shapes;
+	int surface_index;
+	Ref<Material> material;
+	String surface_name;
+};
+
 } // namespace AssimpImporter
 
 #endif // EDITOR_SCENE_IMPORT_STATE_H

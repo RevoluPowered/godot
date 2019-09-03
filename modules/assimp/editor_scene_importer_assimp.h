@@ -98,7 +98,13 @@ private:
 	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
 	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
 
-	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode *assimp_node, Skeleton *p_skeleton = NULL);
+	// generates a single mesh for a node based on the assimp mesh supplied
+	Ref<Mesh> _generate_mesh_for_node(
+			ImportState &state,
+			const Vector<int> &p_surface_indices,
+			const aiNode *assimp_node,
+			const aiMesh *assimp_mesh,
+			Skeleton *p_skeleton);
 
 	// utility for node creation
 	void attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform);
