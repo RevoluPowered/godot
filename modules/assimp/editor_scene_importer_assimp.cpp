@@ -533,7 +533,6 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 // [debt needs looked into]
 Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_for_node(
 		ImportState &state,
-		const Vector<int> &p_surface_indices,
 		const aiNode *assimp_node,
 		const aiMesh *assimp_mesh,
 		Skeleton *p_skeleton) {
@@ -920,19 +919,16 @@ aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
  * Create a new mesh for the node supplied
  */
 void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
-	/* MESH NODE */
-	Ref<Mesh> mesh;
-	Skeleton *skeleton = NULL;
-	// see if we have mesh cache for this.
-	Vector<int> surface_indices;
+
+	//for each mesh on this assimp node
 	for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
-		int mesh_index = assimp_node->mMeshes[i];
-		aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
+		Skeleton * skeleton = NULL;
+		aiMesh *assimp_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
 
 		// Map<aiBone*, Skeleton*> // this is what we need
-		if (ai_mesh->mNumBones > 0) {
+		if (assimp_mesh->mNumBones > 0) {
 			// we only need the first bone to retrieve the skeleton
-			const aiBone *first = ai_mesh->mBones[0];
+			const aiBone *first = assimp_mesh->mBones[0];
 
 			ERR_FAIL_COND(first == NULL);
 
@@ -949,62 +945,42 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 				ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 			}
 		}
-		surface_indices.push_back(mesh_index);
-	}
 
-	surface_indices.sort();
-	String mesh_key;
-	for (int i = 0; i < surface_indices.size(); i++) {
-		if (i > 0) {
-			mesh_key += ":";
+
+		Ref<Mesh> mesh = _generate_mesh_for_node(state, assimp_node, assimp_mesh, skeleton);
+
+		// we must unfortunately overwrite mesh and skeleton transform with armature data
+		if (skeleton != NULL) {
+			print_verbose("Applying mesh and skeleton to armature");
+			// required for blender, maya etc
+			Map<Skeleton *, const Spatial *>::Element *match = state.armature_skeletons.find(skeleton);
+			node_transform = match->value()->get_transform();
 		}
-		mesh_key += itos(surface_indices[i]);
-	}
 
-	// todo: what if we have more than one mesh per node? e.g. a blend shape AND a vertex mesh - possible
-	if (!state.mesh_cache.has(mesh_key)) {
-		//for each mesh on this assimp node
-		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
-			int mesh_index = assimp_node->mMeshes[i];
-			aiMesh *assimp_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
-			mesh = _generate_mesh_for_node(state, surface_indices, assimp_node, assimp_mesh, skeleton);
-			state.mesh_cache[mesh_key] = mesh;
+		MeshInstance *mesh_node = memnew(MeshInstance);
+		mesh_node->set_mesh(mesh);
+
+		attach_new_node(state,
+				mesh_node,
+				assimp_node,
+				parent_node,
+				node_name,
+				node_transform);
+
+		// set this once and for all
+		if (skeleton != NULL) {
+			// root must be informed of its new child
+			parent_node->add_child(skeleton);
+
+			// owner must be set after adding to tree
+			skeleton->set_owner(state.root);
+
+			skeleton->set_transform(node_transform);
+
+			
+			// must be done after added to tree
+			mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
 		}
-	}
-
-	//Transform transform = recursive_state.node_transform;
-
-	// we must unfortunately overwrite mesh and skeleton transform with armature data
-	if (skeleton != NULL) {
-		print_verbose("Applying mesh and skeleton to armature");
-		// required for blender, maya etc
-		Map<Skeleton *, const Spatial *>::Element *match = state.armature_skeletons.find(skeleton);
-		node_transform = match->value()->get_transform();
-	}
-
-	MeshInstance *mesh_node = memnew(MeshInstance);
-	mesh = state.mesh_cache[mesh_key];
-	mesh_node->set_mesh(mesh);
-
-	attach_new_node(state,
-			mesh_node,
-			assimp_node,
-			parent_node,
-			node_name,
-			node_transform);
-
-	// set this once and for all
-	if (skeleton != NULL) {
-		// root must be informed of its new child
-		parent_node->add_child(skeleton);
-
-		// owner must be set after adding to tree
-		skeleton->set_owner(state.root);
-
-		skeleton->set_transform(node_transform);
-
-		// must be done after added to tree
-		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
 	}
 }
 

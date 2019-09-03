@@ -101,7 +101,6 @@ private:
 	// generates a single mesh for a node based on the assimp mesh supplied
 	Ref<Mesh> _generate_mesh_for_node(
 			ImportState &state,
-			const Vector<int> &p_surface_indices,
 			const aiNode *assimp_node,
 			const aiMesh *assimp_mesh,
 			Skeleton *p_skeleton);
