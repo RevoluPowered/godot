@@ -117,8 +117,8 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 								 aiProcess_GlobalScale | // imports models and listens to their file scale for CM to M conversions
 								 //aiProcess_FlipUVs |
 								 aiProcess_FlipWindingOrder | // very important for culling so that it is done in the correct order.
-								 //aiProcess_DropNormals |
-								 //aiProcess_GenSmoothNormals |
+								 aiProcess_DropNormals |
+								 aiProcess_GenSmoothNormals |
 								 //aiProcess_JoinIdenticalVertices |
 								 aiProcess_ImproveCacheLocality |
 								 //aiProcess_RemoveRedundantMaterials | // Causes a crash
@@ -684,7 +684,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_for_node(
 	// Culling handling for meshes
 
 	// cull all back faces
-	mat->set_cull_mode(SpatialMaterial::CULL_BACK);
+	mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
 
 	// Now process materials
 	aiTextureType tex_diffuse = aiTextureType_DIFFUSE;
@@ -949,6 +949,10 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 
 		Ref<Mesh> mesh = _generate_mesh_for_node(state, assimp_node, assimp_mesh, skeleton);
 
+		if(skeleton == NULL)
+		{
+			ERR_EXPLAIN("Skeleton is null for element: " + mesh->get_name());
+		}
 		// we must unfortunately overwrite mesh and skeleton transform with armature data
 		if (skeleton != NULL) {
 			print_verbose("Applying mesh and skeleton to armature");
@@ -970,16 +974,15 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 		// set this once and for all
 		if (skeleton != NULL) {
 			// root must be informed of its new child
-			parent_node->add_child(skeleton);
+			state.root->add_child(skeleton);
 
 			// owner must be set after adding to tree
 			skeleton->set_owner(state.root);
 
 			skeleton->set_transform(node_transform);
 
-			
 			// must be done after added to tree
-			mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
+			mesh_node->set_skeleton_path(String(".."));
 		}
 	}
 }
