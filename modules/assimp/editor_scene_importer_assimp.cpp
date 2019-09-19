@@ -535,7 +535,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 		ImportState &state,
 		const Vector<int> &p_surface_indices,
 		const aiNode *assimp_node,
-		Skeleton *p_skeleton) {
+		Ref<Skin> skin,
+		Skeleton *skeleton) {
 
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
@@ -569,11 +570,11 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 
 		Map<uint32_t, Vector<BoneInfo> > vertex_weights;
 
-		if (p_skeleton) {
+		if (skeleton) {
 			for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
 				aiBone *bone = ai_mesh->mBones[b];
 				String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-				int bone_index = p_skeleton->find_bone(bone_name);
+				int bone_index = skeleton->find_bone(bone_name);
 				ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
 				for (size_t w = 0; w < bone->mNumWeights; w++) {
@@ -1006,6 +1007,7 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
+	Ref<Skin> skin;
 	// see if we have mesh cache for this.
 	Vector<int> surface_indices;
 	for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
@@ -1018,6 +1020,12 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 			const aiBone *first = ai_mesh->mBones[0];
 
 			ERR_FAIL_COND(first == NULL);
+
+			if(skin.is_null())
+			{
+				// Create skin resource
+				skin.instance();
+			}
 
 			Map<const aiBone *, Skeleton *>::Element *match = state.bone_to_skeleton_lookup.find(first);
 			if (match != NULL) {
@@ -1045,7 +1053,7 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 	}
 
 	if (!state.mesh_cache.has(mesh_key)) {
-		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skeleton);
+		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skin, skeleton);
 		state.mesh_cache[mesh_key] = mesh;
 	}
 
@@ -1069,6 +1077,16 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 			parent_node,
 			node_name,
 			node_transform);
+
+	// if we have a valid skin set it up
+	if(skin.is_valid())
+	{
+		mesh_node->set_skin( skin );
+		//skin->set_bind_bone()
+
+		// todo: assign bones to this skin
+		
+	}
 
 	// set this once and for all
 	if (skeleton != NULL) {
@@ -1231,7 +1249,7 @@ void EditorSceneImporterAssimp::create_camera(ImportState &state, RecursiveState
  * Create Bone 
  * Create a bone in the scene
  */
-void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &recursive_state) {
+void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state) {
 	// for each armature node we must make a new skeleton but ensure it
 	// has a bone in the child to ensure we don't make too many
 	// the reason you must do this is because a skeleton exists per mesh?
@@ -1290,13 +1308,16 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, RecursiveState &
 	Transform xform = AssimpUtils::assimp_matrix_transform(recursive_state.bone->mOffsetMatrix);
 	recursive_state.skeleton->set_bone_rest(recursive_state.skeleton->get_bone_count() - 1, xform.affine_inverse());
 
+	int current_bone_id = recursive_state.skeleton->find_bone(recursive_state.node_name);
+
+	state.bone_id_map.insert( bone, current_bone_id );
 	// get parent node of assimp node
 	const aiNode *parent_node_assimp = recursive_state.assimp_node->mParent;
 
 	// ensure we have a parent
 	if (parent_node_assimp != NULL) {
 		int parent_bone_id = recursive_state.skeleton->find_bone(AssimpUtils::get_assimp_string(parent_node_assimp->mName));
-		int current_bone_id = recursive_state.skeleton->find_bone(recursive_state.node_name);
+		
 		print_verbose("Parent bone id " + itos(parent_bone_id) + " current bone id" + itos(current_bone_id));
 		print_verbose("Bone debug: " + AssimpUtils::get_assimp_string(parent_node_assimp->mName));
 		recursive_state.skeleton->set_bone_parent(current_bone_id, parent_bone_id);
@@ -1334,7 +1355,7 @@ void EditorSceneImporterAssimp::_generate_node(
 	} else if (state.camera_cache.has(node_name)) {
 		create_camera(state, recursive_state);
 	} else if (bone != NULL) {
-		create_bone(state, recursive_state);
+		create_bone(state, bone, recursive_state);
 	} else {
 		//generic node
 		recursive_state.new_node = memnew(Spatial);

@@ -63,6 +63,7 @@ struct ImportState {
 	Spatial *root;
 	Map<String, Ref<Mesh> > mesh_cache;
 	Map<int, Ref<Material> > material_cache;
+	Map<aiBone*, int> bone_id_map;
 	Map<String, int> light_cache;
 	Map<String, int> camera_cache;
 	//Vector<Skeleton *> skeletons;
