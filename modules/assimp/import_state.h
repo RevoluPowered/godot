@@ -91,14 +91,16 @@ struct AssimpImageData {
 	* This makes the code easier to handle too and add extra arguments without breaking things
 	*/
 struct RecursiveState {
+	RecursiveState()
+	{} // do not construct :)
 	RecursiveState(
 			Transform &_node_transform,
 			Skeleton *_skeleton,
 			Spatial *_new_node,
-			const String &_node_name,
-			const aiNode *_assimp_node,
+			String &_node_name,
+			aiNode *_assimp_node,
 			Node *_parent_node,
-			const aiBone *_bone) :
+			aiBone *_bone) :
 			node_transform(_node_transform),
 			skeleton(_skeleton),
 			new_node(_new_node),
@@ -107,13 +109,13 @@ struct RecursiveState {
 			parent_node(_parent_node),
 			bone(_bone) {}
 
-	Transform &node_transform;
-	Skeleton *skeleton;
-	Spatial *new_node;
-	const String &node_name;
-	const aiNode *assimp_node;
-	Node *parent_node;
-	const aiBone *bone;
+	Transform node_transform;
+	Skeleton *skeleton = NULL;
+	Spatial *new_node = NULL;
+	String node_name;
+	aiNode *assimp_node = NULL;
+	Node *parent_node = NULL;
+	aiBone *bone = NULL;
 };
 } // namespace AssimpImporter
 

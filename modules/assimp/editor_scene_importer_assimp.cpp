@@ -299,17 +299,10 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 	}
 
 	if (scene->mRootNode) {
-
+		RecursiveState recursive_state;
 		//generate nodes
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
-			_generate_node(state, NULL, scene->mRootNode->mChildren[i], state.root);
-		}
-
-		// finalize skeleton
-		for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-			Skeleton *skeleton = (Skeleton*)key_value_pair->key();
-			// convert world to local for skeleton bone rests
-			skeleton->localize_rests();
+			_generate_node(state, recursive_state, scene->mRootNode->mChildren[i], state.root);
 		}
 
 		print_verbose("generating mesh phase from skeletal mesh");
@@ -1202,7 +1195,7 @@ void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial *new
 	parent_node->add_child(new_node);
 
 	// owner must be set after
-	new_node->set_owner(state.root);
+	new_node->set_owner(parent_node);
 
 	// cache node mapping results by name and then by aiNode*
 	state.node_map[Name] = new_node;
@@ -1307,49 +1300,6 @@ void EditorSceneImporterAssimp::create_camera(ImportState &state, RecursiveState
  * Create a bone in the scene
  */
 void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state) {
-	// for each armature node we must make a new skeleton but ensure it
-	// has a bone in the child to ensure we don't make too many
-	// the reason you must do this is because a skeleton exists per mesh?
-	// and duplicate bone names are very bad for determining what is going on.
-	aiBone *parent_bone_assimp = get_bone_by_name(state.assimp_scene, recursive_state.assimp_node->mParent->mName);
-
-	// set to true when you want to use skeleton reference from cache.
-	bool do_not_create_armature = false;
-
-	// prevent more than one skeleton existing per mesh
-	// * multiple root bones have this
-	// * this simply filters the node out if it has already been added then references the skeleton so we know the actual skeleton for this node
-	for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-		if (key_value_pair->value() == recursive_state.parent_node) {
-			// apply the skeleton for this mesh
-			recursive_state.skeleton = (Skeleton*)key_value_pair->key();
-
-			// force this off
-			do_not_create_armature = true;
-		}
-	}
-
-	// check if parent was a bone
-	// if parent was not a bone this is the first bone.
-	// therefore parent is the 'armature'?
-	// also for multi root bone support make sure we don't already have the skeleton cached.
-	// if we do we must merge them - as this is all godot supports right now.
-	if (!parent_bone_assimp && recursive_state.skeleton == NULL && !do_not_create_armature) {
-		// create new skeleton on the root.
-		recursive_state.skeleton = memnew(Skeleton);
-
-		ERR_FAIL_COND(state.root == NULL);
-		ERR_FAIL_COND(recursive_state.skeleton == NULL);
-
-		print_verbose("Parent armature node is called " + recursive_state.parent_node->get_name());
-		// store root node for this skeleton / used in animation playback and bone detection.
-
-		state.armature_skeletons.insert(recursive_state.skeleton, Object::cast_to<Spatial>(recursive_state.parent_node));
-
-		//skeleton->set_use_bones_in_world_transform(true);
-		print_verbose("Created new FBX skeleton for armature node");
-	}
-
 	ERR_FAIL_COND_MSG(recursive_state.skeleton == NULL, "Mesh has invalid armature detection - report this");
 
 	// this transform is a bone
@@ -1386,7 +1336,7 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, Re
  */
 void EditorSceneImporterAssimp::_generate_node(
 		ImportState &state,
-		Skeleton *skeleton,
+		RecursiveState recursive_state,
 		const aiNode *assimp_node, Node *parent_node) {
 
 	// sanity check
@@ -1402,8 +1352,64 @@ void EditorSceneImporterAssimp::_generate_node(
 	// can safely return null - is this node a bone?
 	aiBone *bone = get_bone_by_name(state.assimp_scene, assimp_node->mName);
 
-	// out arguments helper - for pushing state down into creation functions
-	RecursiveState recursive_state(node_transform, skeleton, new_node, node_name, assimp_node, parent_node, bone);
+	aiNode *armature_node = NULL;
+	// if the bone is null then we know to have a look for the armature node.
+	// hint: the first bone's parent is the armature node.
+	if(bone == NULL)
+	{
+		aiBone *first_bone = NULL;
+		for(int child = 0; child < assimp_node->mNumChildren; ++child)
+		{
+			aiNode * node = assimp_node->mChildren[child];
+			first_bone = get_bone_by_name(state.assimp_scene, node->mName);
+			armature_node = node->mParent; // assign first bone parent / armature node.
+			if(first_bone)
+			{
+				ERR_FAIL_COND(armature_node == NULL);
+				print_verbose("armature node is: " + AssimpUtils::get_assimp_string(armature_node->mName));
+				print_verbose("first bone in skeleton is: " + AssimpUtils::get_assimp_string(first_bone->mName));
+				break;
+			}
+		}
+	}
+
+
+	// update recursive state
+	recursive_state.node_transform = node_transform;
+	recursive_state.new_node = new_node;
+	recursive_state.node_name = node_name;
+	recursive_state.assimp_node = (aiNode*)assimp_node;
+	recursive_state.parent_node = parent_node;
+	recursive_state.bone = bone;
+	// note: we are very careful here to not set the skeleton
+	// this is done in create bone per armature :)
+	// for each armature node we must make a new skeleton but ensure it
+	// has a bone in the child to ensure we don't make too many
+	// the reason you must do this is because a skeleton exists per mesh?
+	// and duplicate bone names are very bad for determining what is going on.
+
+	// the parent was not a bone thus the armature has been detected!
+	if (armature_node && !recursive_state.skeleton) {
+		print_verbose("Creating skeleton for armature node");
+		// create new skeleton on the root.
+		recursive_state.skeleton = memnew(Skeleton);
+
+		ERR_FAIL_COND(state.root == NULL);
+		ERR_FAIL_COND(recursive_state.skeleton == NULL);
+		ERR_FAIL_COND(recursive_state.parent_node == NULL);
+		recursive_state.skeleton->set_name(recursive_state.node_name);
+		
+		recursive_state.skeleton->set_owner(state.root);
+		recursive_state.parent_node->add_child(recursive_state.skeleton);
+
+		print_verbose("Parent armature node is called " + recursive_state.parent_node->get_name());
+		// store root node for this skeleton / used in animation playback and bone detection.
+
+		state.armature_skeletons.insert(recursive_state.skeleton, Object::cast_to<Spatial>(recursive_state.parent_node));
+
+		//skeleton->set_use_bones_in_world_transform(true);
+		print_verbose("Created new FBX skeleton for armature node");
+	}
 
 	// Creation code
 	if (state.light_cache.has(node_name)) {
@@ -1431,9 +1437,15 @@ void EditorSceneImporterAssimp::_generate_node(
 		state.TempNodes.push_back(recursive_state.new_node);
 	}
 
+	// serious error this means the child nodes created don't have a proper parent
+	ERR_FAIL_COND(recursive_state.new_node == NULL && recursive_state.parent_node == NULL);
+
+	// the logic behind this is basically bones do not have a parent in the node list, everything else does.
+	// essentially we inherit the last 'good' parent we know about for bones this way and recurse over them all.
+	//Node *parent = recursive_state.new_node ? recursive_state.new_node : recursive_state.parent_node;
+	//recursive_state.parent_node = parent;
 	// recurse into all child elements
-	for (size_t i = 0; i < recursive_state.assimp_node->mNumChildren; i++) {
-		_generate_node(state, recursive_state.skeleton, recursive_state.assimp_node->mChildren[i],
-				recursive_state.new_node != NULL ? recursive_state.new_node : recursive_state.parent_node);
+	for (size_t i = 0; i < assimp_node->mNumChildren; i++) {
+		_generate_node(state, recursive_state, assimp_node->mChildren[i], recursive_state.new_node == NULL ? parent_node : recursive_state.new_node);
 	}
 }
