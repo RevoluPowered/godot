@@ -63,16 +63,20 @@ struct ImportState {
 	Spatial *root;
 	Map<String, Ref<Mesh> > mesh_cache;
 	Map<int, Ref<Material> > material_cache;
-	Map<aiBone*, int> bone_id_map;
+	Map<const aiBone*, int> bone_id_map;
 	Map<String, int> light_cache;
 	Map<String, int> camera_cache;
 	//Vector<Skeleton *> skeletons;
-	Map<Skeleton *, const Spatial *> armature_skeletons; // maps skeletons based on their armature nodes.
+	Map<const Skeleton *, const Spatial *> armature_skeletons; // maps skeletons based on their armature nodes.
 	Map<const aiBone *, Skeleton *> bone_to_skeleton_lookup; // maps bones back into their skeleton
 	// very useful for when you need to ask assimp for the bone mesh
 	Map<String, Node *> node_map;
 	Map<const aiNode *, const Node *> assimp_node_map;
 	Map<String, Ref<Image> > path_to_image_cache;
+	// temp nodes is used for mesh spawning since this has to be done after node creation
+	// we must first create the proper spatial heirarchy then move onto the mesh spawning
+	// them we remove the temp nodes to prevent duplicates. (this improves spawn behaviour because the tree always exists)
+	List<Node*> TempNodes;
 	bool fbx; //for some reason assimp does some things different for FBX
 	AnimationPlayer *animation_player;
 };

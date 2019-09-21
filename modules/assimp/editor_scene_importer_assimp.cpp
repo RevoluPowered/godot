@@ -306,8 +306,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		}
 
 		// finalize skeleton
-		for (Map<Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-			Skeleton *skeleton = key_value_pair->key();
+		for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
+			Skeleton *skeleton = (Skeleton*)key_value_pair->key();
 			// convert world to local for skeleton bone rests
 			skeleton->localize_rests();
 		}
@@ -462,8 +462,8 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			continue; //do not bother
 		}
 
-		for (Map<Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-			Skeleton *skeleton = key_value_pair->key();
+		for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
+			const Skeleton *skeleton = key_value_pair->key();
 
 			bool is_bone = skeleton->find_bone(node_name) != -1;
 			//print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
@@ -479,7 +479,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				node_path = state.root->get_path_to(node);
 			}
 
-			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
+			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, (Skeleton*)skeleton, node_path, node_name);
 		}
 	}
 
@@ -1063,7 +1063,7 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 	if (skeleton != NULL) {
 		print_verbose("Applying mesh and skeleton to armature");
 		// required for blender, maya etc
-		Map<Skeleton *, const Spatial *>::Element *match = state.armature_skeletons.find(skeleton);
+		Map<const Skeleton *, const Spatial *>::Element *match = state.armature_skeletons.find(skeleton);
 		node_transform = match->value()->get_transform();
 	}
 
@@ -1086,25 +1086,26 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 
 		// todo: assign bones to this skin
 
-		int skin_bind_count = 0;
+		//int skin_bind_count = 0;
 
 		// count the binds required
 		// please note, some indicies could potentially have a 
 		// different count of bones assigned 
 		// so just be safe
 		// and always count it.
-		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
-			int mesh_index = assimp_node->mMeshes[i];
-			aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
-			for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
-				skin_bind_count++;
-			}
-		}
+		// for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
+		// 	int mesh_index = assimp_node->mMeshes[i];
+		// 	aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
+		// 	for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
+		// 		skin_bind_count++;
+		// 	}
+		// }
 
 		// pre-allocate the bind count so that we can create the bind poses for this skeleton.
-		print_verbose("Bind count is: " + itos(skin_bind_count));
-		skin->set_bind_count(skin_bind_count);
+		print_verbose("Bind count is: " + itos(mesh->get_surface_count()));
+		skin->set_bind_count(mesh->get_surface_count());
 
+		int bind_count = 0;
 		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
 			int mesh_index = assimp_node->mMeshes[i];
 			aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
@@ -1117,11 +1118,17 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 			// hope this makes sense
 			for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
 				aiBone *iterBone = ai_mesh->mBones[boneId];
-				int bone_index = state.bone_id_map[iterBone];
-				print_verbose("Set bind bone: mesh: " + itos(mesh_index) + "bone index: " + itos(bone_index));
-				skin->set_bind_bone(mesh_index, bone_index);
-				skin->set_bind_pose(mesh_index, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
+				Map<const aiBone*, int>::Element *match = state.bone_id_map.find( iterBone );
+				if(match)
+				{
+					int bone_index = match->value();
+					print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(bone_index));
+					skin->set_bind_bone(bind_count, bone_index);
+					skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
+				}
 			}
+
+			bind_count++;
 		}
 
 		print_verbose("Finished configuring bind pose for skin mesh");
@@ -1164,6 +1171,17 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 			create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
 		}
 	}
+		
+	// iterate over the node pointers
+	for( List<Node*>::Element *elem = state.TempNodes.front(); elem; elem=elem->next())
+	{
+		elem->get()->queue_delete();
+	}
+
+	state.TempNodes.clear();
+
+	// we will not need this again free it.
+	state.assimp_node_map.clear();
 }
 
 /** 
@@ -1301,10 +1319,10 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, Re
 	// prevent more than one skeleton existing per mesh
 	// * multiple root bones have this
 	// * this simply filters the node out if it has already been added then references the skeleton so we know the actual skeleton for this node
-	for (Map<Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
+	for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
 		if (key_value_pair->value() == recursive_state.parent_node) {
 			// apply the skeleton for this mesh
-			recursive_state.skeleton = key_value_pair->key();
+			recursive_state.skeleton = (Skeleton*)key_value_pair->key();
 
 			// force this off
 			do_not_create_armature = true;
@@ -1343,8 +1361,8 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, Re
 	// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
 	state.bone_to_skeleton_lookup.insert(recursive_state.bone, recursive_state.skeleton);
 
-	Transform xform = AssimpUtils::assimp_matrix_transform(recursive_state.bone->mOffsetMatrix);
-	recursive_state.skeleton->set_bone_rest(recursive_state.skeleton->get_bone_count() - 1, xform.affine_inverse());
+	//Transform xform = AssimpUtils::assimp_matrix_transform(recursive_state.bone->mOffsetMatrix);
+	//recursive_state.skeleton->set_bone_rest(recursive_state.skeleton->get_bone_count() - 1, xform.affine_inverse());
 
 	int current_bone_id = recursive_state.skeleton->find_bone(recursive_state.node_name);
 
@@ -1403,6 +1421,14 @@ void EditorSceneImporterAssimp::_generate_node(
 				recursive_state.parent_node,
 				recursive_state.node_name,
 				recursive_state.node_transform);
+	}
+
+	// this is a mesh transform which may get duplicated
+	// we need to destroy this at the end which is why we keep track of it
+	// since we create mesh nodes after the other objects due to skeleton creation
+	if(assimp_node->mNumMeshes > 0)
+	{
+		state.TempNodes.push_back(recursive_state.new_node);
 	}
 
 	// recurse into all child elements
