@@ -309,14 +309,17 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		List<const aiNode*>::Element *iter;		
 		for( iter = state.nodes.front(); iter; iter = iter->next())
 		{
-			String name = AssimpUtils::get_assimp_string( iter->get()->mName);
-			print_verbose("node: " + name);
-
 			const aiNode *element_assimp_node = iter->get();
 			const aiNode *parent_assimp_node = element_assimp_node->mParent;
 
+
+			String name = AssimpUtils::get_assimp_string( element_assimp_node->mName );
+			print_verbose("node: " + name);
+
+
 			Spatial* spatial = memnew(Spatial);
 			spatial->set_name(name);
+			spatial->set_global_transform( AssimpUtils::assimp_matrix_transform(element_assimp_node->mTransformation));
 
 			// first element is root
 			if(iter == state.nodes.front())
@@ -340,7 +343,11 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					parent_node->add_child(spatial);
 					spatial->set_owner(state.root);
 				}
-				
+				else // Safety for instances
+				{
+					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
+					memdelete(spatial); // this node is broken
+				}
 			}
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
