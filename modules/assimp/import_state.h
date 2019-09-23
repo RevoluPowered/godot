@@ -57,10 +57,11 @@ namespace AssimpImporter {
 struct ImportState {
 
 	String path;
+	Spatial *root;
+	Skeleton *skeleton;
 	const aiScene *assimp_scene;
 	uint32_t max_bone_weights;
 
-	Spatial *root;
 	Map<String, Ref<Mesh> > mesh_cache;
 	Map<int, Ref<Material> > material_cache;
 	Map<const aiBone*, int> bone_id_map;
