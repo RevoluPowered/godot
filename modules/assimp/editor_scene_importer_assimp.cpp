@@ -367,10 +367,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
 
-
 		state.root->add_child(state.skeleton);
 		state.skeleton->set_owner(state.root);
-
 
 		//print_verbose("generating mesh phase from skeletal mesh");
 		//generate_mesh_phase_from_skeletal_mesh(state);
@@ -522,25 +520,23 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			continue; //do not bother
 		}
 
-		for (Map<const Skeleton *, const Spatial *>::Element *key_value_pair = state.armature_skeletons.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-			const Skeleton *skeleton = key_value_pair->key();
+		bool is_bone = state.skeleton->find_bone(node_name) != -1;
+		//print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
+		NodePath node_path;
 
-			bool is_bone = skeleton->find_bone(node_name) != -1;
-			//print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
-			NodePath node_path;
-
-			if (is_bone) {
-				String path = state.root->get_path_to(skeleton);
-				path += ":" + node_name;
-				node_path = path;
-			} else {
-				ERR_CONTINUE(!state.node_map.has(node_name));
-				Node *node = state.node_map[node_name];
-				node_path = state.root->get_path_to(node);
-			}
-
-			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, (Skeleton *)skeleton, node_path, node_name);
+		if (is_bone) {
+			String path = state.root->get_path_to(state.skeleton);
+			path += ":" + node_name;
+			node_path = path;
+		} else {
+			ERR_CONTINUE(!state.node_map.has(node_name));
+			Node *node = state.node_map[node_name];
+			node_path = state.root->get_path_to(node);
 		}
+
+		// todo: refactor state.skeleton out of here
+		// state.skeleton is enough
+		_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, state.skeleton, node_path, node_name);
 	}
 
 	//blend shape tracks
@@ -1112,27 +1108,9 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 
 		// Map<aiBone*, Skeleton*> // this is what we need
 		if (ai_mesh->mNumBones > 0) {
-			// we only need the first bone to retrieve the skeleton
-			const aiBone *first = ai_mesh->mBones[0];
-
-			ERR_FAIL_COND(first == NULL);
-
 			if (skin.is_null()) {
 				// Create skin resource
 				skin.instance();
-			}
-
-			Map<const aiBone *, Skeleton *>::Element *match = state.bone_to_skeleton_lookup.find(first);
-			if (match != NULL) {
-				skeleton = match->value();
-
-				if (skeleton == NULL) {
-					print_error("failed to find bone skeleton for bone: " + AssimpUtils::get_assimp_string(first->mName));
-				} else {
-					print_verbose("successfully found skeleton for first bone on mesh, can properly handle animations now!");
-				}
-				// I really need the skeleton and bone to be known as this is something flaky in model exporters.
-				ERR_FAIL_COND(skeleton == NULL); // should not happen if bone was successfully created in previous step.
 			}
 		}
 		surface_indices.push_back(mesh_index);
@@ -1150,16 +1128,6 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 	if (!state.mesh_cache.has(mesh_key)) {
 		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skin, skeleton);
 		state.mesh_cache[mesh_key] = mesh;
-	}
-
-	//Transform transform = recursive_state.node_transform;
-
-	// we must unfortunately overwrite mesh and skeleton transform with armature data
-	if (skeleton != NULL) {
-		print_verbose("Applying mesh and skeleton to armature");
-		// required for blender, maya etc
-		Map<const Skeleton *, const Spatial *>::Element *match = state.armature_skeletons.find(skeleton);
-		node_transform = match->value()->get_transform();
 	}
 
 	MeshInstance *mesh_node = memnew(MeshInstance);
@@ -1265,14 +1233,6 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 			create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
 		}
 	}
-
-	// iterate over the node pointers
-	for (List<Node *>::Element *elem = state.TempNodes.front(); elem; elem = elem->next()) {
-		elem->get()->queue_delete();
-	}
-
-	state.TempNodes.clear();
-
 	// we will not need this again free it.
 	state.assimp_node_map.clear();
 }
