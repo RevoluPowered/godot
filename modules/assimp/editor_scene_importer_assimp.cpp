@@ -322,10 +322,10 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				spatial = create_light(state, node_name, transform);
 			} else if (state.camera_cache.has(node_name)) {
 				spatial = create_camera(state, node_name, transform);
-			} /*else if (state.skeleton->find_bone(node_name) != -1) {
+			} else if (state.skeleton->find_bone(node_name) != -1) {
 				// bones should be ignored
-				//continue; // move to next element;
-			} */else {
+				continue; // move to next element;
+			} else {
 				spatial = memnew(Spatial);
 			}
 
