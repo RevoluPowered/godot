@@ -77,7 +77,10 @@ struct ImportState {
 	// we must first create the proper spatial heirarchy then move onto the mesh spawning
 	// them we remove the temp nodes to prevent duplicates. (this improves spawn behaviour because the tree always exists)
 	List<Node*> TempNodes;
-	bool fbx; //for some reason assimp does some things different for FBX
+	// Generation 3 - determinisitic iteration 
+	// to lower potential recursion errors
+	List<const aiNode*> nodes;
+	Map<const aiNode*, Spatial*> flat_node_map; 
 	AnimationPlayer *animation_player;
 };
 
