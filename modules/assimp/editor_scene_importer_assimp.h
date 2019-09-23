@@ -110,7 +110,8 @@ private:
 			ImportState &state,
 			const String &node_name,
 			Transform &look_at_transform);
-	void create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state);
+	//void create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state);
+	Skeleton * initialize_skeleton( ImportState& state );
 	// non recursive - linear so must not use recursive arguments
 	void create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
 
