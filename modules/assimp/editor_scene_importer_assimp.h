@@ -103,9 +103,14 @@ private:
 	// utility for node creation
 	void attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform);
 	// simple object creation functions
-	void create_light(ImportState &state, RecursiveState &recursive_state);
-	void create_camera(ImportState &state, RecursiveState &recursive_state);
-	void create_bone(ImportState &state, aiBone* bone, RecursiveState &recursive_state);
+	Spatial *create_light(ImportState &state,
+			const String &node_name,
+			Transform &look_at_transform);
+	Spatial *create_camera(
+			ImportState &state,
+			const String &node_name,
+			Transform &look_at_transform);
+	void create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state);
 	// non recursive - linear so must not use recursive arguments
 	void create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
 
