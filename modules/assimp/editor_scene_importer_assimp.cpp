@@ -323,7 +323,10 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				spatial = create_light(state, node_name, transform);
 			} else if (state.camera_cache.has(node_name)) {
 				spatial = create_camera(state, node_name, transform);
-			} else {
+			} /*else if (state.skeleton->find_bone(node_name) != -1) {
+				// bones should be ignored
+				//continue; // move to next element;
+			} */else {
 				spatial = memnew(Spatial);
 			}
 
@@ -520,10 +523,18 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			continue; //do not bother
 		}
 
+
+		// this will not work 
+		// node_name is not the same as bone name
+		// bone name is subdeformer name
+		// ergo can be duplicated Bone001 and Bone001 in another
+		// subdeformer are not relatable
+		// #winning
 		bool is_bone = state.skeleton->find_bone(node_name) != -1;
+		
 		//print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
 		NodePath node_path;
-
+		
 		if (is_bone) {
 			String path = state.root->get_path_to(state.skeleton);
 			path += ":" + node_name;
@@ -1069,26 +1080,46 @@ Skeleton *EditorSceneImporterAssimp::initialize_skeleton(ImportState &state) {
 		// iterate over all the bones on the mesh for this node only!
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone *bone = mesh->mBones[boneIndex];
-			String node_name = AssimpUtils::get_assimp_string(bone->mName);
-
-			// disallow duplicate bone configurations
+			String node_name = AssimpUtils::get_raw_string_from_assimp(bone->mName);
+			
+			// duplicate bones must be added 
+			// fbx subdeformer list from assimp
+			// contains duplicate names for completely unrelated bones :)
+			// this is the case with multiple armatures
+			// workaround below
+			// this will be fixed in assimp at some point but 
+			// requires major overhaul of code 
+			// see ConvertClusters for why this is
+			// required 
+			// test file: Logcutter.fbx 
 			if (skeleton->find_bone(node_name) == -1) {
-				skeleton->add_bone(node_name);
-
-				// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
-				//bone to skin lookup
-				//state.bone_to_skeleton_lookup.insert(bone, skeleton);
-
-				Transform xform = AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix);
-				skeleton->set_bone_rest(skeleton->get_bone_count() - 1, xform.affine_inverse());
-
-				int current_bone_id = skeleton->find_bone(node_name);
-
-				state.bone_id_map.insert(bone, current_bone_id);
+				skeleton->add_bone(node_name);		
+				
 			}
+			else
+			{
+				node_name = node_name + "1";
+				skeleton->add_bone(node_name);
+			}
+
+			print_verbose("Bone: " + node_name);
+
+
+			// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
+			//bone to skin lookup
+			//state.bone_to_skeleton_lookup.insert(bone, skeleton);
+
+			Transform xform = AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix);
+			skeleton->set_bone_rest(skeleton->get_bone_count() - 1, xform.affine_inverse());
+
+			int current_bone_id = skeleton->find_bone(node_name);
+
+			state.bone_id_map.insert(bone, current_bone_id);
+			
 		}
 	}
 
+	print_verbose("bone count: " + itos(state.bone_id_map.size()));
 	return skeleton;
 }
 
