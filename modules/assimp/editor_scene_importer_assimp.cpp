@@ -283,68 +283,80 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 	//state.root->set_name("root_node");
 	state.animation_player = NULL;
 
-	//fill light map cache
-	for (size_t l = 0; l < scene->mNumLights; l++) {
+	// populate light map
+	for (unsigned int l = 0; l < scene->mNumLights; l++) {
 
 		aiLight *ai_light = scene->mLights[l];
 		ERR_CONTINUE(ai_light == NULL);
 		state.light_cache[AssimpUtils::get_assimp_string(ai_light->mName)] = l;
 	}
 
-	//fill camera cache
-	for (size_t c = 0; c < scene->mNumCameras; c++) {
+	// fill camera cache
+	for (unsigned int c = 0; c < scene->mNumCameras; c++) {
 		aiCamera *ai_camera = scene->mCameras[c];
 		ERR_CONTINUE(ai_camera == NULL);
 		state.camera_cache[AssimpUtils::get_assimp_string(ai_camera->mName)] = c;
 	}
 
 	if (scene->mRootNode) {
-
-		state.nodes.push_back( scene->mRootNode );
+		state.nodes.push_back(scene->mRootNode);
 
 		// make flat node tree - in order to make processing deterministic
 		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			_generate_node(state, scene->mRootNode->mChildren[i]);
 		}
 
-		List<const aiNode*>::Element *iter;		
-		for( iter = state.nodes.front(); iter; iter = iter->next())
-		{
+		List<const aiNode *>::Element *iter;
+		for (iter = state.nodes.front(); iter; iter = iter->next()) {
 			const aiNode *element_assimp_node = iter->get();
 			const aiNode *parent_assimp_node = element_assimp_node->mParent;
 
+			String node_name = AssimpUtils::get_assimp_string(element_assimp_node->mName);
+			print_verbose("node: " + node_name);
 
-			String name = AssimpUtils::get_assimp_string( element_assimp_node->mName );
-			print_verbose("node: " + name);
+			Spatial *spatial = NULL;
+			Transform transform = AssimpUtils::assimp_matrix_transform(element_assimp_node->mTransformation);
+			
+			if (state.light_cache.has(node_name)) {
+				spatial = create_light(state, node_name, transform);
+			} else if (state.camera_cache.has(node_name)) {
+				spatial = create_camera(state, node_name, transform);
+			} else {
+				spatial = memnew(Spatial);
+			}
 
+			ERR_CONTINUE_MSG(spatial == NULL, "FBX Import - are we out of ram?");
+			// we on purpose set the transform and name after creating the node.
 
-			Spatial* spatial = memnew(Spatial);
-			spatial->set_name(name);
-			spatial->set_global_transform( AssimpUtils::assimp_matrix_transform(element_assimp_node->mTransformation));
+			spatial->set_name(node_name);
+			spatial->set_global_transform(transform);
 
 			// first element is root
-			if(iter == state.nodes.front())
-			{
+			if (iter == state.nodes.front()) {
 				state.root = spatial;
-			}	
+			}
+
+			// check if this is a bone
+			//aiBone *bone = get_bone_by_name(state.assimp_scene, element->mName);
+
+			// now configure the node type
+			// // Creation code
 
 			// flat node map parent lookup tool
 			state.flat_node_map.insert(element_assimp_node, spatial);
-			Map<const aiNode*, Spatial*>::Element *parent_lookup = state.flat_node_map.find(parent_assimp_node);
+
+			Map<const aiNode *, Spatial *>::Element *parent_lookup = state.flat_node_map.find(parent_assimp_node);
 
 			// note: this always fails on the root node :) keep that in mind this is by design
-			if(parent_lookup)
-			{
+			if (parent_lookup) {
 				Spatial *parent_node = parent_lookup->value();
 
 				ERR_FAIL_COND_V_MSG(parent_node == NULL, state.root, "Parent node invaid even though lookup successful, out of ram?")
 
-				if(parent_node)
-				{
+				if (parent_node) {
 					parent_node->add_child(spatial);
 					spatial->set_owner(state.root);
-				}
-				else // Safety for instances
+				} else // Safety for instances
 				{
 					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
@@ -520,7 +532,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				node_path = state.root->get_path_to(node);
 			}
 
-			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, (Skeleton*)skeleton, node_path, node_name);
+			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, (Skeleton *)skeleton, node_path, node_name);
 		}
 	}
 
@@ -1130,8 +1142,8 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 		//int skin_bind_count = 0;
 
 		// count the binds required
-		// please note, some indicies could potentially have a 
-		// different count of bones assigned 
+		// please note, some indicies could potentially have a
+		// different count of bones assigned
 		// so just be safe
 		// and always count it.
 		// for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
@@ -1159,9 +1171,8 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 			// hope this makes sense
 			for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
 				aiBone *iterBone = ai_mesh->mBones[boneId];
-				Map<const aiBone*, int>::Element *match = state.bone_id_map.find( iterBone );
-				if(match)
-				{
+				Map<const aiBone *, int>::Element *match = state.bone_id_map.find(iterBone);
+				if (match) {
 					int bone_index = match->value();
 					print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(bone_index));
 					skin->set_bind_bone(bind_count, bone_index);
@@ -1212,10 +1223,9 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 			create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
 		}
 	}
-		
+
 	// iterate over the node pointers
-	for( List<Node*>::Element *elem = state.TempNodes.front(); elem; elem=elem->next())
-	{
+	for (List<Node *>::Element *elem = state.TempNodes.front(); elem; elem = elem->next()) {
 		elem->get()->queue_delete();
 	}
 
@@ -1254,93 +1264,71 @@ void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial *new
  * Create a light for the scene
  * Automatically caches lights for lookup later
  */
-void EditorSceneImporterAssimp::create_light(ImportState &state, RecursiveState &recursive_state) {
+Spatial *EditorSceneImporterAssimp::create_light(
+		ImportState &state,
+		const String &node_name,
+		Transform &look_at_transform) {
 	Light *light = NULL;
-	aiLight *ai_light = state.assimp_scene->mLights[state.light_cache[recursive_state.node_name]];
-	ERR_FAIL_COND(!ai_light);
+	aiLight *assimp_light = state.assimp_scene->mLights[state.light_cache[node_name]];
+	ERR_FAIL_COND_V(!assimp_light, NULL);
 
-	if (ai_light->mType == aiLightSource_DIRECTIONAL) {
+	if (assimp_light->mType == aiLightSource_DIRECTIONAL) {
 		light = memnew(DirectionalLight);
-		Vector3 dir = Vector3(ai_light->mDirection.y, ai_light->mDirection.x, ai_light->mDirection.z);
-		dir.normalize();
-		Vector3 pos = Vector3(ai_light->mPosition.x, ai_light->mPosition.y, ai_light->mPosition.z);
-		Vector3 up = Vector3(ai_light->mUp.x, ai_light->mUp.y, ai_light->mUp.z);
-		up.normalize();
-
-		Transform light_transform;
-		light_transform.set_look_at(pos, pos + dir, up);
-
-		recursive_state.node_transform *= light_transform;
-
-	} else if (ai_light->mType == aiLightSource_POINT) {
+	} else if (assimp_light->mType == aiLightSource_POINT) {
 		light = memnew(OmniLight);
-		Vector3 pos = Vector3(ai_light->mPosition.x, ai_light->mPosition.y, ai_light->mPosition.z);
-		Transform xform;
-		xform.origin = pos;
-
-		recursive_state.node_transform *= xform;
-
-		light->set_transform(xform);
-
-		//light->set_param(Light::PARAM_ATTENUATION, 1);
-	} else if (ai_light->mType == aiLightSource_SPOT) {
+	} else if (assimp_light->mType == aiLightSource_SPOT) {
 		light = memnew(SpotLight);
-
-		Vector3 dir = Vector3(ai_light->mDirection.y, ai_light->mDirection.x, ai_light->mDirection.z);
-		dir.normalize();
-		Vector3 pos = Vector3(ai_light->mPosition.x, ai_light->mPosition.y, ai_light->mPosition.z);
-		Vector3 up = Vector3(ai_light->mUp.x, ai_light->mUp.y, ai_light->mUp.z);
-		up.normalize();
-
-		Transform light_transform;
-		light_transform.set_look_at(pos, pos + dir, up);
-		recursive_state.node_transform *= light_transform;
-
-		//light->set_param(Light::PARAM_ATTENUATION, 0.0f);
 	}
-	ERR_FAIL_COND(light == NULL);
+	ERR_FAIL_COND_V(light == NULL, NULL);
 
-	light->set_color(Color(ai_light->mColorDiffuse.r, ai_light->mColorDiffuse.g, ai_light->mColorDiffuse.b));
-	recursive_state.new_node = light;
+	if (assimp_light->mType != aiLightSource_POINT) {
+		Vector3 pos = Vector3(
+				assimp_light->mPosition.x,
+				assimp_light->mPosition.y,
+				assimp_light->mPosition.z);
+		Vector3 look_at = Vector3(
+				assimp_light->mDirection.y,
+				assimp_light->mDirection.x,
+				assimp_light->mDirection.z)
+								  .normalized();
+		Vector3 up = Vector3(
+				assimp_light->mUp.x,
+				assimp_light->mUp.y,
+				assimp_light->mUp.z);
 
-	attach_new_node(state,
-			recursive_state.new_node,
-			recursive_state.assimp_node,
-			recursive_state.parent_node,
-			recursive_state.node_name,
-			recursive_state.node_transform);
+		look_at_transform.set_look_at(pos, look_at, up);
+	}
+	// properties for light variables should be put here.
+	// not really hugely important yet but we will need them in the future
+
+	light->set_color(Color(assimp_light->mColorDiffuse.r, assimp_light->mColorDiffuse.g, assimp_light->mColorDiffuse.b));
+
+	return light;
 }
 
 /**
  * Create camera for the scene
  */
-void EditorSceneImporterAssimp::create_camera(ImportState &state, RecursiveState &recursive_state) {
-	aiCamera *ai_camera = state.assimp_scene->mCameras[state.camera_cache[recursive_state.node_name]];
-	ERR_FAIL_COND(!ai_camera);
+Spatial *EditorSceneImporterAssimp::create_camera(
+		ImportState &state,
+		const String &node_name,
+		Transform &look_at_transform) {
+	aiCamera *camera = state.assimp_scene->mCameras[state.camera_cache[node_name]];
+	ERR_FAIL_COND_V(!camera, NULL);
 
-	Camera *camera = memnew(Camera);
-
-	float near = ai_camera->mClipPlaneNear;
+	Camera *camera_node = memnew(Camera);
+	ERR_FAIL_COND_V(!camera_node, NULL);
+	float near = camera->mClipPlaneNear;
 	if (Math::is_equal_approx(near, 0.0f)) {
 		near = 0.1f;
 	}
-	camera->set_perspective(Math::rad2deg(ai_camera->mHorizontalFOV) * 2.0f, near, ai_camera->mClipPlaneFar);
+	camera_node->set_perspective(Math::rad2deg(camera->mHorizontalFOV) * 2.0f, near, camera->mClipPlaneFar);
+	Vector3 pos = Vector3(camera->mPosition.x, camera->mPosition.y, camera->mPosition.z);
+	Vector3 look_at = Vector3(camera->mLookAt.y, camera->mLookAt.x, camera->mLookAt.z).normalized();
+	Vector3 up = Vector3(camera->mUp.x, camera->mUp.y, camera->mUp.z);
 
-	Vector3 pos = Vector3(ai_camera->mPosition.x, ai_camera->mPosition.y, ai_camera->mPosition.z);
-	Vector3 look_at = Vector3(ai_camera->mLookAt.y, ai_camera->mLookAt.x, ai_camera->mLookAt.z).normalized();
-	Vector3 up = Vector3(ai_camera->mUp.x, ai_camera->mUp.y, ai_camera->mUp.z);
-
-	Transform xform;
-	xform.set_look_at(pos, look_at, up);
-
-	recursive_state.new_node = camera;
-
-	attach_new_node(state,
-			recursive_state.new_node,
-			recursive_state.assimp_node,
-			recursive_state.parent_node,
-			recursive_state.node_name,
-			recursive_state.node_transform);
+	look_at_transform.set_look_at(pos + look_at_transform.origin, look_at, up);
+	return camera_node;
 }
 
 /**
@@ -1386,7 +1374,7 @@ void EditorSceneImporterAssimp::create_bone(ImportState &state, aiBone *bone, Re
 void EditorSceneImporterAssimp::_generate_node(
 		ImportState &state,
 		const aiNode *assimp_node) {
-	
+
 	ERR_FAIL_COND(assimp_node == NULL);
 	state.nodes.push_back(assimp_node);
 
@@ -1423,7 +1411,6 @@ void EditorSceneImporterAssimp::_generate_node(
 	// 		}
 	// 	}
 	// }
-
 
 	// // update recursive state
 	// recursive_state.node_transform = node_transform;
@@ -1495,5 +1482,4 @@ void EditorSceneImporterAssimp::_generate_node(
 	//Node *parent = recursive_state.new_node ? recursive_state.new_node : recursive_state.parent_node;
 	//recursive_state.parent_node = parent;
 	// recurse into all child elements
-
 }
