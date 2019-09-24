@@ -81,6 +81,12 @@ struct ImportState {
 	// list of armature nodes - flat and simple to parse
 	// assimp node, node in godot
 	Map<const aiNode *, Skeleton *> armature_map;
+
+	// Generation 3 - deterministic bone handling
+	// bones from the stack are popped when found
+	// this means we can detect
+	// what bones are for other armatures
+	List<const aiBone *> bone_stack;
 };
 
 struct AssimpImageData {

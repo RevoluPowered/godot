@@ -57,6 +57,40 @@
 #include <assimp/Logger.hpp>
 #include <string>
 
+// move into assimp
+aiBone *get_bone_by_mesh(const aiScene *scene, const aiMesh *mesh, aiString bone_name) {
+	// iterate over all the bones on the mesh for this node only!
+	for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+
+		aiBone *bone = mesh->mBones[boneIndex];
+		if (bone->mName == bone_name) {
+			printf("matched bone by mesh and name: %s\n", bone->mName.C_Str());
+			return bone;
+		}
+	}
+
+	return NULL;
+}
+
+// move into assimp
+aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
+	for (unsigned int mesh_id = 0; mesh_id < scene->mNumMeshes; ++mesh_id) {
+		aiMesh *mesh = scene->mMeshes[mesh_id];
+
+		// iterate over all the bones on the mesh for this node only!
+		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+
+			aiBone *bone = mesh->mBones[boneIndex];
+			if (bone->mName == bone_name) {
+				printf("matched bone by name: %s\n", bone->mName.C_Str());
+				return bone;
+			}
+		}
+	}
+
+	return NULL;
+}
+
 void EditorSceneImporterAssimp::get_extensions(List<String> *r_extensions) const {
 
 	const String import_setting_string = "filesystem/import/open_asset_import/";
@@ -271,6 +305,21 @@ T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, co
 	ERR_FAIL_V(p_values[0]);
 }
 
+aiBone *EditorSceneImporterAssimp::get_bone_from_stack(ImportState &state, aiString name) {
+	List<const aiBone *>::Element *iter;
+	aiBone *bone = NULL;
+	for (iter = state.bone_stack.front(); iter; iter = iter->next()) {
+		bone = (aiBone *)iter->get();
+
+		if (bone && bone->mName == name) {
+			state.bone_stack.erase(bone);
+			return bone;
+		}
+	}
+
+	return NULL;
+}
+
 Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights) {
 	ERR_FAIL_COND_V(scene == NULL, NULL);
 
@@ -299,12 +348,26 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		state.nodes.push_back(scene->mRootNode);
 
 		// make flat node tree - in order to make processing deterministic
-		for (uint32_t i = 0; i < scene->mRootNode->mNumChildren; i++) {
+		for (unsigned int i = 0; i < scene->mRootNode->mNumChildren; i++) {
 			_generate_node(state, scene->mRootNode->mChildren[i]);
 		}
 
-		//sstate.skeleton = initialize_skeleton(state);
+		// build bone stack list
+		for (unsigned int mesh_id = 0; mesh_id < scene->mNumMeshes; ++mesh_id) {
+			aiMesh *mesh = scene->mMeshes[mesh_id];
+
+			// iterate over all the bones on the mesh for this node only!
+			for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+				aiBone *bone = mesh->mBones[boneIndex];
+				if (state.bone_stack.find(bone) == NULL) {
+					state.bone_stack.push_back(bone);
+				}
+			}
+		}
+
 		Skeleton *last_active_skeleton = NULL;
+
+		print_verbose("bone count: " + itos(state.bone_id_map.size()));
 		List<const aiNode *>::Element *iter;
 		for (iter = state.nodes.front(); iter; iter = iter->next()) {
 			const aiNode *element_assimp_node = iter->get();
@@ -315,7 +378,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 
 			Spatial *spatial = NULL;
 			Transform transform = AssimpUtils::assimp_matrix_transform(element_assimp_node->mTransformation);
-
+			aiBone *bone = get_bone_from_stack(state, element_assimp_node->mName);
 			if (state.light_cache.has(node_name)) {
 				spatial = create_light(state, node_name, transform);
 			} else if (state.camera_cache.has(node_name)) {
@@ -328,8 +391,18 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				spatial = skeleton;
 				state.armature_map[element_assimp_node] = skeleton;
 				last_active_skeleton = skeleton;
-			} else if (last_active_skeleton && last_active_skeleton->find_bone(node_name) != -1) {
+			} else if (bone != NULL) {
 				print_verbose("ignored bone!");
+
+				// add bone to list
+				if (last_active_skeleton != NULL) {
+					String bone_name = AssimpUtils::get_assimp_string(bone->mName);
+					print_verbose("Added bone: " + bone_name);
+					unsigned int boneIdx = last_active_skeleton->get_bone_count();
+					last_active_skeleton->add_bone(bone_name);
+					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
+				}
+
 				// bone must be ignored
 				continue;
 			} else {
@@ -1054,38 +1127,6 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 	}
 
 	return mesh;
-}
-
-aiBone *get_bone_by_mesh(const aiScene *scene, const aiMesh *mesh, aiString bone_name) {
-	// iterate over all the bones on the mesh for this node only!
-	for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
-
-		aiBone *bone = mesh->mBones[boneIndex];
-		if (bone->mName == bone_name) {
-			printf("matched bone by mesh and name: %s\n", bone->mName.C_Str());
-			return bone;
-		}
-	}
-
-	return NULL;
-}
-
-aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
-	for (unsigned int mesh_id = 0; mesh_id < scene->mNumMeshes; ++mesh_id) {
-		aiMesh *mesh = scene->mMeshes[mesh_id];
-
-		// iterate over all the bones on the mesh for this node only!
-		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
-
-			aiBone *bone = mesh->mBones[boneIndex];
-			if (bone->mName == bone_name) {
-				printf("matched bone by name: %s\n", bone->mName.C_Str());
-				return bone;
-			}
-		}
-	}
-
-	return NULL;
 }
 
 /* Initialize skeleton and all the bones */

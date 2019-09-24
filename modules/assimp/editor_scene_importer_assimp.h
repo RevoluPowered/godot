@@ -123,7 +123,7 @@ private:
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
-
+	aiBone *get_bone_from_stack(ImportState &state, aiString name);
 	Spatial *_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights);
 
 	String _assimp_anim_string_to_string(const aiString &p_string) const;
