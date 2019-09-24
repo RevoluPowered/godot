@@ -58,7 +58,6 @@ struct ImportState {
 
 	String path;
 	Spatial *root;
-	Skeleton *skeleton;
 	const aiScene *assimp_scene;
 	uint32_t max_bone_weights;
 
@@ -77,6 +76,12 @@ struct ImportState {
 	List<const aiNode*> nodes;
 	Map<const aiNode*, Spatial*> flat_node_map; 
 	AnimationPlayer *animation_player;
+
+
+	// Generation 3 - deterministic armatures
+	// list of armature nodes - flat and simple to parse
+	// assimp node, node in godot
+	Map<const aiNode*, Skeleton*> armature_map;
 };
 
 struct AssimpImageData {
