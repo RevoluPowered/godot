@@ -392,7 +392,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				state.armature_map[element_assimp_node] = skeleton;
 				last_active_skeleton = skeleton;
 			} else if (bone != NULL) {
-				print_verbose("ignored bone!");
+				//print_verbose("ignored bone!");
 
 				// add bone to list
 				if (last_active_skeleton != NULL) {
@@ -437,10 +437,14 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 
 				ERR_FAIL_COND_V_MSG(parent_node == NULL, state.root, "Parent node invaid even though lookup successful, out of ram?")
 
-				if (parent_node) {
+				if (parent_node && spatial != state.root) {
 					parent_node->add_child(spatial);
 					spatial->set_owner(state.root);
-				} else // Safety for instances
+				} else if (spatial == state.root)
+				{
+					// required
+				}
+				else // Safety for instances
 				{
 					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
