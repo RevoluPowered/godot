@@ -446,6 +446,11 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					memdelete(spatial); // this node is broken
 				}
 			}
+			else
+			{
+				memdelete(spatial);
+			}
+			
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
 
