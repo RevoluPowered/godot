@@ -278,8 +278,6 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 	state.path = p_path;
 	state.assimp_scene = scene;
 	state.max_bone_weights = p_max_bone_weights;
-	//state.root = memnew(Spatial);
-	//state.root->set_name("root_node");
 	state.animation_player = NULL;
 
 	// populate light map
@@ -1090,7 +1088,6 @@ aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
 	return NULL;
 }
 
-
 /* Initialize skeleton and all the bones */
 Skeleton *EditorSceneImporterAssimp::initialize_skeleton(ImportState &state) {
 	const aiScene *scene = state.assimp_scene;
@@ -1383,37 +1380,6 @@ Spatial *EditorSceneImporterAssimp::create_camera(
 	return camera_node;
 }
 
-// /**
-//  * Create Bone
-//  * Create a bone in the scene
-//  */
-// void EditorSceneImporterAssimp::create_bone(ImportState &state, String &node_name, Skeleton *skeleton, aiBone *bone) {
-// 	// this transform is a bone
-// 	skeleton->add_bone(node_name);
-
-// 	// make sure to write the bone lookup inverse so we can retrieve the mesh for this bone later
-// 	//bone to skin lookup
-// 	//state.bone_to_skeleton_lookup.insert(bone, skeleton);
-
-// 	//Transform xform = AssimpUtils::assimp_matrix_transform(recursive_state.bone->mOffsetMatrix);
-// 	//recursive_state.skeleton->set_bone_rest(recursive_state.skeleton->get_bone_count() - 1, xform.affine_inverse());
-
-// 	int current_bone_id = skeleton->find_bone(node_name);
-
-// 	state.bone_id_map.insert(bone, current_bone_id);
-// 	// get parent node of assimp node
-// 	// const aiNode *parent_node_assimp = recursive_state.assimp_node->mParent;
-
-// 	// // ensure we have a parent
-// 	// if (parent_node_assimp != NULL) {
-// 	// 	int parent_bone_id = recursive_state.skeleton->find_bone(AssimpUtils::get_assimp_string(parent_node_assimp->mName));
-
-// 	// 	print_verbose("Parent bone id " + itos(parent_bone_id) + " current bone id" + itos(current_bone_id));
-// 	// 	print_verbose("Bone debug: " + AssimpUtils::get_assimp_string(parent_node_assimp->mName));
-// 	// 	skeleton->set_bone_parent(current_bone_id, parent_bone_id);
-// 	// }
-// }
-
 /**
  * Generate node
  * Recursive call to iterate over all nodes
@@ -1426,6 +1392,12 @@ void EditorSceneImporterAssimp::_generate_node(
 	state.nodes.push_back(assimp_node);
 	String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
 	String parent_name = AssimpUtils::get_assimp_string(assimp_node->mParent->mName);
+
+	// please note
+	// duplicate bone names exist
+	// this is why we only check if the bone exists
+	// so everything else is useless but the name
+	// please do not copy any other values from get_bone_by_name.
 	aiBone *parent_bone = get_bone_by_name(state.assimp_scene, assimp_node->mParent->mName);
 	aiBone *current_bone = get_bone_by_name(state.assimp_scene, assimp_node->mName);
 
@@ -1437,60 +1409,7 @@ void EditorSceneImporterAssimp::_generate_node(
 		print_verbose("found valid armature: " + parent_name);
 	}
 
-	//aiBone *parent_bone = get_bone_by_name(state.assimp_scene, assimp_node->mParent);
-	//aiBone *current_bone = get_bone_by_name(state.assimp_scene, assimp_node->mParent);
-
 	for (size_t i = 0; i < assimp_node->mNumChildren; i++) {
 		_generate_node(state, assimp_node->mChildren[i]);
 	}
-
-	// // can safely return null - is this node a bone?
-	// aiBone *bone = get_bone_by_name(state.assimp_scene, assimp_node->mName);
-
-	// aiNode *armature_node = NULL;
-	// // if the bone is null then we know to have a look for the armature node.
-	// // hint: the first bone's parent is the armature node.
-	// if(bone == NULL)
-	// {
-	// 	aiBone *first_bone = NULL;
-	// 	for(int child = 0; child < assimp_node->mNumChildren; ++child)
-	// 	{
-	// 		aiNode * node = assimp_node->mChildren[child];
-	// 		first_bone = get_bone_by_name(state.assimp_scene, node->mName);
-	// 		armature_node = node->mParent; // assign first bone parent / armature node.
-	// 		if(first_bone)
-	// 		{
-	// 			ERR_FAIL_COND(armature_node == NULL);
-	// 			print_verbose("armature node is: " + AssimpUtils::get_assimp_string(armature_node->mName));
-	// 			print_verbose("first bone in skeleton is: " + AssimpUtils::get_assimp_string(first_bone->mName));
-	// 			break;
-	// 		}
-	// 	}
-	// }
-
-	// // the parent was not a bone thus the armature has been detected!
-	// if (armature_node && !recursive_state.skeleton) {
-	// 	print_verbose("Creating skeleton for armature node");
-	// 	// create new skeleton on the root.
-	// 	recursive_state.skeleton = memnew(Skeleton);
-
-	// 	ERR_FAIL_COND(state.root == NULL);
-	// 	ERR_FAIL_COND(recursive_state.skeleton == NULL);
-	// 	ERR_FAIL_COND(recursive_state.parent_node == NULL);
-	// 	recursive_state.skeleton->set_name(recursive_state.node_name);
-	// 	recursive_state.skeleton->set_owner(recursive_state.parent_node);
-	// 	recursive_state.parent_node->add_child(recursive_state.skeleton);
-
-	// 	print_verbose("Parent armature node is called " + recursive_state.parent_node->get_name());
-	// 	// store root node for this skeleton / used in animation playback and bone detection.
-
-	// 	state.armature_skeletons.insert(recursive_state.skeleton, Object::cast_to<Spatial>(recursive_state.parent_node));
-
-	// 	//skeleton->set_use_bones_in_world_transform(true);
-	// 	print_verbose("Created new FBX skeleton for armature node");
-	// }
-
-	// } else if (bone != NULL) {
-	// 	create_bone(state, bone, recursive_state);
-	// }
 }

@@ -63,7 +63,7 @@ struct ImportState {
 
 	Map<String, Ref<Mesh> > mesh_cache;
 	Map<int, Ref<Material> > material_cache;
-	Map<const aiBone*, int> bone_id_map;
+	Map<const aiBone *, int> bone_id_map;
 	Map<String, int> light_cache;
 	Map<String, int> camera_cache;
 	// very useful for when you need to ask assimp for the bone mesh
@@ -71,17 +71,16 @@ struct ImportState {
 	Map<const aiNode *, const Node *> assimp_node_map;
 	Map<String, Ref<Image> > path_to_image_cache;
 
-	// Generation 3 - determinisitic iteration 
+	// Generation 3 - determinisitic iteration
 	// to lower potential recursion errors
-	List<const aiNode*> nodes;
-	Map<const aiNode*, Spatial*> flat_node_map; 
+	List<const aiNode *> nodes;
+	Map<const aiNode *, Spatial *> flat_node_map;
 	AnimationPlayer *animation_player;
-
 
 	// Generation 3 - deterministic armatures
 	// list of armature nodes - flat and simple to parse
 	// assimp node, node in godot
-	Map<const aiNode*, Skeleton*> armature_map;
+	Map<const aiNode *, Skeleton *> armature_map;
 };
 
 struct AssimpImageData {
@@ -94,8 +93,7 @@ struct AssimpImageData {
 	* This makes the code easier to handle too and add extra arguments without breaking things
 	*/
 struct RecursiveState {
-	RecursiveState()
-	{} // do not construct :)
+	RecursiveState() {} // do not construct :)
 	RecursiveState(
 			Transform &_node_transform,
 			Skeleton *_skeleton,
