@@ -63,7 +63,6 @@ struct ImportState {
 
 	Map<String, Ref<Mesh> > mesh_cache;
 	Map<int, Ref<Material> > material_cache;
-	Map<const aiBone *, int> bone_id_map;
 	Map<String, int> light_cache;
 	Map<String, int> camera_cache;
 	// very useful for when you need to ask assimp for the bone mesh
@@ -87,6 +86,9 @@ struct ImportState {
 	// this means we can detect
 	// what bones are for other armatures
 	List<const aiBone *> bone_stack;
+
+	// Generation 3 - deterministic skeleton lookup
+	Map<const aiBone*, Skeleton*> bone_skeleton_lookup;
 };
 
 struct AssimpImageData {
