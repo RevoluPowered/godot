@@ -400,7 +400,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					print_verbose("Added bone: " + bone_name);
 					unsigned int boneIdx = last_active_skeleton->get_bone_count();
 					last_active_skeleton->add_bone(bone_name);
-					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
+					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix) * transform);
 				}
 
 				// bone must be ignored
