@@ -406,6 +406,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 
 				// bone must be ignored
 				continue;
+			} else if(element_assimp_node->mNumMeshes > 0) {
+				spatial = memnew(MeshInstance);				
 			} else {
 				spatial = memnew(Spatial);
 			}
@@ -456,8 +458,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		//state.root->add_child(state.skeleton);
 		//state.skeleton->set_owner(state.root);
 
-		//print_verbose("generating mesh phase from skeletal mesh");
-		//generate_mesh_phase_from_skeletal_mesh(state);
+		print_verbose("generating mesh phase from skeletal mesh");
+		generate_mesh_phase_from_skeletal_mesh(state);
 	}
 
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -1136,7 +1138,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 /**
  * Create a new mesh for the node supplied
  */
-void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
+MeshInstance* EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
@@ -1224,6 +1226,8 @@ void EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *as
 		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
 		mesh_node->set_skin(skin);
 	}
+
+	return mesh_node;
 }
 
 /** generate_mesh_phase_from_skeletal_mesh
@@ -1239,13 +1243,21 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 		Node *parent_node = current_node->get_parent();
 
 		ERR_CONTINUE(assimp_node == NULL);
-		ERR_CONTINUE(parent_node == NULL);
+		if(parent_node == NULL)
+		{
+			continue; // root node
+		}
 
 		String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
 		Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
 
 		if (assimp_node->mNumMeshes > 0) {
-			create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
+			MeshInstance * mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
+			if(mesh)
+			{
+				current_node->add_child(mesh);
+				mesh->set_owner(state.root);
+			}
 		}
 	}
 }
