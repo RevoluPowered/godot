@@ -113,7 +113,7 @@ private:
 	//void create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state);
 	void initialize_skeletal_data(ImportState &state);
 	// non recursive - linear so must not use recursive arguments
-	void create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
+	MeshInstance* create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
 
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
