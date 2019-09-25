@@ -406,7 +406,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				// bone must be ignored
 				continue;
 			} else if(element_assimp_node->mNumMeshes > 0) {
-				spatial = memnew(MeshInstance);				
+				spatial = memnew(Spatial);				
 			} else {
 				spatial = memnew(Spatial);
 			}
@@ -1219,6 +1219,11 @@ MeshInstance* EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 		print_verbose("Finished configuring bind pose for skin mesh");
 	}
 
+	parent_node->add_child(mesh_node);
+	mesh_node->set_global_transform(node_transform);
+	mesh_node->set_name(node_name);
+	mesh_node->set_owner(state.root);
+
 	// set this once and for all
 	if (skeleton != NULL) {
 		// must be done after added to tree
@@ -1251,11 +1256,29 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 		Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
 
 		if (assimp_node->mNumMeshes > 0) {
+
 			MeshInstance * mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
 			if(mesh)
-			{
-				current_node->add_child(mesh);
-				mesh->set_owner(state.root);
+			{				
+				// reparent all children to new node
+				for( int childId = 0; childId < current_node->get_child_count(); childId++)
+				{
+					// get child
+					Node* child = current_node->get_child(childId);
+					// remove from template object
+					child->remove_child(current_node);
+					// add child to new mesh instance
+					mesh->add_child(child);
+				}
+
+				parent_node->remove_child(current_node);	
+
+				// overwrite node to map as the correct node.
+				// this slot is now essentially the mesh instance and not our fake spatial.
+				state.flat_node_map[assimp_node] = mesh;
+				
+				// free node which is no longer used
+				memfree(current_node);
 			}
 		}
 	}
