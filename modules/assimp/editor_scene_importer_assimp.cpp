@@ -110,11 +110,14 @@ void EditorSceneImporterAssimp::get_extensions(List<String> *r_extensions) const
 		import_format.insert("mmd", import);
 	}
 	for (Map<String, ImportFormat>::Element *E = import_format.front(); E; E = E->next()) {
-		_register_project_setting_import(E->key(), import_setting_string, E->get().extensions, r_extensions, E->get().is_default);
+		_register_project_setting_import(E->key(), import_setting_string, E->get().extensions, r_extensions,
+				E->get().is_default);
 	}
 }
 
-void EditorSceneImporterAssimp::_register_project_setting_import(const String generic, const String import_setting_string, const Vector<String> &exts, List<String> *r_extensions, const bool p_enabled) const {
+void EditorSceneImporterAssimp::_register_project_setting_import(const String generic, const String import_setting_string,
+		const Vector<String> &exts, List<String> *r_extensions,
+		const bool p_enabled) const {
 	const String use_generic = "use_" + generic;
 	_GLOBAL_DEF(import_setting_string + use_generic, p_enabled, true);
 	if (ProjectSettings::get_singleton()->get(import_setting_string + use_generic)) {
@@ -131,7 +134,8 @@ uint32_t EditorSceneImporterAssimp::get_import_flags() const {
 void EditorSceneImporterAssimp::_bind_methods() {
 }
 
-Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err) {
+Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps,
+		List<String> *r_missing_deps, Error *r_err) {
 	Assimp::Importer importer;
 	std::wstring w_path = ProjectSettings::get_singleton()->globalize_path(p_path).c_str();
 	std::string s_path(w_path.begin(), w_path.end());
@@ -149,9 +153,11 @@ Node *EditorSceneImporterAssimp::import_scene(const String &p_path, uint32_t p_f
 
 	//importer.SetPropertyFloat(AI_CONFIG_PP_DB_THRESHOLD, 1.0f);
 	int32_t post_process_Steps = aiProcess_CalcTangentSpace |
-								 aiProcess_GlobalScale | // imports models and listens to their file scale for CM to M conversions
+								 aiProcess_GlobalScale |
+								 // imports models and listens to their file scale for CM to M conversions
 								 //aiProcess_FlipUVs |
-								 aiProcess_FlipWindingOrder | // very important for culling so that it is done in the correct order.
+								 aiProcess_FlipWindingOrder |
+								 // very important for culling so that it is done in the correct order.
 								 //aiProcess_DropNormals |
 								 //aiProcess_GenSmoothNormals |
 								 //aiProcess_JoinIdenticalVertices |
@@ -192,7 +198,8 @@ struct EditorSceneImporterAssetImportInterpolate {
 		float t2 = t * t;
 		float t3 = t2 * t;
 
-		return 0.5f * ((2.0f * p1) + (-p0 + p2) * t + (2.0f * p0 - 5.0f * p1 + 4 * p2 - p3) * t2 + (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
+		return 0.5f * ((2.0f * p1) + (-p0 + p2) * t + (2.0f * p0 - 5.0f * p1 + 4 * p2 - p3) * t2 +
+							  (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
 	}
 
 	T bezier(T start, T control_1, T control_2, T end, float t) {
@@ -234,7 +241,8 @@ struct EditorSceneImporterAssetImportInterpolate<Quat> {
 };
 
 template <class T>
-T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, const Vector<T> &p_values, float p_time, AssetImportAnimation::Interpolation p_interp) {
+T EditorSceneImporterAssimp::_interpolate_track(const Vector<float> &p_times, const Vector<T> &p_values, float p_time,
+		AssetImportAnimation::Interpolation p_interp) {
 	//could use binary search, worth it?
 	int idx = -1;
 	for (int i = 0; i < p_times.size(); i++) {
@@ -321,7 +329,9 @@ aiBone *EditorSceneImporterAssimp::get_bone_from_stack(ImportState &state, aiStr
 	return NULL;
 }
 
-Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights) {
+Spatial *
+EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps,
+		const int32_t p_max_bone_weights) {
 	ERR_FAIL_COND_V(scene == NULL, NULL);
 
 	ImportState state;
@@ -400,7 +410,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					print_verbose("Added bone: " + bone_name);
 					unsigned int boneIdx = last_active_skeleton->get_bone_count();
 					last_active_skeleton->add_bone(bone_name);
-					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
+					last_active_skeleton->set_bone_rest(boneIdx,
+							AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
 					state.bone_skeleton_lookup.insert(bone, last_active_skeleton);
 				}
 
@@ -432,7 +443,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 			if (parent_lookup) {
 				Spatial *parent_node = parent_lookup->value();
 
-				ERR_FAIL_COND_V_MSG(parent_node == NULL, state.root, "Parent node invaid even though lookup successful, out of ram?")
+				ERR_FAIL_COND_V_MSG(parent_node == NULL, state.root,
+						"Parent node invaid even though lookup successful, out of ram?")
 
 				if (parent_node && spatial != state.root) {
 					parent_node->add_child(spatial);
@@ -441,7 +453,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					// required
 				} else // Safety for instances
 				{
-					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
+					WARN_PRINT(
+							"Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
 				}
 			} else if (spatial != state.root) {
@@ -472,7 +485,10 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 	return state.root;
 }
 
-void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name) {
+void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track,
+		int p_bake_fps, Ref<Animation> animation,
+		float ticks_per_second, Skeleton *p_skeleton,
+		const NodePath &p_path, const String &p_name) {
 
 	const aiNodeAnim *assimp_track = assimp_anim->mChannels[p_track];
 	//make transform track
@@ -526,7 +542,9 @@ void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, cons
 		}
 
 		if (rot_values.size()) {
-			rot = _interpolate_track<Quat>(rot_times, rot_values, time, AssetImportAnimation::INTERP_LINEAR).normalized();
+			rot = _interpolate_track<Quat>(rot_times, rot_values, time,
+					AssetImportAnimation::INTERP_LINEAR)
+						  .normalized();
 		}
 
 		if (scale_values.size()) {
@@ -747,7 +765,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 						vertex_weights[vertex_index].push_back(bi);
 					}
 				}
-			}			
+			}
 		}
 
 		//
@@ -773,7 +791,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 
 			// Assign vertex colors
 			if (ai_mesh->HasVertexColors(0)) {
-				Color color = Color(ai_mesh->mColors[0]->r, ai_mesh->mColors[0]->g, ai_mesh->mColors[0]->b, ai_mesh->mColors[0]->a);
+				Color color = Color(ai_mesh->mColors[0]->r, ai_mesh->mColors[0]->g, ai_mesh->mColors[0]->b,
+						ai_mesh->mColors[0]->a);
 				st->add_color(color);
 			}
 
@@ -866,7 +885,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 				if (image_data.raw_image->detect_alpha() != Image::ALPHA_NONE) {
 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+					mat->set_cull_mode(
+							SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
 				}
 
 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, image_data.texture);
@@ -885,7 +905,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 				if (image_data.raw_image->detect_alpha() != Image::ALPHA_NONE) {
 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+					mat->set_cull_mode(
+							SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
 				}
 
 				mat->set_texture(SpatialMaterial::TEXTURE_ALBEDO, image_data.texture);
@@ -896,7 +917,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 				if (Math::is_equal_approx(clr_diffuse.a, 1.0f) == false) {
 					mat->set_feature(SpatialMaterial::FEATURE_TRANSPARENT, true);
 					mat->set_depth_draw_mode(SpatialMaterial::DepthDrawMode::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
-					mat->set_cull_mode(SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
+					mat->set_cull_mode(
+							SpatialMaterial::CULL_DISABLED); // since you can see both sides in transparent mode
 				}
 				mat->set_albedo(Color(clr_diffuse.r, clr_diffuse.g, clr_diffuse.b, clr_diffuse.a));
 			}
@@ -992,7 +1014,8 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 			} else {
 				// Process emission textures
 				aiString texture_emissive_path;
-				if (AI_SUCCESS == ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, AI_PROPERTIES, texture_emissive_path)) {
+				if (AI_SUCCESS ==
+						ai_material->Get(AI_MATKEY_FBX_MAYA_EMISSION_TEXTURE, AI_PROPERTIES, texture_emissive_path)) {
 					if (AssimpUtils::CreateAssimpTexture(state, texture_emissive_path, filename, path, image_data)) {
 						mat->set_feature(SpatialMaterial::FEATURE_EMISSION, true);
 						mat->set_texture(SpatialMaterial::TEXTURE_EMISSION, image_data.texture);
@@ -1138,7 +1161,9 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 /**
  * Create a new mesh for the node supplied
  */
-MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
+MeshInstance *
+EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name,
+		Node *current_node, Node *parent_node, Transform node_transform) {
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
@@ -1332,7 +1357,8 @@ Spatial *EditorSceneImporterAssimp::create_light(
 	// properties for light variables should be put here.
 	// not really hugely important yet but we will need them in the future
 
-	light->set_color(Color(assimp_light->mColorDiffuse.r, assimp_light->mColorDiffuse.g, assimp_light->mColorDiffuse.b));
+	light->set_color(
+			Color(assimp_light->mColorDiffuse.r, assimp_light->mColorDiffuse.g, assimp_light->mColorDiffuse.b));
 
 	return light;
 }
