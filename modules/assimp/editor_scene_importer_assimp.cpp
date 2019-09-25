@@ -455,7 +455,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		//state.skeleton->set_owner(state.root);
 
 		print_verbose("generating mesh phase from skeletal mesh");
-		//generate_mesh_phase_from_skeletal_mesh(state);
+		generate_mesh_phase_from_skeletal_mesh(state);
 	}
 
 	// if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -685,8 +685,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 		ImportState &state,
 		const Vector<int> &p_surface_indices,
 		const aiNode *assimp_node,
-		Ref<Skin> skin,
-		Skeleton *skeleton) {
+		Ref<Skin> skin) {
 
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
@@ -720,30 +719,35 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 
 		Map<uint32_t, Vector<BoneInfo> > vertex_weights;
 
-		if (skeleton) {
-			for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
-				aiBone *bone = ai_mesh->mBones[b];
-				String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-				int bone_index = skeleton->find_bone(bone_name);
-				ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
+		if (ai_mesh->mNumBones > 0) {
+			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
 
-				for (size_t w = 0; w < bone->mNumWeights; w++) {
+			ERR_CONTINUE_MSG(!match, "Failed to lookup skeleton for sub mesh");
+			if (match) {
+				for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
+					aiBone *bone = ai_mesh->mBones[b];
+					String bone_name = AssimpUtils::get_assimp_string(bone->mName);
+					int bone_index = match->value()->find_bone(bone_name);
+					ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
-					aiVertexWeight ai_weights = bone->mWeights[w];
+					for (size_t w = 0; w < bone->mNumWeights; w++) {
 
-					BoneInfo bi;
+						aiVertexWeight ai_weights = bone->mWeights[w];
 
-					uint32_t vertex_index = ai_weights.mVertexId;
-					bi.bone = bone_index;
-					bi.weight = ai_weights.mWeight;
+						BoneInfo bi;
 
-					if (!vertex_weights.has(vertex_index)) {
-						vertex_weights[vertex_index] = Vector<BoneInfo>();
+						uint32_t vertex_index = ai_weights.mVertexId;
+						bi.bone = bone_index;
+						bi.weight = ai_weights.mWeight;
+
+						if (!vertex_weights.has(vertex_index)) {
+							vertex_weights[vertex_index] = Vector<BoneInfo>();
+						}
+
+						vertex_weights[vertex_index].push_back(bi);
 					}
-
-					vertex_weights[vertex_index].push_back(bi);
 				}
-			}
+			}			
 		}
 
 		//
@@ -1141,9 +1145,11 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 	Ref<Skin> skin;
 	// see if we have mesh cache for this.
 	Vector<int> surface_indices;
+
+	// This is basically a function to get skeleton for mesh
 	for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
 		int mesh_index = assimp_node->mMeshes[i];
-		aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
+		aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
 
 		if (ai_mesh->mNumBones > 0) {
 
@@ -1158,12 +1164,19 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 					// Create skin resource
 					skin.instance();
 				}
+				break;
 			}
 		}
+	}
+
+	// Configure indicies
+	for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
+		int mesh_index = assimp_node->mMeshes[i];
+		// create list of mesh indexes
 		surface_indices.push_back(mesh_index);
 	}
 
-	surface_indices.sort();
+	//surface_indices.sort();
 	String mesh_key;
 	for (int i = 0; i < surface_indices.size(); i++) {
 		if (i > 0) {
@@ -1173,7 +1186,7 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 	}
 
 	if (!state.mesh_cache.has(mesh_key)) {
-		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skin, skeleton);
+		mesh = _generate_mesh_from_surface_indices(state, surface_indices, assimp_node, skin);
 		state.mesh_cache[mesh_key] = mesh;
 	}
 
@@ -1193,7 +1206,7 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 		int bind_count = 0;
 		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
 			int mesh_index = assimp_node->mMeshes[i];
-			aiMesh *ai_mesh = state.assimp_scene->mMeshes[assimp_node->mMeshes[i]];
+			aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
 
 			// skeleton bone ID lookup for set_pose bone_id_map
 
@@ -1218,7 +1231,7 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 	}
 
 	parent_node->add_child(mesh_node);
-	mesh_node->set_transform(node_transform);
+	mesh_node->set_global_transform(node_transform);
 	mesh_node->set_name(node_name);
 	mesh_node->set_owner(state.root);
 

@@ -98,7 +98,7 @@ private:
 	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
 	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
 
-	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode *assimp_node, Ref<Skin> skin, Skeleton *skeleton = NULL);
+	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode *assimp_node, Ref<Skin> skin);
 
 	// simple object creation functions
 	Spatial *create_light(ImportState &state,
