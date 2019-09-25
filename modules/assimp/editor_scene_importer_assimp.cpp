@@ -442,6 +442,10 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		//state.skeleton->set_owner(state.root);
 
 		print_verbose("generating mesh phase from skeletal mesh");
+		
+		// note: this needs reworked to not leak and also to be more reliable.
+		// need to look into updating this to a flat map like above to keep it stupidly simple
+		// this has a memory leak which will get fixed tomorrow.
 		generate_mesh_phase_from_skeletal_mesh(state);
 	}
 
