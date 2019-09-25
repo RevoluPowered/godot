@@ -29,48 +29,23 @@
 /*************************************************************************/
 
 #include "editor_scene_importer_assimp.h"
-#include "core/bind/core_bind.h"
 #include "core/io/image_loader.h"
-#include "editor/editor_file_system.h"
 #include "editor/import/resource_importer_scene.h"
-#include "editor_settings.h"
 #include "import_utils.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/light.h"
 #include "scene/3d/mesh_instance.h"
-#include "scene/animation/animation_player.h"
 #include "scene/main/node.h"
 #include "scene/resources/material.h"
 #include "scene/resources/surface_tool.h"
 
-#include <assimp/SceneCombiner.h>
-#include <assimp/cexport.h>
-#include <assimp/cimport.h>
 #include <assimp/matrix4x4.h>
-#include <assimp/pbrmaterial.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
-#include <zutil.h>
-#include <assimp/DefaultLogger.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/LogStream.hpp>
-#include <assimp/Logger.hpp>
 #include <string>
 
-// move into assimp
-aiBone *get_bone_by_mesh(const aiScene *scene, const aiMesh *mesh, aiString bone_name) {
-	// iterate over all the bones on the mesh for this node only!
-	for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
-
-		aiBone *bone = mesh->mBones[boneIndex];
-		if (bone->mName == bone_name) {
-			printf("matched bone by mesh and name: %s\n", bone->mName.C_Str());
-			return bone;
-		}
-	}
-
-	return NULL;
-}
 
 // move into assimp
 aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
