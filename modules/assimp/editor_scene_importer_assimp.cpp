@@ -443,6 +443,9 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
 				}
+			} else if (spatial != state.root) {
+				// leaf bone removal - generally / we do not support this use case.
+				memdelete(spatial);
 			}
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
