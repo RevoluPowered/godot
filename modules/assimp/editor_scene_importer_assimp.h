@@ -100,8 +100,6 @@ private:
 
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode *assimp_node, Ref<Skin> skin, Skeleton *skeleton = NULL);
 
-	// utility for node creation
-	void attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform);
 	// simple object creation functions
 	Spatial *create_light(ImportState &state,
 			const String &node_name,
