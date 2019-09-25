@@ -72,7 +72,6 @@ public:
 class EditorSceneImporterAssimp : public EditorSceneImporter {
 private:
 	GDCLASS(EditorSceneImporterAssimp, EditorSceneImporter);
-	const String ASSIMP_FBX_KEY = "_$AssimpFbx$";
 
 	struct AssetImportAnimation {
 		enum Interpolation {
@@ -88,16 +87,6 @@ private:
 		float weight;
 	};
 
-	struct SkeletonHole { //nodes may be part of the skeleton by used by vertex
-		String name;
-		String parent;
-		Transform pose;
-		const aiNode *node;
-	};
-
-	void _calc_tangent_from_mesh(const aiMesh *ai_mesh, int i, int tri_index, int index, PoolColorArray::Write &w);
-	void _set_texture_mapping_mode(aiTextureMapMode *map_mode, Ref<Texture> texture);
-
 	Ref<Mesh> _generate_mesh_from_surface_indices(ImportState &state, const Vector<int> &p_surface_indices, const aiNode *assimp_node, Ref<Skin> skin);
 
 	// simple object creation functions
@@ -108,10 +97,8 @@ private:
 			ImportState &state,
 			const String &node_name,
 			Transform &look_at_transform);
-	//void create_bone(ImportState &state, aiBone *bone, RecursiveState &recursive_state);
-	void initialize_skeletal_data(ImportState &state);
 	// non recursive - linear so must not use recursive arguments
-	MeshInstance* create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
+	MeshInstance *create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
 
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
@@ -123,9 +110,6 @@ private:
 	aiBone *get_bone_from_stack(ImportState &state, aiString name);
 	Spatial *_generate_scene(const String &p_path, aiScene *scene, const uint32_t p_flags, int p_bake_fps, const int32_t p_max_bone_weights);
 
-	String _assimp_anim_string_to_string(const aiString &p_string) const;
-	String _assimp_raw_string_to_string(const aiString &p_string) const;
-	float _get_fbx_fps(int32_t time_mode, const aiScene *p_scene);
 	template <class T>
 	T _interpolate_track(const Vector<float> &p_times, const Vector<T> &p_values, float p_time, AssetImportAnimation::Interpolation p_interp);
 	void _register_project_setting_import(const String generic, const String import_setting_string, const Vector<String> &exts, List<String> *r_extensions, const bool p_enabled) const;
