@@ -424,7 +424,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 					parent_node->add_child(spatial);
 					spatial->set_owner(state.root);
 				} else if (spatial == state.root) {
-					// required
+					// required - think about it root never has a parent yet is valid, anything else without a parent is not valid.
 				} else // Safety for instances
 				{
 					WARN_PRINT(
