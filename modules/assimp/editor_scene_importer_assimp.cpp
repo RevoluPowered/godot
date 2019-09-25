@@ -405,8 +405,8 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 
 				// bone must be ignored
 				continue;
-			} else if(element_assimp_node->mNumMeshes > 0) {
-				spatial = memnew(Spatial);				
+			} else if (element_assimp_node->mNumMeshes > 0) {
+				spatial = memnew(Spatial);
 			} else {
 				spatial = memnew(Spatial);
 			}
@@ -436,21 +436,16 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 				if (parent_node && spatial != state.root) {
 					parent_node->add_child(spatial);
 					spatial->set_owner(state.root);
-				} else if (spatial == state.root)
-				{
+				} else if (spatial == state.root) {
 					// required
-				}
-				else // Safety for instances
+				} else // Safety for instances
 				{
 					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
 				}
-			}
-			else
-			{
+			} else {
 				memdelete(spatial);
 			}
-			
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
 
@@ -1137,7 +1132,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 /**
  * Create a new mesh for the node supplied
  */
-MeshInstance* EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
+MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform) {
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
@@ -1150,10 +1145,9 @@ MeshInstance* EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 
 		if (ai_mesh->mNumBones > 0) {
 
-			Map<const aiBone*, Skeleton*>::Element *match = state.bone_skeleton_lookup.find( ai_mesh->mBones[0]);
+			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
 
-			if(match)
-			{
+			if (match) {
 				skeleton = match->value();
 			}
 
@@ -1247,8 +1241,7 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 		Node *parent_node = current_node->get_parent();
 
 		ERR_CONTINUE(assimp_node == NULL);
-		if(parent_node == NULL)
-		{
+		if (parent_node == NULL) {
 			continue; // root node
 		}
 
@@ -1257,56 +1250,29 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 
 		if (assimp_node->mNumMeshes > 0) {
 
-			MeshInstance * mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
-			if(mesh)
-			{				
+			MeshInstance *mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
+			if (mesh) {
 				// reparent all children to new node
-				for( int childId = 0; childId < current_node->get_child_count(); childId++)
-				{
+				for (int childId = 0; childId < current_node->get_child_count(); childId++) {
 					// get child
-					Node* child = current_node->get_child(childId);
+					Node *child = current_node->get_child(childId);
 					// remove from template object
 					child->remove_child(current_node);
 					// add child to new mesh instance
 					mesh->add_child(child);
 				}
 
-				parent_node->remove_child(current_node);	
+				parent_node->remove_child(current_node);
 
 				// overwrite node to map as the correct node.
 				// this slot is now essentially the mesh instance and not our fake spatial.
 				state.flat_node_map[assimp_node] = mesh;
-				
+
 				// free node which is no longer used
 				memfree(current_node);
 			}
 		}
 	}
-}
-
-/** 
- * attach_new_node
- * configures node, assigns parent node
-**/
-void EditorSceneImporterAssimp::attach_new_node(ImportState &state, Spatial *new_node, const aiNode *node, Node *parent_node, String Name, Transform &transform) {
-	ERR_FAIL_COND(new_node == NULL);
-	ERR_FAIL_COND(node == NULL);
-	ERR_FAIL_COND(parent_node == NULL);
-	ERR_FAIL_COND(state.root == NULL);
-
-	// assign properties to new godot note
-	new_node->set_name(Name);
-	new_node->set_transform(transform);
-
-	// add element as child to parent
-	parent_node->add_child(new_node);
-
-	// owner must be set after
-	new_node->set_owner(parent_node);
-
-	// cache node mapping results by name and then by aiNode*
-	state.node_map[Name] = new_node;
-	state.assimp_node_map[node] = new_node;
 }
 
 /**
