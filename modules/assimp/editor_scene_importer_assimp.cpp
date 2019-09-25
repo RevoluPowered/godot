@@ -399,7 +399,7 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					print_verbose("Added bone: " + bone_name);
 					unsigned int boneIdx = last_active_skeleton->get_bone_count();
 					last_active_skeleton->add_bone(bone_name);
-					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix) * transform);
+					last_active_skeleton->set_bone_rest(boneIdx, AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
 					state.bone_skeleton_lookup.insert(bone, last_active_skeleton);
 				}
 
@@ -443,8 +443,6 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 					WARN_PRINT("Failed to find parent node instance after lookup, serious warning report to godot with model");
 					memdelete(spatial); // this node is broken
 				}
-			} else {
-				memdelete(spatial);
 			}
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
@@ -453,19 +451,19 @@ Spatial *EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScen
 		//state.skeleton->set_owner(state.root);
 
 		print_verbose("generating mesh phase from skeletal mesh");
-		generate_mesh_phase_from_skeletal_mesh(state);
+		//generate_mesh_phase_from_skeletal_mesh(state);
 	}
 
-	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
+	// if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
 
-		state.animation_player = memnew(AnimationPlayer);
-		state.root->add_child(state.animation_player);
-		state.animation_player->set_owner(state.root);
+	// 	state.animation_player = memnew(AnimationPlayer);
+	// 	state.root->add_child(state.animation_player);
+	// 	state.animation_player->set_owner(state.root);
 
-		for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
-			_import_animation(state, i, p_bake_fps);
-		}
-	}
+	// 	for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
+	// 		_import_animation(state, i, p_bake_fps);
+	// 	}
+	// }
 
 	return state.root;
 }
@@ -1148,12 +1146,14 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
 
 			if (match) {
+				print_verbose("found valid skeleton for this mesh");
 				skeleton = match->value();
-			}
 
-			if (skin.is_null()) {
-				// Create skin resource
-				skin.instance();
+				if (skin.is_null()) {
+					print_verbose("Creating skin for mesh renderer");
+					// Create skin resource
+					skin.instance();
+				}
 			}
 		}
 		surface_indices.push_back(mesh_index);
@@ -1214,7 +1214,7 @@ MeshInstance *EditorSceneImporterAssimp::create_mesh(ImportState &state, const a
 	}
 
 	parent_node->add_child(mesh_node);
-	mesh_node->set_global_transform(node_transform);
+	mesh_node->set_transform(node_transform);
 	mesh_node->set_name(node_name);
 	mesh_node->set_owner(state.root);
 
@@ -1249,7 +1249,6 @@ void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportSta
 		Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
 
 		if (assimp_node->mNumMeshes > 0) {
-
 			MeshInstance *mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
 			if (mesh) {
 				// reparent all children to new node
