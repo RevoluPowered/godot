@@ -410,6 +410,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 			// flat node map parent lookup tool
 			state.flat_node_map.insert(element_assimp_node, spatial);
+			state.node_map.insert(node_name, spatial);
 
 			Map<const aiNode *, Spatial *>::Element *parent_lookup = state.flat_node_map.find(parent_assimp_node);
 
@@ -513,41 +514,46 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 	}
 
-	// if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
+	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
 
-	// 	state.animation_player = memnew(AnimationPlayer);
-	// 	state.root->add_child(state.animation_player);
-	// 	state.animation_player->set_owner(state.root);
+		state.animation_player = memnew(AnimationPlayer);
+		state.root->add_child(state.animation_player);
+		state.animation_player->set_owner(state.root);
 
-	// 	for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
-	// 		_import_animation(state, i, p_bake_fps);
-	// 	}
-	// }
+		for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
+			_import_animation(state, i, p_bake_fps);
+		}
+	}
 
 	return state.root;
 }
 
-void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track,
-		int p_bake_fps, Ref<Animation> animation,
-		float ticks_per_second, Skeleton *p_skeleton,
-		const NodePath &p_path, const String &p_name) {
-
-	const aiNodeAnim *assimp_track = assimp_anim->mChannels[p_track];
+void EditorSceneImporterAssimp::_insert_animation_track(
+		ImportState &scene,
+		const aiAnimation *assimp_anim,
+		int track_id,
+		int anim_fps,
+		Ref<Animation> animation,
+		float ticks_per_second,
+		Skeleton *skeleton,
+		const NodePath &node_path,
+		const String &node_name) {
+	const aiNodeAnim *assimp_track = assimp_anim->mChannels[track_id];
 	//make transform track
 	int track_idx = animation->get_track_count();
 	animation->add_track(Animation::TYPE_TRANSFORM);
-	animation->track_set_path(track_idx, p_path);
+	animation->track_set_path(track_idx, node_path);
 	//first determine animation length
 
-	float increment = 1.0 / float(p_bake_fps);
+	float increment = 1.0 / float(anim_fps);
 	float time = 0.0;
 
 	bool last = false;
 
 	int skeleton_bone = -1;
 
-	if (p_skeleton) {
-		skeleton_bone = p_skeleton->find_bone(p_name);
+	if (skeleton) {
+		skeleton_bone = skeleton->find_bone(node_name);
 	}
 
 	Vector<Vector3> pos_values;
@@ -598,7 +604,7 @@ void EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, cons
 			xform.basis.set_quat_scale(rot, scale);
 			xform.origin = pos;
 
-			Transform rest_xform = p_skeleton->get_bone_rest(skeleton_bone);
+			Transform rest_xform = skeleton->get_bone_rest(skeleton_bone);
 			xform = rest_xform.affine_inverse() * xform;
 			rot = xform.basis.get_rotation_quat();
 			scale = xform.basis.get_scale();
@@ -654,6 +660,23 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	animation->set_name(name);
 	animation->set_length(anim->mDuration / ticks_per_second);
 
+	// clear bone stack
+	state.bone_stack.clear();
+
+	// rebuild bone stack
+	// must be rebuilt before track channels used to find correct bone for this animation
+	for (unsigned int mesh_id = 0; mesh_id < state.assimp_scene->mNumMeshes; ++mesh_id) {
+		aiMesh *mesh = state.assimp_scene->mMeshes[mesh_id];
+
+		// iterate over all the bones on the mesh for this node only!
+		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
+			aiBone *bone = mesh->mBones[boneIndex];
+			if (state.bone_stack.find(bone) == NULL) {
+				state.bone_stack.push_back(bone);
+			}
+		}
+	}
+
 	//regular tracks
 
 	for (size_t i = 0; i < anim->mNumChannels; i++) {
@@ -664,32 +687,41 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			continue; //do not bother
 		}
 
-		// this will not work
-		// node_name is not the same as bone name
-		// bone name is subdeformer name
-		// ergo can be duplicated Bone001 and Bone001 in another
-		// subdeformer are not relatable
-		// #winning
+		aiBone* bone = get_bone_from_stack(state, track->mNodeName);
+		Skeleton *skeleton = NULL;
+		NodePath node_path;
+		
+		if(bone)
+		{
+			Map<const aiBone*, Skeleton*>::Element *element = state.bone_skeleton_lookup.find(bone);
 
-		// todo: re-enable this
-		// bool is_bone = state.skeleton->find_bone(node_name) != -1;
+			if(element)
+			{
+				skeleton = element->value();
+			}
 
-		// //print_verbose("Bone " + node_name + " is bone? " + (is_bone ? "Yes" : "No"));
-		// NodePath node_path;
+			ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
 
-		// if (is_bone) {
-		// 	String path = state.root->get_path_to(state.skeleton);
-		// 	path += ":" + node_name;
-		// 	node_path = path;
-		// } else {
-		// 	ERR_CONTINUE(!state.node_map.has(node_name));
-		// 	Node *node = state.node_map[node_name];
-		// 	node_path = state.root->get_path_to(node);
-		// }
+			String path = state.root->get_path_to(skeleton);
+			path += ":" + node_name;
+		 	node_path = path;
+		}
+		else
+		{
+			// not a bone
+			// note this is flaky it uses node names which is unreliable
+			ERR_CONTINUE(!state.node_map.has(node_name));
+			Map<String, Node*>::Element *match = state.node_map.find(node_name);
+			if(match)
+			{
+				Node* node = match->value();
+				node_path = state.root->get_path_to(node);
+			}
+			ERR_CONTINUE_MSG(!match, "error failed to match after node_name lookup");
+			
+		}
 
-		// // todo: refactor state.skeleton out of here
-		// // state.skeleton is enough
-		// _insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, state.skeleton, node_path, node_name);
+		_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
 	}
 
 	//blend shape tracks

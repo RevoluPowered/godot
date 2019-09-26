@@ -102,7 +102,16 @@ private:
 
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
-	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
+	void _insert_animation_track(
+			ImportState &scene,
+			const aiAnimation *assimp_anim,
+			int track_id,
+			int anim_fps,
+			Ref<Animation> animation,
+			float ticks_per_second,
+			Skeleton *skeleton,
+			const NodePath &node_path,
+			const String &node_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
 	aiBone *get_bone_from_stack(ImportState &state, aiString name);
