@@ -502,24 +502,6 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 					// clean up this list we don't need it
 					children.clear();
-
-					//memfree(mesh_template);
-
-					// // overwrite node to map as the correct node.
-					// // this slot is now essentially the mesh instance and not our fake spatial.
-					// //state.flat_node_map[assimp_node] = mesh;
-
-					// // free node which is no longer used
-					// Node * parent = current_node->get_parent();
-					// if(parent)
-					// {
-					// 	parent->remove_child(current_node);
-					// 	memfree(current_node);
-					// }
-					// else
-					// {
-					// 	ERR_CONTINUE_MSG(current_node, "Serious error found invalid node parent but node should be freed" +current_node->get_name());
-					// }
 				}
 			}
 		}
