@@ -795,15 +795,19 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 
 		Map<uint32_t, Vector<BoneInfo> > vertex_weights;
 
+		// please note: bones exist on mesh but this mesh index could 
+		// potentially have a list of bones but no skeleton
+		// this is normal because assimp provides a list of bones
+		// from the node.
 		if (ai_mesh->mNumBones > 0) {
-			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
+			print_verbose("bone lookup size: " +itos(state.bone_skeleton_lookup.size()));
+			Skeleton * skel = state.bone_skeleton_lookup[ai_mesh->mBones[0]];
 
-			ERR_CONTINUE_MSG(!match, "Failed to lookup skeleton for sub mesh");
-			if (match) {
+			if (skel) {
 				for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
 					aiBone *bone = ai_mesh->mBones[b];
 					String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-					int bone_index = match->value()->find_bone(bone_name);
+					int bone_index = skel->find_bone(bone_name);
 					ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
 					for (size_t w = 0; w < bone->mNumWeights; w++) {
