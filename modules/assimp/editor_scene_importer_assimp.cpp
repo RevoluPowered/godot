@@ -46,7 +46,6 @@
 #include <assimp/LogStream.hpp>
 #include <string>
 
-
 // move into assimp
 aiBone *get_bone_by_name(const aiScene *scene, aiString bone_name) {
 	for (unsigned int mesh_id = 0; mesh_id < scene->mNumMeshes; ++mesh_id) {
@@ -351,6 +350,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 
 		Skeleton *last_active_skeleton = NULL;
+		Node *last_valid_parent = NULL;
 
 		List<const aiNode *>::Element *iter;
 		for (iter = state.nodes.front(); iter; iter = iter->next()) {
@@ -432,9 +432,19 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 					memdelete(spatial); // this node is broken
 				}
 			} else if (spatial != state.root) {
-				// leaf bone removal - generally / we do not support this use case.
-				memdelete(spatial);
+				// if the ainode is not in the tree
+				// parent it to the last good parent found
+				if (last_valid_parent) {
+					last_valid_parent->add_child(spatial);
+					spatial->set_owner(state.root);
+				} else {
+					// this is a serious error?
+					memdelete(spatial);
+				}
 			}
+
+			// update last valid parent
+			last_valid_parent = spatial;
 		}
 		print_verbose("node counts: " + itos(state.nodes.size()));
 
@@ -442,11 +452,81 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		//state.skeleton->set_owner(state.root);
 
 		print_verbose("generating mesh phase from skeletal mesh");
-		
-		// note: this needs reworked to not leak and also to be more reliable.
-		// need to look into updating this to a flat map like above to keep it stupidly simple
-		// this has a memory leak which will get fixed tomorrow.
-		generate_mesh_phase_from_skeletal_mesh(state);
+
+		List<Spatial*> cleanup_template_nodes;
+
+		for (Map<const aiNode *, Spatial *>::Element *key_value_pair = state.flat_node_map.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
+			const aiNode *assimp_node = key_value_pair->key();
+			Spatial *mesh_template = key_value_pair->value();
+			Node *parent_node = mesh_template->get_parent();
+
+			ERR_CONTINUE(assimp_node == NULL);
+			ERR_CONTINUE(mesh_template == NULL);
+
+			if(mesh_template == state.root)
+			{
+				continue;
+			}
+
+			if (parent_node == NULL) {
+				print_error("Found invalid parent node!");
+				continue; // root node
+			}
+
+			String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
+			Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
+
+			if (assimp_node->mNumMeshes > 0) {
+				MeshInstance *mesh = create_mesh(state, assimp_node, node_name, parent_node, node_transform);
+				if (mesh) {
+
+					parent_node->remove_child(mesh_template);
+
+					cleanup_template_nodes.push_back(mesh_template);
+
+					//memfree(mesh_template);
+					// List<Node*> children;
+					// // reparent all children to new node
+					// for (int childId = 0; childId < current_node->get_child_count(); childId++) {
+					// 	// get child
+					// 	Node *child = current_node->get_child(childId);	
+					// 	children.push_back(child);
+					// }
+					
+					// for( List<Node*>::Element *element = children.front(); element; element=element->next() )
+					// {
+					// 	current_node->remove_child(element->get());
+					// 	mesh->add_child(element->get());
+					// 	element->get()->set_owner(state.root);
+					// }
+
+					// // overwrite node to map as the correct node.
+					// // this slot is now essentially the mesh instance and not our fake spatial.
+					// //state.flat_node_map[assimp_node] = mesh;
+
+					// // free node which is no longer used
+					// Node * parent = current_node->get_parent();
+					// if(parent)
+					// {
+					// 	parent->remove_child(current_node);
+					// 	memfree(current_node);
+					// }
+					// else
+					// {
+					// 	ERR_CONTINUE_MSG(current_node, "Serious error found invalid node parent but node should be freed" +current_node->get_name());
+					// }
+					
+				}
+			}
+		}
+
+		for(List<Spatial*>::Element *element = cleanup_template_nodes.front(); element; element=element->next())
+		{
+			if(element->get())
+			{				
+				memdelete(element->get());
+			}
+		}
 	}
 
 	// if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
@@ -1140,8 +1220,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
  * Create a new mesh for the node supplied
  */
 MeshInstance *
-EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name,
-		Node *current_node, Node *parent_node, Transform node_transform) {
+EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *active_node, Transform node_transform) {
 	/* MESH NODE */
 	Ref<Mesh> mesh;
 	Skeleton *skeleton = NULL;
@@ -1156,17 +1235,18 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 
 		if (ai_mesh->mNumBones > 0) {
 
+			if (skin.is_null()) {
+				print_verbose("Creating skin for mesh renderer");
+				// Create skin resource
+				skin.instance();
+			}
+
 			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
 
 			if (match) {
 				print_verbose("found valid skeleton for this mesh");
 				skeleton = match->value();
 
-				if (skin.is_null()) {
-					print_verbose("Creating skin for mesh renderer");
-					// Create skin resource
-					skin.instance();
-				}
 				break;
 			}
 		}
@@ -1219,11 +1299,13 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 			// hope this makes sense
 			for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
 				aiBone *iterBone = ai_mesh->mBones[boneId];
-				int id = skeleton->find_bone(AssimpUtils::get_assimp_string(iterBone->mName));
-				if (id != -1) {
-					print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(id));
-					skin->set_bind_bone(bind_count, id);
-					skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
+				if (skeleton) {
+					int id = skeleton->find_bone(AssimpUtils::get_assimp_string(iterBone->mName));
+					if (id != -1) {
+						print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(id));
+						skin->set_bind_bone(bind_count, id);
+						skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
+					}
 				}
 			}
 
@@ -1233,7 +1315,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 		print_verbose("Finished configuring bind pose for skin mesh");
 	}
 
-	parent_node->add_child(mesh_node);
+	active_node->add_child(mesh_node);
 	mesh_node->set_global_transform(node_transform);
 	mesh_node->set_name(node_name);
 	mesh_node->set_owner(state.root);
@@ -1241,57 +1323,11 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 	// set this once and for all
 	if (skeleton != NULL) {
 		// must be done after added to tree
-		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
-		mesh_node->set_skin(skin);
+		//mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
+		//mesh_node->set_skin(skin);
 	}
 
 	return mesh_node;
-}
-
-/** generate_mesh_phase_from_skeletal_mesh
- * This must be executed after generate_nodes because the skeleton doesn't exist until that has completed the first pass
- */
-void EditorSceneImporterAssimp::generate_mesh_phase_from_skeletal_mesh(ImportState &state) {
-	// prevent more than one skeleton existing per mesh
-	// * multiple root bones have this
-	// * this simply filters the node out if it has already been added then references the skeleton so we know the actual skeleton for this node
-	for (Map<const aiNode *, Spatial *>::Element *key_value_pair = state.flat_node_map.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
-		const aiNode *assimp_node = key_value_pair->key();
-		Spatial *current_node = key_value_pair->value();
-		Node *parent_node = current_node->get_parent();
-
-		ERR_CONTINUE(assimp_node == NULL);
-		if (parent_node == NULL) {
-			continue; // root node
-		}
-
-		String node_name = AssimpUtils::get_assimp_string(assimp_node->mName);
-		Transform node_transform = AssimpUtils::assimp_matrix_transform(assimp_node->mTransformation);
-
-		if (assimp_node->mNumMeshes > 0) {
-			MeshInstance *mesh = create_mesh(state, assimp_node, node_name, current_node, parent_node, node_transform);
-			if (mesh) {
-				// reparent all children to new node
-				for (int childId = 0; childId < current_node->get_child_count(); childId++) {
-					// get child
-					Node *child = current_node->get_child(childId);
-					// remove from template object
-					child->remove_child(current_node);
-					// add child to new mesh instance
-					mesh->add_child(child);
-				}
-
-				parent_node->remove_child(current_node);
-
-				// overwrite node to map as the correct node.
-				// this slot is now essentially the mesh instance and not our fake spatial.
-				state.flat_node_map[assimp_node] = mesh;
-
-				// free node which is no longer used
-				memfree(current_node);
-			}
-		}
-	}
 }
 
 /**

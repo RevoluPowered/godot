@@ -98,12 +98,10 @@ private:
 			const String &node_name,
 			Transform &look_at_transform);
 	// non recursive - linear so must not use recursive arguments
-	MeshInstance *create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *current_node, Node *parent_node, Transform node_transform);
+	MeshInstance *create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *active_node, Transform node_transform);
 
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
-	// runs after _generate_node as it must then use pre-created godot skeleton.
-	void generate_mesh_phase_from_skeletal_mesh(ImportState &state);
 	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int p_track, int p_bake_fps, Ref<Animation> animation, float ticks_per_second, Skeleton *p_skeleton, const NodePath &p_path, const String &p_name);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
