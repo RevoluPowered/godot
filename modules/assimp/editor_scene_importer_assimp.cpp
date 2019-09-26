@@ -453,7 +453,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 		print_verbose("generating mesh phase from skeletal mesh");
 
-		List<Spatial*> cleanup_template_nodes;
+		List<Spatial *> cleanup_template_nodes;
 
 		for (Map<const aiNode *, Spatial *>::Element *key_value_pair = state.flat_node_map.front(); key_value_pair; key_value_pair = key_value_pair->next()) {
 			const aiNode *assimp_node = key_value_pair->key();
@@ -463,8 +463,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 			ERR_CONTINUE(assimp_node == NULL);
 			ERR_CONTINUE(mesh_template == NULL);
 
-			if(mesh_template == state.root)
-			{
+			if (mesh_template == state.root) {
 				continue;
 			}
 
@@ -482,23 +481,29 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 					parent_node->remove_child(mesh_template);
 
+					// reparent children
+					List<Node *> children;
+					// reparent all children to new node
+					// note: since get_child_count will change during execution we must build a list first to be safe.
+					for (int childId = 0; childId < mesh_template->get_child_count(); childId++) {
+						// get child
+						Node *child = mesh_template->get_child(childId);
+						children.push_back(child);
+					}
+
+					for (List<Node *>::Element *element = children.front(); element; element = element->next()) {
+						// reparent the children to the real mesh node.
+						mesh_template->remove_child(element->get());
+						mesh->add_child(element->get());
+						element->get()->set_owner(state.root);
+					}
+
 					cleanup_template_nodes.push_back(mesh_template);
 
+					// clean up this list we don't need it
+					children.clear();
+
 					//memfree(mesh_template);
-					// List<Node*> children;
-					// // reparent all children to new node
-					// for (int childId = 0; childId < current_node->get_child_count(); childId++) {
-					// 	// get child
-					// 	Node *child = current_node->get_child(childId);	
-					// 	children.push_back(child);
-					// }
-					
-					// for( List<Node*>::Element *element = children.front(); element; element=element->next() )
-					// {
-					// 	current_node->remove_child(element->get());
-					// 	mesh->add_child(element->get());
-					// 	element->get()->set_owner(state.root);
-					// }
 
 					// // overwrite node to map as the correct node.
 					// // this slot is now essentially the mesh instance and not our fake spatial.
@@ -515,15 +520,12 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 					// {
 					// 	ERR_CONTINUE_MSG(current_node, "Serious error found invalid node parent but node should be freed" +current_node->get_name());
 					// }
-					
 				}
 			}
 		}
 
-		for(List<Spatial*>::Element *element = cleanup_template_nodes.front(); element; element=element->next())
-		{
-			if(element->get())
-			{				
+		for (List<Spatial *>::Element *element = cleanup_template_nodes.front(); element; element = element->next()) {
+			if (element->get()) {
 				memdelete(element->get());
 			}
 		}
@@ -795,13 +797,13 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 
 		Map<uint32_t, Vector<BoneInfo> > vertex_weights;
 
-		// please note: bones exist on mesh but this mesh index could 
+		// please note: bones exist on mesh but this mesh index could
 		// potentially have a list of bones but no skeleton
 		// this is normal because assimp provides a list of bones
 		// from the node.
 		if (ai_mesh->mNumBones > 0) {
-			print_verbose("bone lookup size: " +itos(state.bone_skeleton_lookup.size()));
-			Skeleton * skel = state.bone_skeleton_lookup[ai_mesh->mBones[0]];
+			print_verbose("bone lookup size: " + itos(state.bone_skeleton_lookup.size()));
+			Skeleton *skel = state.bone_skeleton_lookup[ai_mesh->mBones[0]];
 
 			if (skel) {
 				for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
