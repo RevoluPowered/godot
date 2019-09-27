@@ -385,8 +385,17 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 					unsigned int boneIdx = last_active_skeleton->get_bone_count();
 					last_active_skeleton->add_bone(bone_name);
 					last_active_skeleton->set_bone_rest(boneIdx,
-							AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix));
+							AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).affine_inverse());
+					//last_active_skeleton->set_bone_pose(boneIdx,
+					//		AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).affine_inverse() * last_active_skeleton->get_transform());
+
 					state.bone_skeleton_lookup.insert(bone, last_active_skeleton);
+
+					if (parent_assimp_node != NULL) {
+						int parent_bone_id = last_active_skeleton->find_bone(AssimpUtils::get_assimp_string(parent_assimp_node->mName));
+						int current_bone_id = boneIdx;
+						last_active_skeleton->set_bone_parent(current_bone_id, parent_bone_id);
+					}
 				}
 
 				// bone must be ignored
@@ -517,6 +526,11 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 	}
 
+	for( Map<const aiNode*, Skeleton*>::Element *element = state.armature_map.front(); element; element=element->next())
+	{
+		element->get()->localize_rests();
+	}
+
 	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
 
 		state.animation_player = memnew(AnimationPlayer);
@@ -552,12 +566,6 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 	float time = 0.0;
 
 	bool last = false;
-
-	int skeleton_bone = -1;
-
-	if (skeleton) {
-		skeleton_bone = skeleton->find_bone(node_name);
-	}
 
 	Vector<Vector3> pos_values;
 	Vector<float> pos_times;
@@ -602,21 +610,23 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 			scale = _interpolate_track<Vector3>(scale_times, scale_values, time, AssetImportAnimation::INTERP_LINEAR);
 		}
 
-		if (skeleton_bone >= 0) {
-			Transform xform;
-			xform.basis.set_quat_scale(rot, scale);
-			xform.origin = pos;
+		if (skeleton) {
+			int skeleton_bone = skeleton->find_bone(node_name);
 
-			Transform rest_xform = skeleton->get_bone_rest(skeleton_bone);
-			xform = rest_xform.affine_inverse() * xform;
-			rot = xform.basis.get_rotation_quat();
-			scale = xform.basis.get_scale();
-			pos = xform.origin;
+			if (skeleton_bone >= 0) {
+				Transform xform;
+				xform.basis.set_quat_scale(rot, scale);
+				xform.origin = pos;
+
+				Transform rest_xform = skeleton->get_bone_rest(skeleton_bone);
+				xform = rest_xform.affine_inverse() * xform;
+				rot = xform.basis.get_rotation_quat();
+				scale = xform.basis.get_scale();
+				pos = xform.origin;
+			}
 		}
 
-		rot.normalize();
-
-		animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
+		//animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
 		animation->transform_track_insert_key(track_idx, time, pos, rot, scale);
 
 		if (last) { //done this way so a key is always inserted past the end (for proper interpolation)
@@ -679,7 +689,6 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
 	// clear bone stack
 	state.bone_stack.clear();
-
 	// rebuild bone stack
 	// must be rebuilt before track channels used to find correct bone for this animation
 	for (unsigned int mesh_id = 0; mesh_id < state.assimp_scene->mNumMeshes; ++mesh_id) {
@@ -688,7 +697,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		// iterate over all the bones on the mesh for this node only!
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone *bone = mesh->mBones[boneIndex];
-			if (state.bone_stack.find(bone) == NULL) {
+			if (!state.bone_stack.find(bone)) {
 				state.bone_stack.push_back(bone);
 			}
 		}
@@ -699,38 +708,68 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	for (size_t i = 0; i < anim->mNumChannels; i++) {
 		const aiNodeAnim *track = anim->mChannels[i];
 		String node_name = AssimpUtils::get_assimp_string(track->mNodeName);
-
+		print_verbose("track name import: " + node_name);
 		if (track->mNumRotationKeys == 0 && track->mNumPositionKeys == 0 && track->mNumScalingKeys == 0) {
 			continue; //do not bother
 		}
 
-		aiBone *bone = get_bone_from_stack(state, track->mNodeName);
-		Skeleton *skeleton = NULL;
+		List<aiBone *> valid_bones;
+
+		aiBone *bone = NULL;
+		while ((bone = get_bone_from_stack(state, track->mNodeName))) {
+			print_verbose("Found bone for track: " + node_name);
+			valid_bones.push_back(bone);
+		}
+
 		NodePath node_path;
 
-		if (bone) {
-			Map<const aiBone *, Skeleton *>::Element *element = state.bone_skeleton_lookup.find(bone);
+		if (valid_bones.size() > 0) {
 
-			if (element) {
-				skeleton = element->value();
+			Skeleton *skeleton = NULL;
+			// multiple armatrurees do not have different track names in assimp
+			// yet they have extra bones.. ugh I wish it was consistent.
+			for (List<aiBone *>::Element *element = valid_bones.front(); element; element = element->next()) {
+
+				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
+
+				if (skeleton_lookup) {
+
+					print_verbose("Skeleton name: " + skeleton_lookup->get()->get_name());
+					skeleton = skeleton_lookup->value();
+
+					ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
+
+					String path = state.root->get_path_to(skeleton);
+					path += ":" + node_name;
+					node_path = path;
+
+					if (node_path != NodePath()) {
+						_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
+					}
+				}
 			}
-
-			ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
-
-			String path = state.root->get_path_to(skeleton);
-			path += ":" + node_name;
-			node_path = path;
 		} else {
+
+			Skeleton *skeleton = NULL;
+			for (List<aiBone *>::Element *element = valid_bones.front(); element; element = element->next()) {
+
+				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
+
+				if (skeleton_lookup) {
+					skeleton = skeleton_lookup->value();
+					ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for element");
+				}
+			}
 			// not a bone
 			// note this is flaky it uses node names which is unreliable
 			Node *allocated_node = get_node_by_name(state, node_name);
 			ERR_CONTINUE(!allocated_node);
 
 			node_path = state.root->get_path_to(allocated_node);
-		}
 
-		if (node_path != NodePath()) {
-			_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
+			if (node_path != NodePath()) {
+				_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
+			}
 		}
 	}
 
@@ -1267,7 +1306,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 			if (skin.is_null()) {
 				print_verbose("Creating skin for mesh renderer");
 				// Create skin resource
-				skin.instance();
+				//skin.instance();
 			}
 
 			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
@@ -1309,7 +1348,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 	// if we have a valid skin set it up
 	if (skin.is_valid()) {
 		print_verbose("Configuring skin for create_mesh call");
-		mesh_node->set_skin(skin);
+		//mesh_node->set_skin(skin);
 
 		// pre-allocate the bind count so that we can create the bind poses for this skeleton.
 		print_verbose("Bind count is: " + itos(mesh->get_surface_count()));
@@ -1333,7 +1372,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 					if (id != -1) {
 						print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(id));
 						skin->set_bind_bone(bind_count, id);
-						skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
+						//skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
 					}
 				}
 			}
@@ -1352,7 +1391,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 	// set this once and for all
 	if (skeleton != NULL) {
 		// must be done after added to tree
-		//mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
+		mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
 		//mesh_node->set_skin(skin);
 	}
 
