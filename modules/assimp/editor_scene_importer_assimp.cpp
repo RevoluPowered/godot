@@ -704,11 +704,15 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			aiBone *bone = mesh->mBones[boneIndex];
 			print_verbose("animation bone lookup: " + AssimpUtils::get_assimp_string(bone->mName));
 			Map<const aiBone*, Skeleton*>::Element *match = state.bone_skeleton_lookup.find(bone);
-			if(match)
+			if(match && match->get())
 			{
-				print_verbose("armature for this bone: " + match->get()->get_name());
+				Skeleton *skeleton = match->value(); 
+				String str = skeleton->get_name();
+				print_verbose("armature for this bone: " + str );
 				state.bone_stack.push_back(bone);
-			}
+			} 
+			
+			ERR_CONTINUE_MSG(match && match->get() == NULL, "invalid skeleton for match found! skipping");
 		}
 	}
 
@@ -742,8 +746,10 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
 
 				if (skeleton_lookup) {
-
+					if(skeleton_lookup->get())
+					{
 					print_verbose("Skeleton name: " + skeleton_lookup->get()->get_name());
+					}
 					skeleton = skeleton_lookup->value();
 
 					ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
@@ -1010,7 +1016,7 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 		// Culling handling for meshes
 
 		// cull all back faces
-		mat->set_cull_mode(SpatialMaterial::CULL_BACK);
+		mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
 
 		// Now process materials
 		aiTextureType base_color = aiTextureType_BASE_COLOR;
