@@ -541,6 +541,22 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 	}
 
+	//
+	// Cleanup operations
+	//
+
+	state.mesh_cache.clear();
+	state.material_cache.clear();
+	state.light_cache.clear();
+	state.camera_cache.clear();
+	state.assimp_node_map.clear();
+	state.path_to_image_cache.clear();
+	state.nodes.clear();
+	state.flat_node_map.clear();
+	state.armature_map.clear();
+	state.bone_stack.clear();
+	state.bone_skeleton_lookup.clear();
+
 	return state.root;
 }
 
