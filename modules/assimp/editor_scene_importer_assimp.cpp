@@ -526,8 +526,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 	}
 
-	for( Map<const aiNode*, Skeleton*>::Element *element = state.armature_map.front(); element; element=element->next())
-	{
+	for (Map<const aiNode *, Skeleton *>::Element *element = state.armature_map.front(); element; element = element->next()) {
 		element->get()->localize_rests();
 	}
 
@@ -623,12 +622,9 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 				rot = xform.basis.get_rotation_quat();
 				scale = xform.basis.get_scale();
 				pos = xform.origin;
-			}
-			else
-			{
+			} else {
 				ERR_FAIL_MSG("Skeleton bone lookup failed for skeleton: " + skeleton->get_name());
 			}
-			
 		}
 
 		//animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
@@ -703,15 +699,14 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone *bone = mesh->mBones[boneIndex];
 			print_verbose("animation bone lookup: " + AssimpUtils::get_assimp_string(bone->mName));
-			Map<const aiBone*, Skeleton*>::Element *match = state.bone_skeleton_lookup.find(bone);
-			if(match && match->get())
-			{
-				Skeleton *skeleton = match->value(); 
+			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(bone);
+			if (match && match->get()) {
+				Skeleton *skeleton = match->value();
 				String str = skeleton->get_name();
-				print_verbose("armature for this bone: " + str );
+				print_verbose("armature for this bone: " + str);
 				state.bone_stack.push_back(bone);
-			} 
-			
+			}
+
 			ERR_CONTINUE_MSG(match && match->get() == NULL, "invalid skeleton for match found! skipping");
 		}
 	}
@@ -746,9 +741,8 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
 
 				if (skeleton_lookup) {
-					if(skeleton_lookup->get())
-					{
-					print_verbose("Skeleton name: " + skeleton_lookup->get()->get_name());
+					if (skeleton_lookup->get()) {
+						print_verbose("Skeleton name: " + skeleton_lookup->get()->get_name());
 					}
 					skeleton = skeleton_lookup->value();
 
@@ -760,12 +754,9 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
 					if (node_path != NodePath()) {
 						_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
-					}
-					else
-					{
+					} else {
 						print_error("Failed to find valid node path for animation");
 					}
-					
 				}
 			}
 		} else {
