@@ -1378,7 +1378,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 			// it is the index relative to the skeleton that is why
 			// we have state.bone_id_map, it allows for duplicate bone id's too :)
 			// hope this makes sense
-			for (int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
+			for (unsigned int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
 				aiBone *iterBone = ai_mesh->mBones[boneId];
 				if (skeleton) {
 					int id = skeleton->find_bone(AssimpUtils::get_assimp_string(iterBone->mName));
