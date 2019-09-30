@@ -624,6 +624,11 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 				scale = xform.basis.get_scale();
 				pos = xform.origin;
 			}
+			else
+			{
+				ERR_FAIL_MSG("Skeleton bone lookup failed for skeleton: " + skeleton->get_name());
+			}
+			
 		}
 
 		//animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
@@ -664,7 +669,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 	if (name == String()) {
 		name = "Animation " + itos(p_animation_index + 1);
 	}
-
+	print_verbose("import animation: " + name);
 	float ticks_per_second = anim->mTicksPerSecond;
 
 	if (state.assimp_scene->mMetaData != NULL && Math::is_equal_approx(ticks_per_second, 0.0f)) {
@@ -697,7 +702,11 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		// iterate over all the bones on the mesh for this node only!
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone *bone = mesh->mBones[boneIndex];
-			if (!state.bone_stack.find(bone)) {
+			print_verbose("animation bone lookup: " + AssimpUtils::get_assimp_string(bone->mName));
+			Map<const aiBone*, Skeleton*>::Element *match = state.bone_skeleton_lookup.find(bone);
+			if(match)
+			{
+				print_verbose("armature for this bone: " + match->get()->get_name());
 				state.bone_stack.push_back(bone);
 			}
 		}
@@ -746,6 +755,11 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 					if (node_path != NodePath()) {
 						_insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton, node_path, node_name);
 					}
+					else
+					{
+						print_error("Failed to find valid node path for animation");
+					}
+					
 				}
 			}
 		} else {
@@ -1315,6 +1329,8 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 				print_verbose("found valid skeleton for this mesh");
 				skeleton = match->value();
 
+				// since IBM from assimp is always relative to the mesh we must do this to ensure the node_transform is correct.
+				//node_transform = match->value()->get_transform();
 				break;
 			}
 		}
