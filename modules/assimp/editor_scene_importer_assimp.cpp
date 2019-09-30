@@ -750,7 +750,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		if (valid_bones.size() > 0) {
 
 			Skeleton *skeleton = NULL;
-			// multiple armatrurees do not have different track names in assimp
+			// multiple armatures do not have different track names in assimp
 			// yet they have extra bones.. ugh I wish it was consistent.
 			for (List<aiBone *>::Element *element = valid_bones.front(); element; element = element->next()) {
 
