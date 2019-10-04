@@ -376,11 +376,16 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 				state.armature_map[element_assimp_node] = skeleton;
 				last_active_skeleton = skeleton;
 			} else if (bone != NULL) {
-				//print_verbose("ignored bone!");
 
+			    if(last_active_skeleton == NULL)
+                {
+			        print_error("Invalid skeleton reference (serious)");
+                }
+				//print_verbose("ignored bone!");
+                // known issue: order is now important, this needs taken care of gracefully
 				// add bone to list
-				if (last_active_skeleton != NULL) {
-					String bone_name = AssimpUtils::get_assimp_string(bone->mName);
+                String bone_name = AssimpUtils::get_assimp_string(bone->mName);
+				if (last_active_skeleton != NULL && last_active_skeleton->find_bone(bone_name) == -1) {
 					print_verbose("Added bone: " + bone_name);
 					unsigned int boneIdx = last_active_skeleton->get_bone_count();
 					last_active_skeleton->add_bone(bone_name);
@@ -715,15 +720,21 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
 			aiBone *bone = mesh->mBones[boneIndex];
 			print_verbose("animation bone lookup: " + AssimpUtils::get_assimp_string(bone->mName));
-			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(bone);
+			Map<const aiBone *, const Skeleton *>::Element *match = state.bone_skeleton_lookup.find(bone);
 			if (match && match->get()) {
-				Skeleton *skeleton = match->value();
+				const Skeleton *skeleton = match->value();
 				String str = skeleton->get_name();
 				print_verbose("armature for this bone: " + str);
 				state.bone_stack.push_back(bone);
 			}
 
-			ERR_CONTINUE_MSG(match && match->get() == NULL, "invalid skeleton for match found! skipping");
+			if(!match && state.armature_map.size())
+            {
+
+            }
+
+			ERR_CONTINUE_MSG(!match, "invalid skeleton lookup");
+            ERR_CONTINUE_MSG(!match->get(), "null skeleton found in lookup!");
 		}
 	}
 
@@ -754,13 +765,13 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			// yet they have extra bones.. ugh I wish it was consistent.
 			for (List<aiBone *>::Element *element = valid_bones.front(); element; element = element->next()) {
 
-				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
+				Map<const aiBone *, const Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
 
 				if (skeleton_lookup) {
 					if (skeleton_lookup->get()) {
 						print_verbose("Skeleton name: " + skeleton_lookup->get()->get_name());
 					}
-					skeleton = skeleton_lookup->value();
+					skeleton = (Skeleton*)skeleton_lookup->value();
 
 					ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
 
@@ -780,10 +791,10 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 			Skeleton *skeleton = NULL;
 			for (List<aiBone *>::Element *element = valid_bones.front(); element; element = element->next()) {
 
-				Map<const aiBone *, Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
+				Map<const aiBone *, const Skeleton *>::Element *skeleton_lookup = state.bone_skeleton_lookup.find(element->get());
 
 				if (skeleton_lookup) {
-					skeleton = skeleton_lookup->value();
+					skeleton = (Skeleton*)skeleton_lookup->value();
 					ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for element");
 				}
 			}
@@ -892,13 +903,20 @@ Ref<Mesh> EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(
 		// from the node.
 		if (ai_mesh->mNumBones > 0) {
 			print_verbose("bone lookup size: " + itos(state.bone_skeleton_lookup.size()));
-			Skeleton *skel = state.bone_skeleton_lookup[ai_mesh->mBones[0]];
 
-			if (skel) {
+            for (  Map<const aiBone *, const Skeleton *>::Element *element = state.bone_skeleton_lookup.front(); element; element = element->next()) {
+                print_verbose("Bone name: " + AssimpUtils::get_assimp_string(element->key()->mName));
+            }
+
+            Map<const aiBone *, const Skeleton *>::Element *match = state.bone_skeleton_lookup.find( ai_mesh->mBones[0] );
+			//const Skeleton *skel = state.bone_skeleton_lookup.find( ai_mesh->mBones[0] );
+
+			if (match) {
+			    const Skeleton* skeleton = match->value();
 				for (size_t b = 0; b < ai_mesh->mNumBones; b++) {
 					aiBone *bone = ai_mesh->mBones[b];
 					String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-					int bone_index = skel->find_bone(bone_name);
+					int bone_index = skeleton->find_bone(bone_name);
 					ERR_CONTINUE(bone_index == -1); //bone refers to an unexisting index, wtf.
 
 					for (size_t w = 0; w < bone->mNumWeights; w++) {
@@ -1336,11 +1354,11 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 				//skin.instance();
 			}
 
-			Map<const aiBone *, Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
+			Map<const aiBone *, const Skeleton *>::Element *match = state.bone_skeleton_lookup.find(ai_mesh->mBones[0]);
 
 			if (match) {
 				print_verbose("found valid skeleton for this mesh");
-				skeleton = match->value();
+				skeleton = (Skeleton*)match->value();
 
 				// since IBM from assimp is always relative to the mesh we must do this to ensure the node_transform is correct.
 				//node_transform = match->value()->get_transform();

@@ -88,7 +88,7 @@ struct ImportState {
 	List<const aiBone *> bone_stack;
 
 	// Generation 3 - deterministic skeleton lookup
-	Map<const aiBone *, Skeleton *> bone_skeleton_lookup;
+	Map<const aiBone *, const Skeleton *> bone_skeleton_lookup;
 };
 
 struct AssimpImageData {

@@ -50,6 +50,7 @@
 #include <assimp/DefaultLogger.hpp>
 #include <assimp/LogStream.hpp>
 #include <assimp/Logger.hpp>
+#include <map>
 
 #include "import_state.h"
 #include "import_utils.h"
@@ -99,7 +100,6 @@ private:
 			Transform &look_at_transform);
 	// non recursive - linear so must not use recursive arguments
 	MeshInstance *create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *active_node, Transform node_transform);
-
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
 	void _insert_animation_track(
