@@ -84,7 +84,7 @@ struct ImportState {
 //	Map<const aiNode *, Skeleton *> armature_map;
 //	//
 	List<aiNode*> armature_nodes;
-	List<Skeleton*> armature_skeletons;
+	Map<const aiNode*, Skeleton*> armature_skeletons;
 	Map<aiBone*, Skeleton*> skeleton_bone_map;
 //
 //	// Generation 3 - deterministic bone handling
@@ -92,9 +92,6 @@ struct ImportState {
 //	// this means we can detect
 //	// what bones are for other armatures
 	List<aiBone *> bone_stack;
-
-	// Generation 4 - armature stack lookup to minimize assimp read and to improve armature handling
-	List<Skeleton*> armature_stack;
 //
 //	// Generation 4 - lookup bugs
 //	std::map<aiBone*, Skeleton*> bone_skeleton_lookup;

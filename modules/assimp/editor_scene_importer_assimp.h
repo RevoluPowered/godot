@@ -147,10 +147,6 @@ public:
 
     static void RegenerateBoneStack(ImportState &state);
 
-	void RegenerateArmatureStack(ImportState &state);
-
-	Skeleton *get_armature_from_stack(ImportState &state, String bone_name);
-
     void RegenerateBoneStack(ImportState &state, aiMesh *mesh);
 };
 #endif
