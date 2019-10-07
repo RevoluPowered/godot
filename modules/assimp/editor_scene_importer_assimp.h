@@ -144,6 +144,14 @@ public:
 	virtual uint32_t get_import_flags() const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
 	Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path);
+
+    static void RegenerateBoneStack(ImportState &state);
+
+	void RegenerateArmatureStack(ImportState &state);
+
+	Skeleton *get_armature_from_stack(ImportState &state, String bone_name);
+
+    void RegenerateBoneStack(ImportState &state, aiMesh *mesh);
 };
 #endif
 #endif
