@@ -432,12 +432,20 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 		print_verbose("generating godot bone data");
 
+		print_verbose("Godot bone stack count: " + itos(state.bone_stack.size()));
+
 		// This is a list of bones, duplicates are from other meshes and must be dealt with properly
 		for( List<aiBone*>::Element* element = state.bone_stack.front(); element; element = element->next()) {
             aiBone *bone = element->get();
 
             ERR_CONTINUE_MSG(!bone, "invalid bone read from assimp?");
-            aiNode *armature_for_bone = bone->mArmatureID;
+
+            // Utilities for armature lookup - for now only FBX makes these
+            aiNode *armature_for_bone = bone->mArmature;
+
+            // Utilities for bone node lookup - for now only FBX makes these
+            aiNode *bone_node = bone->mNode;
+            aiNode *parent_node = bone_node->mParent;
 
             String bone_name = AssimpUtils::get_anim_string_from_assimp(bone->mName);
             ERR_CONTINUE_MSG(armature_for_bone == NULL, "Armature for bone invalid: " + bone_name);
@@ -456,11 +464,11 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
                         boneIdx,
                         AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).affine_inverse());
 
-//                if (parent_assimp_node != NULL) {
-//                    int parent_bone_id = last_active_skeleton->find_bone(AssimpUtils::get_anim_string_from_assimp(parent_assimp_node->mName));
-//                    int current_bone_id = boneIdx;
-//                    last_active_skeleton->set_bone_parent(current_bone_id, parent_bone_id);
-//                }
+                if (parent_node != NULL) {
+                    int parent_bone_id = skeleton->find_bone(AssimpUtils::get_anim_string_from_assimp(parent_node->mName));
+                    int current_bone_id = boneIdx;
+                    last_active_skeleton->set_bone_parent(current_bone_id, parent_bone_id);
+                }
             }
         }
 		//state.root->add_child(state.skeleton);
@@ -496,9 +504,9 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 					parent_node->remove_child(mesh_template);
 
-					// reparent children
+					// re-parent children
 					List<Node *> children;
-					// reparent all children to new node
+					// re-parent all children to new node
 					// note: since get_child_count will change during execution we must build a list first to be safe.
 					for (int childId = 0; childId < mesh_template->get_child_count(); childId++) {
 						// get child
@@ -514,7 +522,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 					}
 
 					// update mesh in list so that each mesh node is available
-					// this makes the templaate unavailable which is the desired behaviour
+					// this makes the template unavailable which is the desired behaviour
 					state.flat_node_map[assimp_node] = mesh;
 
 					cleanup_template_nodes.push_back(mesh_template);
@@ -771,7 +779,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
             }
 
             // get skeleton by bone
-            skeleton = state.armature_skeletons[bone->mArmatureID];
+            skeleton = state.armature_skeletons[bone->mArmature];
 
             ERR_CONTINUE_MSG(!skeleton, "Failed to lookup skeleton for bone");
 
