@@ -104,16 +104,10 @@ private:
 	MeshInstance *create_mesh(ImportState &state, const aiNode *assimp_node, const String &node_name, Node *active_node, Transform node_transform);
 	// recursive node generator
 	void _generate_node(ImportState &state, const aiNode *assimp_node);
-	void _insert_animation_track(
-			ImportState &scene,
-			const aiAnimation *assimp_anim,
-			int track_id,
-			int anim_fps,
-			Ref<Animation> animation,
-			float ticks_per_second,
-			Skeleton *skeleton,
-			const NodePath &node_path,
-			const String &node_name);
+	void _insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int track_id,
+                                 int anim_fps, Ref<Animation> animation, float ticks_per_second,
+                                 Skeleton *skeleton, const NodePath &node_path,
+                                 const String &node_name, aiBone *track_bone);
 
 	void _import_animation(ImportState &state, int p_animation_index, int p_bake_fps);
 	Node *get_node_by_name(ImportState &state, String name);

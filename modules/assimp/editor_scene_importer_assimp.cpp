@@ -397,7 +397,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 				Spatial *parent_node = parent_lookup->value();
 
 				ERR_FAIL_COND_V_MSG(parent_node == NULL, state.root,
-						"Parent node invaid even though lookup successful, out of ram?")
+						"Parent node invalid even though lookup successful, out of ram?")
 
 				if (parent_node && spatial != state.root) {
 					parent_node->add_child(spatial);
@@ -451,23 +451,22 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
             ERR_CONTINUE_MSG(armature_for_bone == NULL, "Armature for bone invalid: " + bone_name);
             Skeleton *skeleton = state.armature_skeletons[armature_for_bone];
 
-            print_verbose("Can import bone data for bone");
             state.skeleton_bone_map[bone] = skeleton;
 
 
             // todo: this is where skin support goes
             if (skeleton && skeleton->find_bone(bone_name) == -1) {
                 print_verbose("[Godot Glue] Imported bone" + bone_name);
-                unsigned int boneIdx = skeleton->get_bone_count();
+                int boneIdx = skeleton->get_bone_count();
                 skeleton->add_bone(bone_name);
                 skeleton->set_bone_rest(
                         boneIdx,
-                        AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).affine_inverse());
+                        AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).inverse());
 
                 if (parent_node != NULL) {
                     int parent_bone_id = skeleton->find_bone(AssimpUtils::get_anim_string_from_assimp(parent_node->mName));
                     int current_bone_id = boneIdx;
-                    last_active_skeleton->set_bone_parent(current_bone_id, parent_bone_id);
+                    skeleton->set_bone_parent(current_bone_id, parent_bone_id);
                 }
             }
         }
@@ -540,27 +539,29 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 		}
 	}
 
-	for (Map<const aiNode*,Skeleton *>::Element *element = state.armature_skeletons.front(); element; element = element->next()) {
-		Skeleton *skeleton = element->value();
-		if(skeleton)
+
+    for (Map<const aiNode*,Skeleton *>::Element *element = state.armature_skeletons.front(); element; element = element->next()) {
+        Skeleton *skeleton = element->value();
+        if(skeleton)
         {
-		    skeleton->localize_rests();
-		    print_verbose("Found skeleton for localize rest function");
+            skeleton->localize_rests();
+            print_verbose("Found skeleton for localize rest function");
         }
 
         ERR_CONTINUE_MSG(!skeleton, "Invalid skeleton supplied!");
-	}
+    }
 
-	if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
 
-		state.animation_player = memnew(AnimationPlayer);
-		state.root->add_child(state.animation_player);
-		state.animation_player->set_owner(state.root);
+    if (p_flags & IMPORT_ANIMATION && scene->mNumAnimations) {
 
-		for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
-			_import_animation(state, i, p_bake_fps);
-		}
-	}
+        state.animation_player = memnew(AnimationPlayer);
+        state.root->add_child(state.animation_player);
+        state.animation_player->set_owner(state.root);
+
+        for (uint32_t i = 0; i < scene->mNumAnimations; i++) {
+            _import_animation(state, i, p_bake_fps);
+        }
+    }
 
 	//
 	// Cleanup operations
@@ -579,16 +580,11 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 	return state.root;
 }
 
-void EditorSceneImporterAssimp::_insert_animation_track(
-		ImportState &scene,
-		const aiAnimation *assimp_anim,
-		int track_id,
-		int anim_fps,
-		Ref<Animation> animation,
-		float ticks_per_second,
-		Skeleton *skeleton,
-		const NodePath &node_path,
-		const String &node_name) {
+void
+EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiAnimation *assimp_anim, int track_id,
+                                                   int anim_fps, Ref<Animation> animation, float ticks_per_second,
+                                                   Skeleton *skeleton, const NodePath &node_path,
+                                                   const String &node_name, aiBone *track_bone) {
 	const aiNodeAnim *assimp_track = assimp_anim->mChannels[track_id];
 	//make transform track
 	int track_idx = animation->get_track_count();
@@ -608,23 +604,24 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 	Vector<Quat> rot_values;
 	Vector<float> rot_times;
 
-	for (size_t p = 0; p < assimp_track->mNumPositionKeys; p++) {
-		aiVector3D pos = assimp_track->mPositionKeys[p].mValue;
-		pos_values.push_back(Vector3(pos.x, pos.y, pos.z));
-		pos_times.push_back(assimp_track->mPositionKeys[p].mTime / ticks_per_second);
-	}
+    for (size_t p = 0; p < assimp_track->mNumPositionKeys; p++) {
+        aiVector3D pos = assimp_track->mPositionKeys[p].mValue;
+        pos_values.push_back(Vector3(pos.x, pos.y, pos.z));
+        pos_times.push_back(assimp_track->mPositionKeys[p].mTime / ticks_per_second);
+    }
 
-	for (size_t r = 0; r < assimp_track->mNumRotationKeys; r++) {
-		aiQuaternion quat = assimp_track->mRotationKeys[r].mValue;
-		rot_values.push_back(Quat(quat.x, quat.y, quat.z, quat.w).normalized());
-		rot_times.push_back(assimp_track->mRotationKeys[r].mTime / ticks_per_second);
-	}
+    for (size_t r = 0; r < assimp_track->mNumRotationKeys; r++) {
+        aiQuaternion quat = assimp_track->mRotationKeys[r].mValue;
+        rot_values.push_back(Quat(quat.x, quat.y, quat.z, quat.w).normalized());
+        rot_times.push_back(assimp_track->mRotationKeys[r].mTime / ticks_per_second);
+    }
 
-	for (size_t sc = 0; sc < assimp_track->mNumScalingKeys; sc++) {
-		aiVector3D scale = assimp_track->mScalingKeys[sc].mValue;
-		scale_values.push_back(Vector3(scale.x, scale.y, scale.z));
-		scale_times.push_back(assimp_track->mScalingKeys[sc].mTime / ticks_per_second);
-	}
+    for (size_t sc = 0; sc < assimp_track->mNumScalingKeys; sc++) {
+        aiVector3D scale = assimp_track->mScalingKeys[sc].mValue;
+        scale_values.push_back(Vector3(scale.x, scale.y, scale.z));
+        scale_times.push_back(assimp_track->mScalingKeys[sc].mTime / ticks_per_second);
+    }
+
 	while (true) {
 		Vector3 pos;
 		Quat rot;
@@ -647,22 +644,43 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 		if (skeleton) {
 			int skeleton_bone = skeleton->find_bone(node_name);
 
-			if (skeleton_bone >= 0) {
-				Transform xform;
-				xform.basis.set_quat_scale(rot, scale);
-				xform.origin = pos;
+			if (skeleton_bone >= 0 && track_bone) {
 
-				Transform rest_xform = skeleton->get_bone_rest(skeleton_bone);
-				xform = rest_xform.affine_inverse() * xform;
-				rot = xform.basis.get_rotation_quat();
-				scale = xform.basis.get_scale();
-				pos = xform.origin;
+                Transform xform;
+                xform.basis.set_quat_scale(rot, scale);
+                xform.origin = pos;
+
+                xform = skeleton->get_bone_rest(skeleton_bone).inverse() * xform;
+
+                rot = xform.basis.get_rotation_quat();
+                rot.normalize();
+                scale = xform.basis.get_scale();
+                pos = xform.origin;
+//				Transform xform;
+//				xform.basis.set_quat_scale(rot, scale);
+//				xform.origin = pos;
+//
+//				// I need original mOffsetMatrix here not the bone rest :D
+//				// Because the rest_position has already affined_inverse twice a
+//				// third time kills it
+//
+//				// currently global space
+//				//Transform bone_xform_update = AssimpUtils::assimp_matrix_transform();
+//				// prove correct rest set :)
+//				//skeleton->set_bone_rest(skeleton_bone, bone_xform_update);
+//
+//				//bone_xform_update = bone_xform_update.inverse();
+//
+//
+//				rot = bone_xform_update.basis.get_rotation_quat();
+//				scale = bone_xform_update.basis.get_scale();
+//				pos = bone_xform_update.origin;
 			} else {
 				ERR_FAIL_MSG("Skeleton bone lookup failed for skeleton: " + skeleton->get_name());
 			}
 		}
 
-		//animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
+		animation->track_set_interpolation_type(track_idx, Animation::INTERPOLATION_LINEAR);
 		animation->transform_track_insert_key(track_idx, time, pos, rot, scale);
 
 		if (last) { //done this way so a key is always inserted past the end (for proper interpolation)
@@ -789,7 +807,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
             if (node_path != NodePath()) {
                 _insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton,
-                                        node_path, node_name);
+                                        node_path, node_name, bone);
             } else {
                 print_error("Failed to find valid node path for animation");
             }
@@ -809,7 +827,7 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 
             if (node_path != NodePath()) {
                 _insert_animation_track(state, anim, i, p_bake_fps, animation, ticks_per_second, skeleton,
-                                        node_path, node_name);
+                                        node_path, node_name, nullptr);
             }
         }
 	}
@@ -907,15 +925,15 @@ EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &stat
                 }
                 //                skeleton_assigned =
                 String bone_name = AssimpUtils::get_assimp_string(bone->mName);
-
+                int bone_index = skeleton_assigned->find_bone(bone_name);
+                ERR_CONTINUE(bone_index == -1);
                 for (size_t w = 0; w < bone->mNumWeights; w++) {
 
                     aiVertexWeight ai_weights = bone->mWeights[w];
 
                     BoneInfo bi;
-
                     uint32_t vertex_index = ai_weights.mVertexId;
-                    bi.bone = b;
+                    bi.bone = bone_index;
                     bi.weight = ai_weights.mWeight;
 
                     if (!vertex_weights.has(vertex_index)) {
