@@ -315,7 +315,6 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
 	// populate light map
 	for (unsigned int l = 0; l < scene->mNumLights; l++) {
-
 		aiLight *ai_light = scene->mLights[l];
 		ERR_CONTINUE(ai_light == NULL);
 		state.light_cache[AssimpUtils::get_assimp_string(ai_light->mName)] = l;
@@ -461,7 +460,7 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
                 skeleton->add_bone(bone_name);
                 skeleton->set_bone_rest(
                         boneIdx,
-                        AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).inverse());
+                        AssimpUtils::assimp_matrix_transform(bone->mRestMatrix.Inverse()));
 
                 if (parent_node != NULL) {
                     int parent_bone_id = skeleton->find_bone(AssimpUtils::get_anim_string_from_assimp(parent_node->mName));
@@ -650,31 +649,12 @@ EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiA
                 xform.basis.set_quat_scale(rot, scale);
                 xform.origin = pos;
 
-                xform = skeleton->get_bone_rest(skeleton_bone).inverse() * xform;
+                xform = AssimpUtils::assimp_matrix_transform(track_bone->mOffsetMatrix.Inverse()) * xform;
 
                 rot = xform.basis.get_rotation_quat();
                 rot.normalize();
                 scale = xform.basis.get_scale();
                 pos = xform.origin;
-//				Transform xform;
-//				xform.basis.set_quat_scale(rot, scale);
-//				xform.origin = pos;
-//
-//				// I need original mOffsetMatrix here not the bone rest :D
-//				// Because the rest_position has already affined_inverse twice a
-//				// third time kills it
-//
-//				// currently global space
-//				//Transform bone_xform_update = AssimpUtils::assimp_matrix_transform();
-//				// prove correct rest set :)
-//				//skeleton->set_bone_rest(skeleton_bone, bone_xform_update);
-//
-//				//bone_xform_update = bone_xform_update.inverse();
-//
-//
-//				rot = bone_xform_update.basis.get_rotation_quat();
-//				scale = bone_xform_update.basis.get_scale();
-//				pos = bone_xform_update.origin;
 			} else {
 				ERR_FAIL_MSG("Skeleton bone lookup failed for skeleton: " + skeleton->get_name());
 			}
