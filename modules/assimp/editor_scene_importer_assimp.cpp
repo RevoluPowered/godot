@@ -453,15 +453,20 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 
             state.skeleton_bone_map[bone] = skeleton;
 
+            if(bone_name.empty())
+            {
+                bone_name = "untitled_bone_name";
+                WARN_PRINT("Untitled bone name detected... report with file please");
+            }
 
             // todo: this is where skin support goes
             if (skeleton && skeleton->find_bone(bone_name) == -1) {
                 print_verbose("[Godot Glue] Imported bone" + bone_name);
                 int boneIdx = skeleton->get_bone_count();
+                Transform xform = AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix);
                 skeleton->add_bone(bone_name);
-                skeleton->set_bone_rest(
-                        boneIdx,
-                        AssimpUtils::assimp_matrix_transform(bone->mOffsetMatrix).inverse());
+                skeleton->set_bone_rest(boneIdx, xform.inverse());
+                skeleton->set_bone_pose(boneIdx, xform.inverse());
 
                 if (parent_node != NULL) {
                     int parent_bone_id = skeleton->find_bone(AssimpUtils::get_anim_string_from_assimp(parent_node->mName));
@@ -470,8 +475,6 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
                 }
             }
         }
-		//state.root->add_child(state.skeleton);
-		//state.skeleton->set_owner(state.root);
 
 		print_verbose("generating mesh phase from skeletal mesh");
 
@@ -656,25 +659,6 @@ EditorSceneImporterAssimp::_insert_animation_track(ImportState &scene, const aiA
                 rot.normalize();
                 scale = xform.basis.get_scale();
                 pos = xform.origin;
-//				Transform xform;
-//				xform.basis.set_quat_scale(rot, scale);
-//				xform.origin = pos;
-//
-//				// I need original mOffsetMatrix here not the bone rest :D
-//				// Because the rest_position has already affined_inverse twice a
-//				// third time kills it
-//
-//				// currently global space
-//				//Transform bone_xform_update = AssimpUtils::assimp_matrix_transform();
-//				// prove correct rest set :)
-//				//skeleton->set_bone_rest(skeleton_bone, bone_xform_update);
-//
-//				//bone_xform_update = bone_xform_update.inverse();
-//
-//
-//				rot = bone_xform_update.basis.get_rotation_quat();
-//				scale = bone_xform_update.basis.get_scale();
-//				pos = bone_xform_update.origin;
 			} else {
 				ERR_FAIL_MSG("Skeleton bone lookup failed for skeleton: " + skeleton->get_name());
 			}
@@ -1037,6 +1021,10 @@ EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &stat
 			if (mat_two_sided > 0) {
 				mat->set_cull_mode(SpatialMaterial::CULL_DISABLED);
 			}
+			else
+            {
+			    mat->set_cull_mode(SpatialMaterial::CULL_BACK);
+            }
 		}
 
 		const String mesh_name = AssimpUtils::get_assimp_string(ai_mesh->mName);
@@ -1349,22 +1337,7 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 
     RegenerateBoneStack(state);
 
-
-    // Get bone stack skeleton... yes welcome to land of confusing
-//    List<aiBone *> valid_bones;
-//
-//    aiBone *bone = NULL;
-//    while ((bone = get_bone_from_stack(state, assimp_node->mName))) {
-//        print_verbose("Found bone for mesh node: " + node_name);
-//        skeleton = (Skeleton*)state.bone_skeleton_lookup[bone];
-//        if(skeleton)
-//        {
-//            print_verbose("Found valid skeleton - assigning to create_mesh call");
-//            break;
-//        }
-//    }
-
-	// Configure indicies
+    // Configure indicies
 	for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
 		int mesh_index = assimp_node->mMeshes[i];
 		// create list of mesh indexes
@@ -1402,10 +1375,8 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 
 		int bind_count = 0;
 		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
-			int mesh_index = assimp_node->mMeshes[i];
-			aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
-
-			// skeleton bone ID lookup for set_pose bone_id_map
+			unsigned int mesh_index = assimp_node->mMeshes[i];
+			const aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
 
 			// please remember bone id relative to the skin is NOT the mesh relative index.
 			// it is the index relative to the skeleton that is why
