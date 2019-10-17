@@ -1400,31 +1400,33 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
 		print_verbose("Bind count is: " + itos(mesh->get_surface_count()));
 		skin->set_bind_count(mesh->get_surface_count());
 
-//		int bind_count = 0;
-//		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
-//			int mesh_index = assimp_node->mMeshes[i];
-//			aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
-//
-//			// skeleton bone ID lookup for set_pose bone_id_map
-//
-//			// please remember bone id relative to the skin is NOT the mesh relative index.
-//			// it is the index relative to the skeleton that is why
-//			// we have state.bone_id_map, it allows for duplicate bone id's too :)
-//			// hope this makes sense
-////			for (unsigned int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
-////				aiBone *iterBone = ai_mesh->mBones[boneId];
-////				if (skeleton) {
-////					int id = skeleton->find_bone(AssimpUtils::get_assimp_string(iterBone->mName));
-////					if (id != -1) {
-////						print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(id));
-////						skin->set_bind_bone(bind_count, id);
-////						//skin->set_bind_pose(bind_count, AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix));
-////					}
-////				}
-////			}
-//
-//			bind_count++;
-//		}
+		int bind_count = 0;
+		for (uint32_t i = 0; i < assimp_node->mNumMeshes; i++) {
+			int mesh_index = assimp_node->mMeshes[i];
+			aiMesh *ai_mesh = state.assimp_scene->mMeshes[mesh_index];
+
+			// skeleton bone ID lookup for set_pose bone_id_map
+
+			// please remember bone id relative to the skin is NOT the mesh relative index.
+			// it is the index relative to the skeleton that is why
+			// we have state.bone_id_map, it allows for duplicate bone id's too :)
+			// hope this makes sense
+			for (unsigned int boneId = 0; boneId < ai_mesh->mNumBones; ++boneId) {
+				aiBone *iterBone = ai_mesh->mBones[boneId];
+				if (skeleton) {
+					int id = skeleton->find_bone(AssimpUtils::get_assimp_string(iterBone->mName));
+					if (id != -1) {
+						print_verbose("Set bind bone: mesh: " + itos(mesh_index) + " bone index: " + itos(id));
+						Transform t = AssimpUtils::assimp_matrix_transform(iterBone->mOffsetMatrix);
+						skin->add_bind(bind_count, t.inverse());
+						skin->set_bind_bone(bind_count, id);
+						skin->set_bind_pose(bind_count, t.inverse());
+					}
+				}
+			}
+
+			bind_count++;
+		}
 
 		print_verbose("Finished configuring bind pose for skin mesh");
 	}
@@ -1439,15 +1441,9 @@ EditorSceneImporterAssimp::create_mesh(ImportState &state, const aiNode *assimp_
     {
 	    print_verbose("Attempted to set skeleton path!");
 	    mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
+	    mesh_node->set_skin(skin);
     }
-	//Skeleton * skeleton = state.skeleton_bone_map.find(state.assimp_scene->mMeshes[assimp_node.])
 
-	// set this once and for all
-	//if (skeleton != NULL) {
-		// must be done after added to tree
-		//mesh_node->set_skeleton_path(mesh_node->get_path_to(skeleton));
-		//mesh_node->set_skin(skin);
-	//}
 
 	return mesh_node;
 }
