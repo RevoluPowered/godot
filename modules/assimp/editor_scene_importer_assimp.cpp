@@ -439,7 +439,6 @@ EditorSceneImporterAssimp::_generate_scene(const String &p_path, aiScene *scene,
 				WARN_PRINT("Untitled bone name detected... report with file please");
 			}
 
-			// todo: this is where skin support goes
 			if (skeleton && skeleton->find_bone(bone_name) == -1) {
 				//print_verbose("[Godot Glue] Imported bone" + bone_name);
 				int boneIdx = skeleton->get_bone_count();
@@ -562,8 +561,8 @@ void EditorSceneImporterAssimp::_insert_animation_track(
 		Skeleton *skeleton, const NodePath &node_path,
 		const String &node_name, aiBone *track_bone) {
 
-	unsigned int track_idx = (unsigned int)track_id;
-	if (track_idx > assimp_anim->mNumChannels) {
+	unsigned int track_identity = (unsigned int)track_id;
+	if (track_identity > assimp_anim->mNumChannels) {
 		print_error("Track ID cannot be greater than available channels");
 		return;
 	}
@@ -792,7 +791,6 @@ void EditorSceneImporterAssimp::_import_animation(ImportState &state, int p_anim
 		// not a bone
 		// note this is flaky it uses node names which is unreliable
 		Node *allocated_node = get_node_by_name(state, node_name);
-		// todo: implement skeleton grabbing for node based animations too :)
 		// check if node exists, if it does then also apply animation track for node and bones above are all handled.
 		// this is now inclusive animation handling so that
 		// we import all the data and do not miss anything.
@@ -1001,7 +999,6 @@ EditorSceneImporterAssimp::_generate_mesh_from_surface_indices(ImportState &stat
 				Vector<float> weights;
 				weights.resize(bone_info.size());
 
-				// todo? do we really need to loop over all bones? - assimp may have helper to find all influences on this vertex.
 				for (int k = 0; k < bone_info.size(); k++) {
 					bones.write[k] = bone_info[k].bone;
 					weights.write[k] = bone_info[k].weight;
