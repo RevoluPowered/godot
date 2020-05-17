@@ -99,9 +99,10 @@ Transform Collada::fix_transform(const Transform &p_transform) {
 	}
 #endif
 
-	//tr.scale(Vector3(state.unit_scale.unit_scale.unit_scale));
+	// rewrite position to be scaled instead of changing modeller scaling :)
+	Vector3 position = tr.origin * state.unit_scale;
+	tr.origin = position;
 	return tr;
-	//return state.matrix_fix * p_transform;
 }
 
 static Transform _read_transform_from_array(const Vector<float> &array, int ofs = 0) {
@@ -171,9 +172,6 @@ Transform Collada::Node::compute_transform(Collada &state) const {
 		xform = xform * xform_step;
 	}
 
-#ifdef COLLADA_IMPORT_SCALE_SCENE
-	xform.origin *= state.state.unit_scale;
-#endif
 	return xform;
 }
 
