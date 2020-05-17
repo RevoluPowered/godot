@@ -188,11 +188,12 @@ Node * EditorSceneImporterSTL::import_scene(const String &p_path, uint32_t p_fla
 
 
 			st->add_normal(normal_godot);
-			st->add_vertex(v1.to_godot());
+			// STL is in MM - freecad
+			st->add_vertex(v1.to_godot() * 0.01f);
 			st->add_normal(normal_godot);
-			st->add_vertex(v2.to_godot());
+			st->add_vertex(v2.to_godot() * 0.01f);
 			st->add_normal(normal_godot);
-			st->add_vertex(v3.to_godot());
+			st->add_vertex(v3.to_godot() * 0.01f);
 		}
 
 		st->generate_tangents();
