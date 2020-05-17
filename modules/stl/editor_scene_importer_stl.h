@@ -60,38 +60,13 @@ public:
 	EditorSceneImporterSTL() {}
 	virtual ~EditorSceneImporterSTL() {}
 
-	virtual void get_extensions(List<String> *r_extensions) const
-	{
-		const String import_setting_string = "filesystem/import/stl_import/";
-
-		Map<String, ImportFormat> import_format;
-		{
-			Vector<String> exts;
-			exts.push_back("stl");
-			ImportFormat import = { exts, true };
-			import_format.insert("stl", import);
-		}
-		// register import setting
-		for (Map<String, ImportFormat>::Element *E = import_format.front(); E; E = E->next()) {
-
-			const String use_generic = "use_" + E->key();
-			_GLOBAL_DEF(import_setting_string + use_generic, E->get().is_default, true);
-			if (ProjectSettings::get_singleton()->get(import_setting_string + use_generic)) {
-				for (int32_t i = 0; i < E->get().extensions.size(); i++) {
-					r_extensions->push_back(E->get().extensions[i]);
-				}
-			}
-		}
-	}
+	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const
 	{
 		return IMPORT_SCENE;
 	}
-	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL)
-	{
-		print_error("loader for stl has run once!");
-		return nullptr;
-	}
+
+	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
 };
 
 
