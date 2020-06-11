@@ -53,10 +53,12 @@ struct FBXSkeleton;
 struct PivotTransform;
 
 struct FBXNode : Reference, ModelAbstraction {
-	uint64_t current_node_id;
-	String node_name;
+	uint64_t current_node_id = 0;
+	String node_name = String();
 	Spatial *godot_node = nullptr;
-	Ref<FBXSkeleton> skeleton_node; // used to parent the skeleton once the tree is built.
+
+	// used to parent the skeleton once the tree is built.
+	Ref<FBXSkeleton> skeleton_node = Ref<FBXSkeleton>();
 
 	void set_parent(Ref<FBXNode> p_parent) {
 		fbx_parent = p_parent;
@@ -66,8 +68,8 @@ struct FBXNode : Reference, ModelAbstraction {
 		pivot_transform = p_pivot_transform;
 	}
 
-	Ref<PivotTransform> pivot_transform; // local and global xform data
-	Ref<FBXNode> fbx_parent; // parent node
+	Ref<PivotTransform> pivot_transform = Ref<PivotTransform>(); // local and global xform data
+	Ref<FBXNode> fbx_parent = Ref<FBXNode>(); // parent node
 };
 
 #endif // MODEL_ABSTRACTION_FBX_NODE_H

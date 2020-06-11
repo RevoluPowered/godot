@@ -41,11 +41,11 @@ struct FBXNode;
 struct FBXBone;
 
 struct FBXBone : Reference {
-	uint64_t parent_bone_id;
-	uint64_t bone_id;
+	uint64_t parent_bone_id = 0;
+	uint64_t bone_id = 0;
 
 	bool valid_parent = false; // if the parent bone id is set up.
-	String bone_name; // bone name
+	String bone_name = String(); // bone name
 
 	bool is_root_bone() const {
 		return !valid_parent;
@@ -86,11 +86,11 @@ struct FBXBone : Reference {
 	}
 
 	// pose node / if assigned
-	Transform pose_node;
+	Transform pose_node = Transform();
 	bool assigned_pose_node = false;
-	Ref<FBXBone> parent_bone;
-	Ref<PivotTransform> pivot_xform;
-	Ref<FBXSkeleton> fbx_skeleton;
+	Ref<FBXBone> parent_bone = Ref<FBXBone>();
+	Ref<PivotTransform> pivot_xform = Ref<PivotTransform>();
+	Ref<FBXSkeleton> fbx_skeleton = Ref<FBXSkeleton>();
 };
 
 #endif // MODEL_ABSTRACTION_FBX_BONE_H

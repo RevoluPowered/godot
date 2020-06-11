@@ -61,10 +61,10 @@ struct FBXMeshVertexData;
 struct FBXBone;
 
 struct FBXSplitBySurfaceVertexMapping {
-	Vector<size_t> vertex_id;
-	Vector<Vector2> uv_0, uv_1;
-	Vector<Vector3> normals;
-	Vector<Color> colors;
+	Vector<size_t> vertex_id = Vector<size_t>();
+	Vector<Vector2> uv_0, uv_1 = Vector<Vector2>();
+	Vector<Vector3> normals = Vector<Vector3>();
+	Vector<Color> colors = Vector<Color>();
 
 	void add_uv_0(Vector2 vec) {
 		vec.y = 1.0f - vec.y;
@@ -142,8 +142,8 @@ struct FBXSplitBySurfaceVertexMapping {
 };
 
 struct VertexMapping : Reference {
-	Vector<float> weights;
-	Vector<Ref<FBXBone> > bones;
+	Vector<float> weights = Vector<float>();
+	Vector<Ref<FBXBone> > bones = Vector<Ref<FBXBone> >();
 
 	/*** Will only add a vertex weight if it has been validated that it exists in godot **/
 	void GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights);
@@ -193,8 +193,8 @@ struct FBXMeshVertexData : Reference {
 	/* mesh maximum weight count */
 	bool valid_weight_count = false;
 	int max_weight_count = 0;
-	uint64_t mesh_id; // fbx mesh id
-	uint64_t armature_id;
+	uint64_t mesh_id = 0; // fbx mesh id
+	uint64_t armature_id = 0;
 	bool valid_armature_id = false;
 	MeshInstance *godot_mesh_instance = nullptr;
 };
