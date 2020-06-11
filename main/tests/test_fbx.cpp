@@ -42,10 +42,10 @@ namespace TestFBX {
 bool test_rotation(Vector3 deg_vector, Assimp::FBX::Model::RotOrder rot_order) {
 
 	// Test phase
-	const Vector3 rad_vector = AssimpUtils::deg2rad(deg_vector);
-	const Quat quat_rotation = AssimpUtils::EulerToQuaternion(rot_order, rad_vector);
+	const Vector3 rad_vector = ImportUtils::deg2rad(deg_vector);
+	const Quat quat_rotation = ImportUtils::EulerToQuaternion(rot_order, rad_vector);
 	// Convert back into rotation order.
-	const Vector3 ro_rotation = AssimpUtils::QuaternionToEuler(rot_order, quat_rotation);
+	const Vector3 ro_rotation = ImportUtils::QuaternionToEuler(rot_order, quat_rotation);
 
 	Vector3 deviation;
 	for (int i = 0; i < 3; i += 1) {
@@ -82,8 +82,8 @@ bool test_rotation(Vector3 deg_vector, Assimp::FBX::Model::RotOrder rot_order) {
 	}
 	os->print("\n");
 	os->print("Original Rotation: %ls\n", String(deg_vector).c_str());
-	os->print("Quaternion to rotation order: %ls\n", String(AssimpUtils::rad2deg(ro_rotation)).c_str());
-	os->printerr("Error deviation: %ls\n", (String(AssimpUtils::rad2deg(deviation))).c_str());
+	os->print("Quaternion to rotation order: %ls\n", String(ImportUtils::rad2deg(ro_rotation)).c_str());
+	os->printerr("Error deviation: %ls\n", (String(ImportUtils::rad2deg(deviation))).c_str());
 
 	return deviation.length() < CMP_EPSILON;
 }

@@ -38,55 +38,55 @@ void PivotTransform::ReadTransformChain() {
 	inherit_type = inheritType; // copy the inherit type we need it in the second step.
 	print_verbose("Model: " + String(fbx_model->Name().c_str()) + " Has inherit type: " + itos(fbx_model->InheritType()));
 	bool ok = false;
-	raw_pre_rotation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "PreRotation", ok));
+	raw_pre_rotation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "PreRotation", ok));
 	if (ok) {
-		pre_rotation = AssimpUtils::EulerToQuaternion(rot, AssimpUtils::deg2rad(raw_pre_rotation));
+		pre_rotation = ImportUtils::EulerToQuaternion(rot, ImportUtils::deg2rad(raw_pre_rotation));
 		print_verbose("valid pre_rotation: " + raw_pre_rotation + " euler conversion: " + (pre_rotation.get_euler() * (180 / Math_PI)));
 	}
-	raw_post_rotation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "PostRotation", ok));
+	raw_post_rotation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "PostRotation", ok));
 	if (ok) {
-		post_rotation = AssimpUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder_EulerXYZ, AssimpUtils::deg2rad(raw_post_rotation));
+		post_rotation = ImportUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder_EulerXYZ, ImportUtils::deg2rad(raw_post_rotation));
 		print_verbose("valid post_rotation: " + raw_post_rotation + " euler conversion: " + (pre_rotation.get_euler() * (180 / Math_PI)));
 	}
-	const Vector3 &RotationPivot = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "RotationPivot", ok));
+	const Vector3 &RotationPivot = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "RotationPivot", ok));
 	if (ok) {
-		rotation_pivot = AssimpUtils::FixAxisConversions(RotationPivot);
+		rotation_pivot = ImportUtils::FixAxisConversions(RotationPivot);
 	}
-	const Vector3 &RotationOffset = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "RotationOffset", ok));
+	const Vector3 &RotationOffset = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "RotationOffset", ok));
 	if (ok) {
-		rotation_offset = AssimpUtils::FixAxisConversions(RotationOffset);
+		rotation_offset = ImportUtils::FixAxisConversions(RotationOffset);
 	}
-	const Vector3 &ScalingOffset = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "ScalingOffset", ok));
+	const Vector3 &ScalingOffset = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "ScalingOffset", ok));
 	if (ok) {
-		scaling_offset = AssimpUtils::FixAxisConversions(ScalingOffset);
+		scaling_offset = ImportUtils::FixAxisConversions(ScalingOffset);
 	}
-	const Vector3 &ScalingPivot = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "ScalingPivot", ok));
+	const Vector3 &ScalingPivot = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "ScalingPivot", ok));
 	if (ok) {
-		scaling_pivot = AssimpUtils::FixAxisConversions(ScalingPivot);
+		scaling_pivot = ImportUtils::FixAxisConversions(ScalingPivot);
 	}
-	const Vector3 &Translation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Translation", ok));
+	const Vector3 &Translation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Translation", ok));
 	if (ok) {
-		translation = AssimpUtils::FixAxisConversions(Translation);
+		translation = ImportUtils::FixAxisConversions(Translation);
 	}
-	raw_rotation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Rotation", ok));
+	raw_rotation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Rotation", ok));
 	if (ok) {
-		rotation = AssimpUtils::EulerToQuaternion(rot, AssimpUtils::deg2rad(raw_rotation));
+		rotation = ImportUtils::EulerToQuaternion(rot, ImportUtils::deg2rad(raw_rotation));
 	}
-	const Vector3 &Scaling = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Scaling", ok));
+	const Vector3 &Scaling = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "Lcl Scaling", ok));
 	if (ok) {
 		scaling = Scaling;
 	}
-	const Vector3 &GeometricScaling = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricScaling", ok));
+	const Vector3 &GeometricScaling = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricScaling", ok));
 	if (ok) {
 		geometric_scaling = GeometricScaling;
 	}
-	const Vector3 &GeometricRotation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricRotation", ok));
+	const Vector3 &GeometricRotation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricRotation", ok));
 	if (ok) {
-		geometric_rotation = AssimpUtils::EulerToQuaternion(rot, AssimpUtils::deg2rad(GeometricRotation));
+		geometric_rotation = ImportUtils::EulerToQuaternion(rot, ImportUtils::deg2rad(GeometricRotation));
 	}
-	const Vector3 &GeometricTranslation = AssimpUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricTranslation", ok));
+	const Vector3 &GeometricTranslation = ImportUtils::safe_import_vector3(Assimp::FBX::PropertyGet<Vector3>(props, "GeometricTranslation", ok));
 	if (ok) {
-		geometric_translation = AssimpUtils::FixAxisConversions(GeometricTranslation);
+		geometric_translation = ImportUtils::FixAxisConversions(GeometricTranslation);
 	}
 }
 
@@ -234,7 +234,7 @@ void PivotTransform::ComputePivotTransform() {
 	//Transform global_origin = Transform(Basis(), parent_translation);
 	//GlobalTransform = (global_origin * local_translation_pivoted) * global_rotation_scale;
 
-	AssimpUtils::debug_xform("local xform calculation", LocalTransform);
+	ImportUtils::debug_xform("local xform calculation", LocalTransform);
 	print_verbose("scale of node: " + S.basis.get_scale_local());
 	print_verbose("---------------------------------------------------------------");
 }
@@ -242,6 +242,6 @@ void PivotTransform::Execute() {
 	ReadTransformChain();
 	ComputePivotTransform();
 
-	AssimpUtils::debug_xform("global xform: ", GlobalTransform);
+	ImportUtils::debug_xform("global xform: ", GlobalTransform);
 	computed_global_xform = true;
 }

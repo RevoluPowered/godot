@@ -310,7 +310,7 @@ MeshInstance *EditorSceneImporterFBX::create_fbx_mesh(Ref<FBXMeshVertexData> ren
 	}
 
 	std::vector<Vector3> vertices = mesh_geometry->GetVertices();
-	AssimpUtils::AlignMeshAxes(vertices);
+	ImportUtils::AlignMeshAxes(vertices);
 	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
 
 	// godot has two uv coordinate channels
@@ -937,7 +937,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	print_verbose("Constraints count: " + itos(fbx_constraints.size()));
 
 	// get the animation FPS
-	float fps_setting = AssimpUtils::get_fbx_fps(FBXSettings);
+	float fps_setting = ImportUtils::get_fbx_fps(FBXSettings);
 
 	if (p_flags & IMPORT_ANIMATION) {
 		// document animation stack list - get by ID so we can unload any non used animation stack
@@ -1235,7 +1235,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						double anim_length = animation->get_length();
 
 						for (std::pair<uint64_t, Vector3> position_key : translation_keys.keyframes) {
-							pos_values.push_back(AssimpUtils::FixAxisConversions(position_key.second));
+							pos_values.push_back(ImportUtils::FixAxisConversions(position_key.second));
 							double animation_track_time = CONVERT_FBX_TIME(position_key.first);
 
 							if (animation_track_time > max_duration) {
@@ -1273,10 +1273,10 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 						Assimp::FBX::Model::RotOrder rot_order = model->RotationOrder();
 						if (got_pre) {
-							pre_rotation = AssimpUtils::EulerToQuaternion(rot_order, AssimpUtils::deg2rad(PreRotation));
+							pre_rotation = ImportUtils::EulerToQuaternion(rot_order, ImportUtils::deg2rad(PreRotation));
 						}
 						if (got_post) {
-							post_rotation = AssimpUtils::EulerToQuaternion(rot_order, AssimpUtils::deg2rad(PostRotation));
+							post_rotation = ImportUtils::EulerToQuaternion(rot_order, ImportUtils::deg2rad(PostRotation));
 						}
 
 						Quat lastQuat = Quat();
@@ -1285,7 +1285,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							double animation_track_time = CONVERT_FBX_TIME(rotation_key.first);
 
 							//print_verbose("euler rotation key: " + rotation_key.second);
-							Quat rot_key_value = AssimpUtils::EulerToQuaternion(quat_rotation_order, AssimpUtils::deg2rad(rotation_key.second));
+							Quat rot_key_value = ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_key.second));
 
 							if (lastQuat != Quat() && rot_key_value.dot(lastQuat) < 0) {
 								rot_key_value.x = -rot_key_value.x;
@@ -1306,7 +1306,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							rot_times.push_back(animation_track_time);
 						}
 						const Vector3 def_pos = translation_keys.has_default ? translation_keys.default_value : Vector3();
-						const Quat def_rot = rotation_keys.has_default ? AssimpUtils::EulerToQuaternion(quat_rotation_order, AssimpUtils::deg2rad(rotation_keys.default_value)) : Quat();
+						const Quat def_rot = rotation_keys.has_default ? ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_keys.default_value)) : Quat();
 						const Vector3 def_scale = scale_keys.has_default ? scale_keys.default_value : Vector3(1, 1, 1);
 						print_verbose("track defaults: p(" + def_pos + ") s(" + def_scale + ") r(" + def_rot + ")");
 						while (true) {

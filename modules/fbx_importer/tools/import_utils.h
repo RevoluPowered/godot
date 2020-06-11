@@ -82,10 +82,10 @@
 #define AI_MATKEY_FBX_MAYA_STINGRAY_AO_UV_XFORM "$raw.Maya|TEX_ao_map|uvtrafo"
 
 /**
- * Assimp Utils
- * Conversion tools / glue code to convert from assimp to godot
+ * Import Utils
+ * Conversion tools / glue code to convert from FBX to Godot
 */
-class AssimpUtils {
+class ImportUtils {
 public:
 	///	Convert a vector from degrees to radians.
 	static Vector3 deg2rad(const Vector3 &p_rotation);
@@ -244,7 +244,7 @@ public:
 		float frames_per_second = get_fbx_fps(time_mode);
 
 		// handle animation custom FPS time.
-		if (time_mode == AssimpUtils::AssetImportFbx::TIME_MODE_CUSTOM) {
+		if (time_mode == ImportUtils::AssetImportFbx::TIME_MODE_CUSTOM) {
 			print_verbose("FBX Animation has custom FPS setting");
 			frames_per_second = FBXSettings->CustomFrameRate();
 

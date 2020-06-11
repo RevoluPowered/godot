@@ -29,15 +29,15 @@
 /*************************************************************************/
 #include "import_utils.h"
 
-Vector3 AssimpUtils::deg2rad(const Vector3 &p_rotation) {
+Vector3 ImportUtils::deg2rad(const Vector3 &p_rotation) {
 	return p_rotation / 180.0 * Math_PI;
 }
 
-Vector3 AssimpUtils::rad2deg(const Vector3 &p_rotation) {
+Vector3 ImportUtils::rad2deg(const Vector3 &p_rotation) {
 	return p_rotation / Math_PI * 180.0;
 }
 
-Basis AssimpUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
+Basis ImportUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
 	real_t c, s;
 
 	// Rotation around X axis
@@ -80,11 +80,11 @@ Basis AssimpUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3
 	}
 }
 
-Quat AssimpUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
-	return AssimpUtils::EulerToBasis(mode, p_rotation);
+Quat ImportUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
+	return ImportUtils::EulerToBasis(mode, p_rotation);
 }
 
-Vector3 AssimpUtils::QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation) {
+Vector3 ImportUtils::QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation) {
 
 	switch (mode) {
 		case Assimp::FBX::Model::RotOrder_EulerXYZ:
