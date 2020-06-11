@@ -80,7 +80,7 @@ Basis AssimpUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3
 	}
 }
 
-Quat AssimpUtils::EulerToQuaternionNonLegacy(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
+Quat AssimpUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
 	return AssimpUtils::EulerToBasis(mode, p_rotation);
 }
 
