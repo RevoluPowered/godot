@@ -56,19 +56,20 @@ Basis AssimpUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3
 	const Basis z(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
 
 	// Multiply the axis following the rotation order.
+	// must be opposite order since multiplication ordering in godot is reversed relative to FBX data.
 	switch (mode) {
 		case Assimp::FBX::Model::RotOrder_EulerXYZ:
-			return x * y * z;
+			return z * y * x; // XYZ ZYX
 		case Assimp::FBX::Model::RotOrder_EulerXZY:
-			return x * z * y;
+			return y * z * x; // XZY YZX
 		case Assimp::FBX::Model::RotOrder_EulerYZX:
-			return y * z * x;
+			return x * z * y; // YZX XZY
 		case Assimp::FBX::Model::RotOrder_EulerYXZ:
-			return y * x * z;
+			return z * x * y; // YXZ ZXY
 		case Assimp::FBX::Model::RotOrder_EulerZXY:
-			return z * x * y;
+			return y * x * z; // ZXY YXZ
 		case Assimp::FBX::Model::RotOrder_EulerZYX:
-			return z * y * x;
+			return x * y * z; // ZYX XYZ
 		case Assimp::FBX::Model::RotOrder_SphericXYZ:
 			// TODO do this.
 			return Vector3();
