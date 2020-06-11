@@ -29,46 +29,124 @@
 /*************************************************************************/
 #include "import_utils.h"
 
-Quat AssimpUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
-	Vector3 rotation = p_rotation;
-	// // we want to convert from rot order to ZXY
-	Basis x = Basis(Vector3(Math::deg2rad(rotation.x), 0, 0));
-	//x.set_euler_xyz(Vector3(Math::deg2rad(rotation.x), 0, 0));
-	Basis y = Basis(Vector3(0, Math::deg2rad(rotation.y), 0));
-	//y.set_euler_xyz(Vector3(0, Math::deg2rad(rotation.y), 0));
-	Basis z = Basis(Vector3(0, 0, Math::deg2rad(rotation.z)));
-	//z.set_euler_xyz(Vector3(0, 0, Math::deg2rad(rotation.z)));
+Vector3 AssimpUtils::deg2rad(const Vector3 &p_rotation) {
+	return p_rotation / 180.0 * Math_PI;
+}
 
-	Quat result;
-	// So we can theoretically convert calls
+Vector3 AssimpUtils::rad2deg(const Vector3 &p_rotation) {
+	return p_rotation / Math_PI * 180.0;
+}
+
+Basis AssimpUtils::EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
+	real_t c, s;
+
+	// Rotation around X axis
+	c = Math::cos(p_rotation.x);
+	s = Math::sin(p_rotation.x);
+	const Basis x(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c);
+
+	// Rotation around Y axis
+	c = Math::cos(p_rotation.y);
+	s = Math::sin(p_rotation.y);
+	const Basis y(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
+
+	// Rotation around Z axis
+	c = Math::cos(p_rotation.z);
+	s = Math::sin(p_rotation.z);
+	const Basis z(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
+
+	// Multiply the axis following the rotation order.
 	switch (mode) {
 		case Assimp::FBX::Model::RotOrder_EulerXYZ:
-			result = z * y * x;
-			break;
+			return x * y * z;
 		case Assimp::FBX::Model::RotOrder_EulerXZY:
-			result = y * z * x;
-			break;
+			return x * z * y;
 		case Assimp::FBX::Model::RotOrder_EulerYZX:
-			result = x * z * y;
-			break;
+			return y * z * x;
 		case Assimp::FBX::Model::RotOrder_EulerYXZ:
-			result = z * x * y;
-			break;
+			return y * x * z;
 		case Assimp::FBX::Model::RotOrder_EulerZXY:
-			result = y * x * z;
-			break;
+			return z * x * y;
 		case Assimp::FBX::Model::RotOrder_EulerZYX:
-			result = y * x * z;
-			break;
+			return z * y * x;
 		case Assimp::FBX::Model::RotOrder_SphericXYZ:
-			result = z * y * x;
-			break;
+			// TODO do this.
+			return Vector3();
 		default:
-			result = z * y * x;
-			break;
+			// If you land here, Please integrate all enums.
+			CRASH_NOW_MSG("This is not unreachable.");
+			return Vector3();
 	}
-	//print_verbose("euler input data:" + rotation);
-	//print_verbose("euler to quaternion: " + (result.get_euler_xyz() * (180 / Math_PI)));
+}
 
-	return result;
+Quat AssimpUtils::EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation) {
+	return AssimpUtils::EulerToBasis(mode, p_rotation);
+}
+
+Vector3 AssimpUtils::QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation) {
+
+	switch (mode) {
+		case Assimp::FBX::Model::RotOrder_EulerXYZ:
+			return p_rotation.get_euler_xyz();
+
+		case Assimp::FBX::Model::RotOrder_EulerXZY: {
+
+			// Euler angles in XZY convention.
+			// See https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix
+			//
+			// rot =  cz*cy             -sz             cz*sy
+			//        sx*sy+cx*cy*sz    cx*cz           cx*sz*sy-cy*sx
+			//        cy*sx*sz          cz*sx           cx*cy+sx*sz*sy
+
+			Basis rotation = p_rotation;
+
+#ifdef MATH_CHECKS
+			ERR_FAIL_COND_V(!rotation.is_rotation(), Vector3());
+#endif
+			Vector3 euler;
+			real_t sz = rotation[0][1];
+			if (sz < 1.0) {
+				if (sz > -1.0) {
+					euler.x = Math::atan2(rotation[2][1], rotation[1][1]);
+					euler.y = Math::atan2(rotation[0][2], rotation[0][0]);
+					euler.z = Math::asin(-sz);
+				} else {
+					// It's -1
+					euler.x = -Math::atan2(rotation[1][2], rotation[2][2]);
+					euler.y = 0.0;
+					euler.z = Math_PI / 2.0;
+				}
+			} else {
+				// It's 1
+				euler.x = -Math::atan2(rotation[1][2], rotation[2][2]);
+				euler.y = 0.0;
+				euler.z = -Math_PI / 2.0;
+			}
+			return euler;
+		}
+
+		case Assimp::FBX::Model::RotOrder_EulerYZX:
+			// TODO
+			return Vector3();
+
+		case Assimp::FBX::Model::RotOrder_EulerYXZ:
+			return p_rotation.get_euler_yxz();
+
+		case Assimp::FBX::Model::RotOrder_EulerZXY:
+			// TODO
+			return Vector3();
+
+		case Assimp::FBX::Model::RotOrder_EulerZYX:
+			// TODO
+			return Vector3();
+
+		case Assimp::FBX::Model::RotOrder_SphericXYZ:
+			// TODO
+			return Vector3();
+
+		default:
+			// If you land here, Please integrate all enums.
+			CRASH_NOW_MSG("This is not unreachable.");
+			return Vector3();
+	}
 }
