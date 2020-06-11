@@ -43,7 +43,7 @@ bool test_rotation(Vector3 deg_vector, Assimp::FBX::Model::RotOrder rot_order) {
 
 	// Test phase
 	const Vector3 rad_vector = AssimpUtils::deg2rad(deg_vector);
-	const Quat quat_rotation = AssimpUtils::EulerToQuaternion(rot_order, rad_vector);
+	const Quat quat_rotation = AssimpUtils::EulerToQuaternionNonLegacy(rot_order, rad_vector);
 	// Convert back into rotation order.
 	const Vector3 ro_rotation = AssimpUtils::QuaternionToEuler(rot_order, quat_rotation);
 

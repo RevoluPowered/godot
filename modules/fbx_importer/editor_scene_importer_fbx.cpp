@@ -1273,10 +1273,10 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 						Assimp::FBX::Model::RotOrder rot_order = model->RotationOrder();
 						if (got_pre) {
-							pre_rotation = AssimpUtils::EulerToQuaternion(rot_order, PreRotation);
+							pre_rotation = AssimpUtils::EulerToQuaternionNonLegacy(rot_order, AssimpUtils::deg2rad(PreRotation));
 						}
 						if (got_post) {
-							post_rotation = AssimpUtils::EulerToQuaternion(rot_order, PostRotation);
+							post_rotation = AssimpUtils::EulerToQuaternionNonLegacy(rot_order, AssimpUtils::deg2rad(PostRotation));
 						}
 
 						Quat lastQuat = Quat();
@@ -1285,7 +1285,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							double animation_track_time = CONVERT_FBX_TIME(rotation_key.first);
 
 							//print_verbose("euler rotation key: " + rotation_key.second);
-							Quat rot_key_value = AssimpUtils::EulerToQuaternion(quat_rotation_order, rotation_key.second);
+							Quat rot_key_value = AssimpUtils::EulerToQuaternionNonLegacy(quat_rotation_order, AssimpUtils::deg2rad(rotation_key.second));
 
 							if (lastQuat != Quat() && rot_key_value.dot(lastQuat) < 0) {
 								rot_key_value.x = -rot_key_value.x;
@@ -1306,7 +1306,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							rot_times.push_back(animation_track_time);
 						}
 						const Vector3 def_pos = translation_keys.has_default ? translation_keys.default_value : Vector3();
-						const Quat def_rot = rotation_keys.has_default ? AssimpUtils::EulerToQuaternion(quat_rotation_order, rotation_keys.default_value) : Quat();
+						const Quat def_rot = rotation_keys.has_default ? AssimpUtils::EulerToQuaternionNonLegacy(quat_rotation_order, AssimpUtils::deg2rad(rotation_keys.default_value)) : Quat();
 						const Vector3 def_scale = scale_keys.has_default ? scale_keys.default_value : Vector3(1, 1, 1);
 						print_verbose("track defaults: p(" + def_pos + ") s(" + def_scale + ") r(" + def_rot + ")");
 						while (true) {
@@ -1497,13 +1497,12 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 		// previously this was created .instanced() on the same line.
 		Ref<FBXBone> bone_element;
 
-		if (nullptr != model) {
+		if (model != nullptr) {
 			const Assimp::FBX::LimbNodeMaya *const limb_node = dynamic_cast<const Assimp::FBX::LimbNodeMaya *>(model);
 			if (limb_node != nullptr) {
 				// write bone into bone list for FBX
 				if (!state.fbx_bone_map.has(limb_node->ID())) {
 					bool parent_is_bone = state.fbx_bone_map.find(p_id);
-
 					bone_element.instance();
 
 					// used to build the bone hierarchy in the skeleton
@@ -1523,7 +1522,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 						if (p_parent_bone->valid_armature_id) {
 							bone_element->valid_armature_id = true;
 							bone_element->armature_id = p_parent_bone->armature_id;
-							print_verbose("[doc] bone valid armature id assigned: " + itos(bone_element->armature_id));
+							print_verbose("[doc] bone has valid armature id:" + itos(bone_element->armature_id));
 						} else {
 							print_error("[doc] unassigned armature id: " + String(limb_node->Name().c_str()));
 						}
