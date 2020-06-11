@@ -39,19 +39,53 @@
 
 namespace TestFBX {
 
-bool test_rotation(Vector3 vector, Assimp::FBX::Model::RotOrder rot_order) {
-	Quat rotation = AssimpUtils::EulerToQuaternion(rot_order, vector);
+bool test_rotation(Vector3 deg_vector, Assimp::FBX::Model::RotOrder rot_order) {
 
-	OS *os = OS::get_singleton();
-	os->print("Expecting: %ls\n", (String(vector).c_str()));
-	Vector3 result = (rotation.get_euler_xyz() * (180 / Math_PI));
-	os->print("returned: %ls\n", (String(result).c_str()));
+	// Test phase
+	const Vector3 rad_vector = AssimpUtils::deg2rad(deg_vector);
+	const Quat quat_rotation = AssimpUtils::EulerToQuaternion(rot_order, rad_vector);
+	// Convert back into rotation order.
+	const Vector3 ro_rotation = AssimpUtils::QuaternionToEuler(rot_order, quat_rotation);
 
-	if (result != vector) {
-		os->printerr("Error deviation: %ls\n", (String((result - vector)).c_str()));
+	Vector3 deviation;
+	for (int i = 0; i < 3; i += 1) {
+		deviation[i] = fmod(rad_vector[i], Math_PI) - fmod(ro_rotation[i], Math_PI);
 	}
 
-	return result == vector;
+	// Print phase
+	OS *os = OS::get_singleton();
+	switch (rot_order) {
+		case Assimp::FBX::Model::RotOrder_EulerXYZ:
+			os->print("Rotation order XYZ.");
+			break;
+		case Assimp::FBX::Model::RotOrder_EulerXZY:
+			os->print("Rotation order XZY.");
+			break;
+		case Assimp::FBX::Model::RotOrder_EulerYZX:
+			os->print("Rotation order YZX.");
+			break;
+		case Assimp::FBX::Model::RotOrder_EulerYXZ:
+			os->print("Rotation order YXZ.");
+			break;
+		case Assimp::FBX::Model::RotOrder_EulerZXY:
+			os->print("Rotation order ZXY.");
+			break;
+		case Assimp::FBX::Model::RotOrder_EulerZYX:
+			os->print("Rotation order ZYX.");
+			break;
+		case Assimp::FBX::Model::RotOrder_SphericXYZ:
+			os->print("Rotation order SphericXYZ.");
+			break;
+		default:
+			os->print("Rotation order not supported!");
+			return false;
+	}
+	os->print("\n");
+	os->print("Original Rotation: %ls\n", String(deg_vector).c_str());
+	os->print("Quaternion to rotation order: %ls\n", String(AssimpUtils::rad2deg(ro_rotation)).c_str());
+	os->printerr("Error deviation: %ls\n", (String(AssimpUtils::rad2deg(deviation))).c_str());
+
+	return deviation.length() < CMP_EPSILON;
 }
 
 bool test_1() {
@@ -62,24 +96,90 @@ bool test_1() {
 
 bool test_2() {
 	return test_rotation(
-			Vector3(90, 0, 0),
+			Vector3(0, -30, 0),
 			Assimp::FBX::Model::RotOrder_EulerXYZ);
 }
 
 bool test_3() {
-	// possibly bad value to make test fail
-	// 0.00770179601386189,4.93110418319702,6.8879861831665
 	return test_rotation(
 			Vector3(0.00770179601386189f, 4.93110418319702f, 6.8879861831665f),
 			Assimp::FBX::Model::RotOrder_EulerXYZ);
 }
 
+bool test_4() {
+	return test_rotation(
+			Vector3(90, 60, 0),
+			Assimp::FBX::Model::RotOrder_EulerXYZ);
+}
+
+bool test_5() {
+	return test_rotation(
+			Vector3(90, 60, 90),
+			Assimp::FBX::Model::RotOrder_EulerXYZ);
+}
+
+bool test_6() {
+	return test_rotation(
+			Vector3(20, 0, 360),
+			Assimp::FBX::Model::RotOrder_EulerXYZ);
+}
+
+bool test_7() {
+	return test_rotation(
+			Vector3(360, 360, 360),
+			Assimp::FBX::Model::RotOrder_EulerXYZ);
+}
+
+bool test_8() {
+	return test_rotation(
+			Vector3(0.1, -50, -60),
+			Assimp::FBX::Model::RotOrder_EulerXYZ);
+}
+
+bool test_9() {
+	return test_rotation(
+			Vector3(0.5, 50, 20),
+			Assimp::FBX::Model::RotOrder_EulerXZY);
+}
+
+bool test_10() {
+	return test_rotation(
+			Vector3(0.5, 0, 90),
+			Assimp::FBX::Model::RotOrder_EulerXZY);
+}
+
+bool test_11() {
+	return test_rotation(
+			Vector3(0.5, 0, -90),
+			Assimp::FBX::Model::RotOrder_EulerXZY);
+}
+
+bool test_12() {
+	return test_rotation(
+			Vector3(0, 0, -30),
+			Assimp::FBX::Model::RotOrder_EulerXZY);
+}
+
 typedef bool (*TestFunc)(void);
 
 TestFunc test_funcs[] = {
+	// XYZ
 	test_1,
 	test_2,
 	test_3,
+	test_4,
+	test_5,
+	test_6,
+	test_7,
+	test_8,
+
+	// XZY
+	test_9,
+	test_10,
+	test_11,
+	test_12,
+
+	// End
 	0
 };
 

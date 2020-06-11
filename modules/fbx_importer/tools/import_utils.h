@@ -87,7 +87,20 @@
 */
 class AssimpUtils {
 public:
+	///	Convert a vector from degrees to radians.
+	static Vector3 deg2rad(const Vector3 &p_rotation);
+
+	///	Convert a vector from radians to degrees.
+	static Vector3 rad2deg(const Vector3 &p_rotation);
+
+	/// Converts rotation order vector (in rad) to quaternion.
+	static Basis EulerToBasis(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation);
+
+	/// Converts rotation order vector (in rad) to quaternion.
 	static Quat EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation);
+
+	/// Converts quaternion into rotation order vector (in rad).
+	static Vector3 QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation);
 
 	static void debug_xform(String name, const Transform &t) {
 		print_verbose(name + " " + t.origin + " rotation: " + (t.basis.get_euler() * (180 / Math_PI)));
