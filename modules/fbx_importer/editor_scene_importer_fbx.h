@@ -109,7 +109,6 @@ private:
 		return nullptr;
 	}
 
-
 	void CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 			ImportState &state, const Assimp::FBX::Document *p_doc,
 			uint64_t p_id);

@@ -81,7 +81,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	print_verbose("[doc] mesh has " + itos(max_weight_count) + " bone weights");
 
-
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
@@ -96,15 +95,15 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		print_error("no material is configured for mesh " + ImportUtils::FBXNodeToName(model->Name()));
 	}
 
-	std::__1::vector<Vector3> vertices = mesh_geometry->GetVertices();
+	std::vector<Vector3> vertices = mesh_geometry->GetVertices();
 	ImportUtils::AlignMeshAxes(vertices);
-	std::__1::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
+	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
 
 	// godot has two uv coordinate channels
-	const std::__1::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
-	const std::__1::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
-	const std::__1::vector<Vector3> &normals = mesh_geometry->GetNormals();
-	const std::__1::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
+	const std::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
+	const std::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
+	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
+	const std::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
 
 	// material id, primitive_type(triangles,lines, points etc), SurfaceData
 	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
@@ -294,49 +293,47 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	return godot_mesh;
 }
 
-
-void FBXMeshData::GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
-											  size_t vertex_id) {
-		// mesh is de-indexed by FBX Mesh class so id's from document aren't the same
-		// this convention will rewrite weight vertex ids safely, but most importantly only once :)
-		if (!valid_weight_indexes) {
-			FixWeightData(mesh_geometry);
-		}
-
-		if (vertex_weights.has(vertex_id)) {
-			Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
-			int weight_size = VertexWeights->weights.size();
-
-			if (weight_size > 0) {
-
-				//print_error("initial count: " + itos(weight_size));
-				if (VertexWeights->weights.size() < max_weight_count) {
-					// missing weight count - how many do we not have?
-					int missing_count = max_weight_count - weight_size;
-					//print_verbose("adding missing count : " + itos(missing_count));
-					for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
-						VertexWeights->weights.push_back(0); // no weight
-						VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
-					}
-				}
-
-				//print_error("final count: " + itos(VertexWeights->weights.size()));
-
-				Vector<float> valid_weights;
-				Vector<int> valid_bone_ids;
-
-				VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
-
-				st->add_weights(valid_weights);
-				st->add_bones(valid_bone_ids);
-
-				//print_verbose("[doc] triangle added weights to mesh for bones");
-			}
-		} else {
-			//print_error("no weight data for vertex: " + itos(vertex_id));
-		}
+void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
+		size_t vertex_id) {
+	// mesh is de-indexed by FBX Mesh class so id's from document aren't the same
+	// this convention will rewrite weight vertex ids safely, but most importantly only once :)
+	if (!valid_weight_indexes) {
+		FixWeightData(mesh_geometry);
 	}
 
+	if (vertex_weights.has(vertex_id)) {
+		Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
+		int weight_size = VertexWeights->weights.size();
+
+		if (weight_size > 0) {
+
+			//print_error("initial count: " + itos(weight_size));
+			if (VertexWeights->weights.size() < max_weight_count) {
+				// missing weight count - how many do we not have?
+				int missing_count = max_weight_count - weight_size;
+				//print_verbose("adding missing count : " + itos(missing_count));
+				for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
+					VertexWeights->weights.push_back(0); // no weight
+					VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
+				}
+			}
+
+			//print_error("final count: " + itos(VertexWeights->weights.size()));
+
+			Vector<float> valid_weights;
+			Vector<int> valid_bone_ids;
+
+			VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
+
+			st->add_weights(valid_weights);
+			st->add_bones(valid_bone_ids);
+
+			//print_verbose("[doc] triangle added weights to mesh for bones");
+		}
+	} else {
+		//print_error("no weight data for vertex: " + itos(vertex_id));
+	}
+}
 
 void FBXMeshData::FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry) {
 	if (!valid_weight_indexes && mesh_geometry) {

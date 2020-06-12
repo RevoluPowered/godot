@@ -160,7 +160,7 @@ struct FBXMeshData : Reference {
 
 	MeshInstance *create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
-	void GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
+	void GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
 
 	// basically this gives the correct ID for the vertex specified. so the weight data is correct for the meshes, as they're de-indexed.
 	void FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry);
