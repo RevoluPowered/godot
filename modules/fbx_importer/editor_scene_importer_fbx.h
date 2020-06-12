@@ -109,9 +109,6 @@ private:
 		return nullptr;
 	}
 
-	// create fbx mesh function
-	MeshInstance *create_fbx_mesh(Ref<FBXMeshVertexData> renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
-
 
 	void CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 			ImportState &state, const Assimp::FBX::Document *p_doc,

@@ -157,34 +157,12 @@ struct FBXMeshVertexData : Reference {
 	// translate fbx mesh data from document context to FBX Mesh Geometry Context
 	bool valid_weight_indexes = false;
 
+	MeshInstance *create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
+
+	void GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
+
 	// basically this gives the correct ID for the vertex specified. so the weight data is correct for the meshes, as they're de-indexed.
-	void FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry) {
-		if (!valid_weight_indexes && mesh_geometry) {
-			Map<size_t, Ref<VertexMapping> > fixed_weight_info;
-			for (Map<size_t, Ref<VertexMapping> >::Element *element = vertex_weights.front(); element; element = element->next()) {
-				unsigned int count;
-				const unsigned int *vert = mesh_geometry->ToOutputVertexIndex(element->key(), count);
-				//  print_verbose("begin translation of weight information");
-				if (vert != nullptr) {
-					for (unsigned int x = 0; x < count; x++) {
-						//                        print_verbose("input vertex: " + itos(element->key()) + ", output vert data: " + itos(vert[x]) +
-						//                                      " count: " + itos(count));
-
-						// write fixed weight info to the new temp array
-						fixed_weight_info.insert(vert[x], element->value());
-					}
-				}
-			}
-
-			//    print_verbose("size of fixed weight info:" + itos(fixed_weight_info.size()));
-
-			// destructive part of this operation is done here
-			vertex_weights = fixed_weight_info;
-
-			//  print_verbose("completed weight fixup");
-			valid_weight_indexes = true;
-		}
-	}
+	void FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry);
 
 	// verticies could go here
 	// uvs could go here

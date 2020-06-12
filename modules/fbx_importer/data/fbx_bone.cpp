@@ -5,6 +5,7 @@
 #include "pivot_transform.h"
 
 Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
+	print_verbose("bone name: " + bone_name);
 	ERR_FAIL_COND_V_MSG(cluster == nullptr || cluster->TargetNode() == nullptr, Ref<FBXNode>(), "invalid link for bone");
 
 	Ref<FBXNode> link_node;

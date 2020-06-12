@@ -37,6 +37,7 @@
 
 #include "data/fbx_anim_container.h"
 #include "data/fbx_skeleton.h"
+#include "fbx_mesh_data.h"
 #include "scene/3d/bone_attachment.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/light.h"
@@ -288,275 +289,6 @@ T EditorSceneImporterFBX::_interpolate_track(const Vector<float> &p_times, const
 	ERR_FAIL_V(p_values[0]);
 }
 
-MeshInstance *EditorSceneImporterFBX::create_fbx_mesh(Ref<FBXMeshVertexData> renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
-
-	print_verbose("[doc] FBX creating godot mesh for: " + FBXNodeToName(model->Name()));
-	if (renderer_mesh_data.is_valid()) {
-		print_error("[doc] mesh has " + itos(renderer_mesh_data->max_weight_count) + " bone weights");
-	}
-
-	Ref<ArrayMesh> mesh;
-	mesh.instance();
-
-	Ref<SurfaceTool> st;
-	st.instance();
-
-	const std::vector<int> &material_indices = mesh_geometry->GetMaterialIndices();
-
-	bool no_material_found = material_indices.size() == 0;
-
-	if (no_material_found) {
-		print_error("no material is configured for mesh " + FBXNodeToName(model->Name()));
-	}
-
-	std::vector<Vector3> vertices = mesh_geometry->GetVertices();
-	ImportUtils::AlignMeshAxes(vertices);
-	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
-
-	// godot has two uv coordinate channels
-	const std::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
-	const std::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
-	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
-	const std::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
-
-	// material id, primitive_type(triangles,lines, points etc), SurfaceData
-	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
-
-	// we need to map faces back to vertexes
-	{
-		// Map Reduce Algorithm
-		// The problem: reduce face primitives and also reduce material indices without duplicating vertexes :D
-		// vertex count (1,2,3,4, etc), FBX Surface Data (uvs and indices for faces...)
-		// yeah two sets.. uhuh
-		// you read that correct. <3
-		//Map<uint32_t, FBXSplitBySurfaceVertexMapping> primitive_geometry; // triangles, points, lines, quads
-
-		// material id, indices list
-		//Map<int, Vector<int>> material_surfaces;
-
-		//		// fbx vertex id - value stored in the array is the material number
-		//		for(uint32_t fbx_vertex_id = 0; fbx_vertex_id < material_indices.size(); fbx_vertex_id++) {
-		//			const int material_id = material_indices[fbx_vertex_id];
-		//			material_surfaces[material_id].push_back(fbx_vertex_id);
-		//		}
-
-		// Mesh face data - split based on geometry type
-		uint32_t cursor = 0;
-		for (uint32_t face_id = 0; face_id < face_vertex_counts.size(); face_id++) {
-			uint32_t vertex_count = face_vertex_counts[face_id];
-			for (uint32_t y = 0; y < vertex_count; y++) {
-
-				// some files don't have these configured at all :P
-				int material_id = 0;
-				if (cursor < material_indices.size()) {
-					material_id = material_indices[cursor];
-				}
-
-				FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material_id][vertex_count];
-				mapping.vertex_id.push_back(cursor);
-
-				// ensure we aren't outside available indexes, some will be
-				if (cursor < uv_coordinates_0.size()) {
-					mapping.add_uv_0(uv_coordinates_0[cursor]);
-				}
-
-				if (cursor < uv_coordinates_1.size()) {
-					mapping.add_uv_1(uv_coordinates_1[cursor]);
-				}
-
-				if (cursor < normals.size()) {
-					mapping.normals.push_back(normals[cursor]);
-				}
-
-				if (cursor < vertex_colors.size()) {
-					mapping.colors.push_back(vertex_colors[cursor]);
-				}
-
-				cursor++; // we manually increment cursor, we are essentially creating a new mesh.
-				// each surface split is a mesh
-			}
-		}
-	}
-
-	print_verbose("[vertex count for mesh] " + itos(vertices.size()));
-
-	// triangles surface for triangles
-	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
-		if (surface_split_by_material_primitive[material].has(3)) {
-			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][3];
-			Vector<size_t> &mesh_vertex_ids = mapping.vertex_id;
-			//Vector<size_t> &vertex_weight_mapping = mapping.vertex_weight_id;
-			st->begin(Mesh::PrimitiveType::PRIMITIVE_TRIANGLES);
-
-			// stream in vertexes
-			for (int x = 0; x < mesh_vertex_ids.size(); x++) {
-				size_t vertex_id = mapping.vertex_id[x];
-				GenFBXWeightInfo(renderer_mesh_data, mesh_geometry, st, vertex_id);
-
-				mapping.GenerateSurfaceMaterial(st, vertex_id);
-				st->add_vertex(vertices[vertex_id]);
-			}
-
-			for (int x = 0; x < mesh_vertex_ids.size(); x += 3) {
-				st->add_index(x + 2);
-				st->add_index(x + 1);
-				st->add_index(x);
-			}
-
-			Array triangle_mesh = st->commit_to_arrays();
-			triangle_mesh.resize(VS::ARRAY_MAX);
-			Array morphs;
-
-			mesh->add_surface_from_arrays(Mesh::PrimitiveType::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
-		}
-
-		if (surface_split_by_material_primitive[material].has(4)) {
-			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][4];
-			Vector<size_t> &mesh_vertex_ids = mapping.vertex_id;
-
-			print_verbose("quads: " + itos(mesh_vertex_ids.size()));
-			st->begin(Mesh::PrimitiveType::PRIMITIVE_TRIANGLES);
-
-			// stream in vertexes
-			for (int x = 0; x < mesh_vertex_ids.size(); x++) {
-				size_t vertex_id = mesh_vertex_ids[x];
-				GenFBXWeightInfo(renderer_mesh_data, mesh_geometry, st, vertex_id);
-
-				mapping.GenerateSurfaceMaterial(st, vertex_id);
-				//print_verbose("vert: " + quads[x]);
-				st->add_vertex(vertices[vertex_id]);
-			}
-
-			//int cursor = 0;
-			for (int x = 0; x < mesh_vertex_ids.size(); x += 4) {
-				// complete first side of triangle
-				st->add_index(x + 2);
-				st->add_index(x + 1);
-				st->add_index(x);
-
-				// complete second side of triangle
-
-				// top right
-				// bottom right
-				// top left
-
-				// first triangle is
-				// (x+2), (x+1), (x)
-				// second triangle is
-				// (x+2), (x), (x+3)
-
-				st->add_index(x + 2);
-				st->add_index(x);
-				st->add_index(x + 3);
-
-				// anti clockwise rotation in indices
-				// note had to reverse right from left here
-				// [0](x) bottom right (-1,-1)
-				// [1](x+1) bottom left (1,-1)
-				// [2](x+2) top left (1,1)
-				// [3](x+3) top right (-1,1)
-
-				// we have 4 points
-				// we have 2 triangles
-				// we have CCW
-			}
-
-			Array triangle_mesh = st->commit_to_arrays();
-			triangle_mesh.resize(VS::ARRAY_MAX);
-			Array morphs;
-			mesh->add_surface_from_arrays(Mesh::PrimitiveType::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
-		}
-	}
-
-	if (normals.size() > 0) {
-		st->generate_tangents();
-	}
-	// const std::vector<uint32_t> &face_primitives = mesh_geometry->GetFaceIndexCounts();
-
-	// uint32_t cursor;
-	// for (uint32_t indice_count : face_primitives) {
-	// 	if (indice_count == 1) {
-	// 		st->add_index(0 + cursor);
-	// 		cursor++;
-	// 	} else if (indice_count == 2) {
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(1 + cursor);
-	// 		cursor += 2;
-	// 	} else if (indice_count == 3) {
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(3 + cursor);
-	// 		st->add_index(2 + cursor);
-
-	// 		cursor += 6;
-	// 	}
-	// }
-
-	// Ref<SpatialMaterial> material;
-	// material.instance();
-	// material->set_cull_mode(SpatialMaterial::CullMode::CULL_DISABLED);
-
-	// mesh->add_surface_from_arrays(Mesh::PRIMITIVE_POINTS, array_mesh, morphs);
-	//mesh->surface_set_material(0, material);
-	// okay now enable it
-	mesh->set_name(FBXNodeToName(mesh_geometry->Name()));
-
-	MeshInstance *godot_mesh = memnew(MeshInstance);
-	godot_mesh->set_mesh(mesh);
-
-	return godot_mesh;
-}
-
-void EditorSceneImporterFBX::GenFBXWeightInfo(Ref<FBXMeshVertexData> &renderer_mesh_data,
-		const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
-		size_t vertex_id) const {
-	// check for valid mesh weight data mapping - this stores our vertex data
-	// it's pre-cached in the skin caching so we need to read that before we make our meshes
-	// which is currently the case.
-	if (renderer_mesh_data.is_valid()) {
-
-		// mesh is de-indexed by FBX Mesh class so id's from document aren't the same
-		// this convention will rewrite weight vertex ids safely, but most importantly only once :)
-		if (!renderer_mesh_data->valid_weight_indexes) {
-			renderer_mesh_data->FixWeightData(mesh_geometry);
-		}
-
-		if (renderer_mesh_data->vertex_weights.has(vertex_id)) {
-			Ref<VertexMapping> VertexWeights = renderer_mesh_data->vertex_weights[vertex_id];
-			int weight_size = VertexWeights->weights.size();
-			int max_weight_count = renderer_mesh_data->max_weight_count;
-
-			if (weight_size > 0) {
-
-				//print_error("initial count: " + itos(weight_size));
-				if (VertexWeights->weights.size() < max_weight_count) {
-					// missing weight count - how many do we not have?
-					int missing_count = max_weight_count - weight_size;
-					//print_verbose("adding missing count : " + itos(missing_count));
-					for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
-						VertexWeights->weights.push_back(0); // no weight
-						VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
-					}
-				}
-
-				//print_error("final count: " + itos(VertexWeights->weights.size()));
-
-				Vector<float> valid_weights;
-				Vector<int> valid_bone_ids;
-
-				VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
-
-				st->add_weights(valid_weights);
-				st->add_bones(valid_bone_ids);
-
-				//print_verbose("[doc] triangle added weights to mesh for bones");
-			}
-		} else {
-			//print_error("no weight data for vertex: " + itos(vertex_id));
-		}
-	}
-}
-
 void set_owner_recursive(Node *root, Node *current_node) {
 	current_node->set_owner(root);
 
@@ -723,16 +455,24 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			} else {
 				const std::vector<const Assimp::FBX::Geometry *> &geometry = fbx_node->fbx_model->GetGeometry();
 				for (const Assimp::FBX::Geometry *mesh : geometry) {
-					print_verbose("[doc !important] found valid mesh: " + FBXNodeToName(mesh->Name()));
+					print_verbose("[doc !important] found valid mesh: " + ImportUtils::FBXNodeToName(mesh->Name()));
 					if (mesh == nullptr)
 						continue;
 
 					const Assimp::FBX::MeshGeometry *mesh_geometry = dynamic_cast<const Assimp::FBX::MeshGeometry *>(mesh);
-					if (mesh != nullptr && mesh_geometry != NULL) {
+					if (mesh_geometry != NULL) {
 						uint64_t mesh_id = mesh_geometry->ID();
-						get_mesh_data(state, fbx_node, mesh_data_precached, mesh_geometry);
+
+						// this data will pre-exist if vertex weight information is found
+						if (state.renderer_mesh_data.has(mesh_id)) {
+							mesh_data_precached = state.renderer_mesh_data[mesh_id];
+						} else {
+							mesh_data_precached.instance();
+							state.renderer_mesh_data.insert(mesh_id, mesh_data_precached);
+						}
+
 						// mesh node, mesh id
-						mesh_node = create_fbx_mesh(mesh_data_precached, mesh_geometry, fbx_node->fbx_model);
+						mesh_node = mesh_data_precached->create_fbx_mesh(mesh_geometry, fbx_node->fbx_model);
 
 						if (!state.MeshNodes.has(mesh_id)) {
 							print_verbose("caching skin creation call for later");
@@ -948,7 +688,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			const Assimp::FBX::AnimationStack *stack = lazyObject->Get<Assimp::FBX::AnimationStack>();
 
 			if (stack != nullptr) {
-				String animation_name = FBXNodeToName(stack->Name());
+				String animation_name = ImportUtils::FBXNodeToName(stack->Name());
 				print_verbose("Valid animation stack has been found: " + animation_name);
 				// ReferenceTime is the same for some animations?
 				// LocalStop time is the start and end time
@@ -989,7 +729,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				print_verbose("FBX Animation layers: " + itos(layers.size()));
 				for (const Assimp::FBX::AnimationLayer *layer : layers) {
 					std::vector<const Assimp::FBX::AnimationCurveNode *> node_list = layer->Nodes();
-					print_verbose("Layer: " + FBXNodeToName(layer->Name()) + ", " + " AnimCurveNode count " + itos(node_list.size()));
+					print_verbose("Layer: " + ImportUtils::FBXNodeToName(layer->Name()) + ", " + " AnimCurveNode count " + itos(node_list.size()));
 
 					// first thing to do here is that i need to first get the animcurvenode to a Vector3
 					// we now need to put this into the track information for godot.
@@ -1036,7 +776,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						}
 
 						uint64_t target_id = target->ID();
-						String target_name = FBXNodeToName(target->Name());
+						String target_name = ImportUtils::FBXNodeToName(target->Name());
 
 						const Assimp::FBX::PropertyTable &properties = curve_node->Props();
 						bool got_x, got_y, got_z;
@@ -1044,7 +784,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						float offset_y = Assimp::FBX::PropertyGet<float>(properties, "d|Y", got_y);
 						float offset_z = Assimp::FBX::PropertyGet<float>(properties, "d|Z", got_z);
 
-						String curve_node_name = FBXNodeToName(curve_node->Name());
+						String curve_node_name = ImportUtils::FBXNodeToName(curve_node->Name());
 
 						// Reduce all curves for this node into a single container
 						// T, R, S is what we expect, although other tracks are possible
@@ -1087,9 +827,9 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						// note: do not use C++17 syntax here for dicts.
 						// this is banned in Godot.
 						for (std::pair<const std::string, const Assimp::FBX::AnimationCurve *> &kvp : curves) {
-							String curve_element = FBXNodeToName(kvp.first);
+							String curve_element = ImportUtils::FBXNodeToName(kvp.first);
 							const Assimp::FBX::AnimationCurve *curve = kvp.second;
-							String curve_name = FBXNodeToName(curve->Name());
+							String curve_name = ImportUtils::FBXNodeToName(curve->Name());
 							uint64_t curve_id = curve->ID();
 
 							if (CheckForDuplication.has(curve_id)) {
@@ -1422,26 +1162,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	return state.root;
 }
-
-void EditorSceneImporterFBX::get_mesh_data(const ImportState &state, const Ref<FBXNode> &fbx_node, Ref<FBXMeshVertexData> &mesh_data_precached, const Assimp::FBX::MeshGeometry *mesh_geometry) const {
-	uint64_t mesh_id = mesh_geometry->ID();
-	if (state.renderer_mesh_data.has(mesh_id)) {
-
-		// skins are poses for bones, they are overriding poses which have mesh offsets.
-		// a skeleton is a structure made of bones
-		// a skin is a pose relative to the mesh, it is a inverse matrix but it's important to mention
-		// a skin overrides what is in the skeleton, if configured
-		// a skin will never contain locator bones (kLocators from maya)
-		// therefore the distinction is we need both, non negotiable.
-		// this is what assimp cannot handle unfortunately (yet)
-
-		//create_mesh_data_skin(state, fbx_node, mesh_id);
-
-		mesh_data_precached = state.renderer_mesh_data[mesh_id];
-		mesh_data_precached->mesh_id = mesh_id;
-		print_verbose("[doc] valid mesh weight data has been cached for " + itos(mesh_id));
-	}
-}
 void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref<FBXNode> &fbx_node, uint64_t mesh_id) {
 	if (!state.MeshSkins.has(mesh_id)) {
 		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
@@ -1541,7 +1261,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 					// Model "limb node" to SubDeformer to Deformer (skin)
 					const Assimp::FBX::Cluster *deformer = ProcessDOMConnection<Assimp::FBX::Cluster>(p_doc, "Deformer", limb_id);
 
-					bone_element->bone_name = FBXNodeToName(model->Name());
+					bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
 					bone_element->parent_bone = p_parent_bone;
 
 					if (deformer != nullptr) {
@@ -1701,7 +1421,6 @@ void EditorSceneImporterFBX::BuildDocumentNodes(
 		// FBX Model::Cube, Model::Bone001, etc elements
 		// This detects if we can cast the object into this model structure.
 		const Assimp::FBX::Model *const model = dynamic_cast<const Assimp::FBX::Model *>(source_object);
-
 		// model is the current node
 		if (nullptr != model) {
 			uint64_t current_node_id = model->ID();
@@ -1709,7 +1428,7 @@ void EditorSceneImporterFBX::BuildDocumentNodes(
 			Ref<FBXNode> new_node;
 			new_node.instance();
 			new_node->current_node_id = current_node_id;
-			new_node->node_name = FBXNodeToName(model->Name());
+			new_node->node_name = ImportUtils::FBXNodeToName(model->Name());
 
 			Ref<PivotTransform> fbx_transform;
 			fbx_transform.instance();
