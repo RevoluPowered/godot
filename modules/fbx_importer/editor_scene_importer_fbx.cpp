@@ -447,7 +447,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 			MeshInstance *mesh_node = nullptr;
 
-			Ref<FBXMeshVertexData> mesh_data_precached;
+			Ref<FBXMeshData> mesh_data_precached;
 
 			// check for valid geometry
 			if (fbx_node->fbx_model == nullptr) {
@@ -521,8 +521,8 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	}
 
 	// mesh data iteration for populating skeleton mapping
-	for (Map<uint64_t, Ref<FBXMeshVertexData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
-		Ref<FBXMeshVertexData> mesh = mesh_data->value();
+	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
+		Ref<FBXMeshData> mesh = mesh_data->value();
 		MeshInstance *mesh_instance = mesh->godot_mesh_instance;
 		int mesh_weights = mesh->max_weight_count;
 		Ref<FBXSkeleton> skeleton;
@@ -1304,7 +1304,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 
 						// Pipeline to move vertex weight information
 						// to the renderer
-						Ref<FBXMeshVertexData> mesh_vertex_data;
+						Ref<FBXMeshData> mesh_vertex_data;
 						if (state.renderer_mesh_data.has(mesh_target_id)) {
 							mesh_vertex_data = state.renderer_mesh_data[mesh_target_id];
 						} else {

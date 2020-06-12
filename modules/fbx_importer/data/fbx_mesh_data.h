@@ -57,7 +57,7 @@
 #include <thirdparty/assimp/include/assimp/matrix4x4.h>
 #include <thirdparty/assimp/include/assimp/types.h>
 
-struct FBXMeshVertexData;
+struct FBXMeshData;
 struct FBXBone;
 
 struct FBXSplitBySurfaceVertexMapping {
@@ -149,7 +149,8 @@ struct VertexMapping : Reference {
 	void GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights);
 };
 
-struct FBXMeshVertexData : Reference {
+// Caches mesh information and instantiates meshes for you using helper functions.
+struct FBXMeshData : Reference {
 	// vertex id, Weight Info
 	// later: perf we can use array here
 	Map<size_t, Ref<VertexMapping> > vertex_weights;

@@ -75,7 +75,7 @@ void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<fl
 		}
 	}
 }
-MeshInstance * FBXMeshVertexData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
+MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
 
 	print_verbose("[doc] FBX creating godot mesh for: " + ImportUtils::FBXNodeToName(model->Name()));
 
@@ -295,7 +295,7 @@ MeshInstance * FBXMeshVertexData::create_fbx_mesh(const Assimp::FBX::MeshGeometr
 }
 
 
-void FBXMeshVertexData::GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
+void FBXMeshData::GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
 											  size_t vertex_id) {
 		// mesh is de-indexed by FBX Mesh class so id's from document aren't the same
 		// this convention will rewrite weight vertex ids safely, but most importantly only once :)
@@ -338,7 +338,7 @@ void FBXMeshVertexData::GenFBXWeightInfo( const Assimp::FBX::MeshGeometry *mesh_
 	}
 
 
-void FBXMeshVertexData::FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry) {
+void FBXMeshData::FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry) {
 	if (!valid_weight_indexes && mesh_geometry) {
 		Map<size_t, Ref<VertexMapping> > fixed_weight_info;
 		for (Map<size_t, Ref<VertexMapping> >::Element *element = vertex_weights.front(); element; element = element->next()) {

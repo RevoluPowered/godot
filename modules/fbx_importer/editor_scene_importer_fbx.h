@@ -144,7 +144,7 @@ public:
 	Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path);
 
 	void
-	GenFBXWeightInfo(Ref<FBXMeshVertexData> &renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry,
+	GenFBXWeightInfo(Ref<FBXMeshData> &renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry,
 			Ref<SurfaceTool> st, size_t vertex_id) const;
 	void create_mesh_data_skin(ImportState &state, const Ref<FBXNode> &fbx_node, uint64_t mesh_id);
 };

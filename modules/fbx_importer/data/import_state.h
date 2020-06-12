@@ -56,7 +56,7 @@
 #include <thirdparty/assimp/include/assimp/types.h>
 
 struct FBXBone;
-struct FBXMeshVertexData;
+struct FBXMeshData;
 struct FBXNode;
 struct FBXSkeleton;
 
@@ -97,7 +97,7 @@ struct ImportState {
 	// skin is applied to mesh instance so not really required to be in here yet.
 	// maybe later
 	// fbx mesh id, FBXMeshData
-	Map<uint64_t, Ref<FBXMeshVertexData> > renderer_mesh_data = Map<uint64_t, Ref<FBXMeshVertexData> >();
+	Map<uint64_t, Ref<FBXMeshData> > renderer_mesh_data = Map<uint64_t, Ref<FBXMeshData> >();
 };
 
 #endif // EDITOR_SCENE_IMPORT_STATE_H
