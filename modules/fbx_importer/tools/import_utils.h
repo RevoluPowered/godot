@@ -106,6 +106,53 @@ public:
 		print_verbose(name + " " + t.origin + " rotation: " + (t.basis.get_euler() * (180 / Math_PI)));
 	}
 
+	static String FBXNodeToName(const std::string &name) {
+		// strip Model:: prefix, avoiding ambiguities (i.e. don't strip if
+		// this causes ambiguities, well possible between empty identifiers,
+		// such as "Model::" and ""). Make sure the behaviour is consistent
+		// across multiple calls to FixNodeName().
+
+		// We must remove this from the name
+		// Some bones have this
+		// SubDeformer::
+		// Meshes, Joints have this, some other IK elements too.
+		// Model::
+
+		String node_name = String(name.c_str());
+
+		if (node_name.substr(0, 7) == "Model::") {
+			node_name = node_name.substr(7, node_name.length() - 7);
+			return node_name.replace(":", "");
+		}
+
+		if (node_name.substr(0, 13) == "SubDeformer::") {
+			node_name = node_name.substr(13, node_name.length() - 13);
+			return node_name.replace(":", "");
+		}
+
+		if (node_name.substr(0, 11) == "AnimStack::") {
+			node_name = node_name.substr(11, node_name.length() - 11);
+			return node_name.replace(":", "");
+		}
+
+		if (node_name.substr(0, 15) == "AnimCurveNode::") {
+			node_name = node_name.substr(15, node_name.length() - 15);
+			return node_name.replace(":", "");
+		}
+
+		if (node_name.substr(0, 11) == "AnimCurve::") {
+			node_name = node_name.substr(11, node_name.length() - 11);
+			return node_name.replace(":", "");
+		}
+
+		if (node_name.substr(0, 10) == "Geometry::") {
+			node_name = node_name.substr(10, node_name.length() - 10);
+			return node_name.replace(":", "");
+		}
+
+		return node_name.replace(":", "");
+	}
+
 	static Vector3 safe_import_vector3(const Vector3 &p_vec) {
 		Vector3 vector = p_vec;
 		if (Math::is_equal_approx(0, vector.x)) {

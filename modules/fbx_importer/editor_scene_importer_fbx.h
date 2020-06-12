@@ -112,52 +112,6 @@ private:
 	// create fbx mesh function
 	MeshInstance *create_fbx_mesh(Ref<FBXMeshVertexData> renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
-	String FBXNodeToName(const std::string &name) {
-		// strip Model:: prefix, avoiding ambiguities (i.e. don't strip if
-		// this causes ambiguities, well possible between empty identifiers,
-		// such as "Model::" and ""). Make sure the behaviour is consistent
-		// across multiple calls to FixNodeName().
-
-		// We must remove this from the name
-		// Some bones have this
-		// SubDeformer::
-		// Meshes, Joints have this, some other IK elements too.
-		// Model::
-
-		String node_name = String(name.c_str());
-
-		if (node_name.substr(0, 7) == "Model::") {
-			node_name = node_name.substr(7, node_name.length() - 7);
-			return node_name.replace(":", "");
-		}
-
-		if (node_name.substr(0, 13) == "SubDeformer::") {
-			node_name = node_name.substr(13, node_name.length() - 13);
-			return node_name.replace(":", "");
-		}
-
-		if (node_name.substr(0, 11) == "AnimStack::") {
-			node_name = node_name.substr(11, node_name.length() - 11);
-			return node_name.replace(":", "");
-		}
-
-		if (node_name.substr(0, 15) == "AnimCurveNode::") {
-			node_name = node_name.substr(15, node_name.length() - 15);
-			return node_name.replace(":", "");
-		}
-
-		if (node_name.substr(0, 11) == "AnimCurve::") {
-			node_name = node_name.substr(11, node_name.length() - 11);
-			return node_name.replace(":", "");
-		}
-
-		if (node_name.substr(0, 10) == "Geometry::") {
-			node_name = node_name.substr(10, node_name.length() - 10);
-			return node_name.replace(":", "");
-		}
-
-		return node_name.replace(":", "");
-	}
 
 	void CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 			ImportState &state, const Assimp::FBX::Document *p_doc,
@@ -195,7 +149,6 @@ public:
 	void
 	GenFBXWeightInfo(Ref<FBXMeshVertexData> &renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry,
 			Ref<SurfaceTool> st, size_t vertex_id) const;
-	void get_mesh_data(const ImportState &state, const Ref<FBXNode> &fbx_node, Ref<FBXMeshVertexData> &mesh_data_precached, const Assimp::FBX::MeshGeometry *mesh_geometry) const;
 	void create_mesh_data_skin(ImportState &state, const Ref<FBXNode> &fbx_node, uint64_t mesh_id);
 };
 
