@@ -99,6 +99,9 @@ public:
 	/// Converts rotation order vector (in rad) to quaternion.
 	static Quat EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &p_rotation);
 
+	/// Converts basis into rotation order vector (in rad).
+	static Vector3 BasisToEuler(Assimp::FBX::Model::RotOrder mode, const Basis &p_rotation);
+
 	/// Converts quaternion into rotation order vector (in rad).
 	static Vector3 QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation);
 
