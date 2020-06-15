@@ -273,6 +273,17 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				// blend shape name =
 				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
 				print_verbose("blend shape mesh name: " + anim_mesh_name);
+
+				// empty shape name should still work
+				if (anim_mesh_name.empty()) {
+					anim_mesh_name = String("morph_") + itos(i);
+				}
+
+				// godot register blend shape.
+				mesh->add_blend_shape(anim_mesh_name);
+
+
+				// blend shape mesh data
 				for (size_t j = 0; j < blend_indices.size(); j++) {
 					unsigned int index = blend_indices.at(j);
 					Vector3 vertex = blend_vertices.at(j);
