@@ -156,7 +156,7 @@ public:
 		return node_name.replace(":", "");
 	}
 
-	static std::string FBXAnimMeshName(const std::string& name) {
+	static std::string FBXAnimMeshName(const std::string &name) {
 		if (name.length()) {
 			size_t indexOf = name.find_first_of("::");
 			if (indexOf != std::string::npos && indexOf < name.size() - 2) {

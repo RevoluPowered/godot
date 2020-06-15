@@ -168,6 +168,8 @@ Transform PivotTransform::ComputeGlobalTransform(Vector3 p_translation, Quat p_r
 	}
 	Transform local_transform = T * Roff * Rp * Rpre * R * Rpost.affine_inverse() * Rp.affine_inverse() * Soff * Sp * S * Sp.affine_inverse();
 	//Transform local_translation_pivoted = Transform(Basis(), LocalTransform.origin);
+
+	// manual hack to force SSC not to be compensated for - until we can handle it properly with tests
 	return parent_global_xform * local_transform;
 }
 
