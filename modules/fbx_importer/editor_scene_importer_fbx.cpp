@@ -561,120 +561,120 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	// Configure constraints
 	const std::vector<uint64_t> fbx_constraints = p_document->GetConstraintStackIDs();
 
-	for (uint64_t constraint_id : fbx_constraints) {
-		Assimp::FBX::LazyObject *lazyObject = p_document->GetObject(constraint_id);
-		const Assimp::FBX::Constraint *constraint = lazyObject->Get<Assimp::FBX::Constraint>();
-
-		if (constraint != nullptr) {
-			print_verbose("[doc] FBX constraint detected");
-
-			// We are 'inverting' our search to do inverse lookup of the constraint id where it attached.
-			// todo: make ProcessDomConnections rather than singular
-			std::vector<const Assimp::FBX::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(constraint_id, "Model");
-
-			if (connections.size()) {
-				uint64_t parent_id = 0;
-				std::vector<uint64_t> children;
-				bool valid_parent = false;
-				for (const Assimp::FBX::Connection *connection : connections) {
-					if (connection->prop == "Source (Parent)") {
-						parent_id = connection->src;
-						valid_parent = true;
-					} else if (connection->prop == "Constrained object (Child)") {
-						children.push_back(connection->src);
-					}
-				}
-
-				if (valid_parent && children.size() > 0) {
-
-					bool parent_is_bone = state.fbx_bone_map.has(parent_id);
-					bool parent_is_node = state.fbx_target_map.has(parent_id);
-
-					print_error("[doc] FBX Constraint found these are banned in godot: parent: " + itos(parent_id) + " is bone " + (parent_is_bone ? "yes" : "no") + " is node " + (parent_is_node ? "yes" : "no"));
-					// We can add these later if we want, they just require a lot of work, the code below can be used for this
-					// for (uint64_t child_id : children) {
-					// 	bool child_is_bone = state.fbx_bone_map.has(child_id);
-					// 	bool child_is_node = state.fbx_target_map.has(child_id);
-					// 	print_verbose("[doc] -- child: " + itos(child_id) + " is bone " + (child_is_bone ? "yes" : "no") + " is node " + (child_is_node ? "yes" : "no"));
-
-					// 	// please note check bone list before you check node list.
-					// 	// bones are always in node list but not the other way around.
-					// 	if (!child_is_bone && !parent_is_bone) {
-
-					// 		if (parent_is_node && child_is_node) {
-					// 			Ref<FBXNode> parent = state.fbx_target_map[parent_id];
-					// 			Ref<FBXNode> child = state.fbx_target_map[child_id];
-
-					// 			print_verbose("[doc] Node to node constraint parent: " + parent->node_name + " child: " + child->node_name);
-
-					// 			if (parent.is_valid() && child.is_valid()) {
-					// 				if (child->godot_node && parent->godot_node) {
-					// 					Transform t = get_global_transform(state.root, child->godot_node);
-					// 					Transform constraint_parent_global = get_global_transform(state.root, parent->godot_node);
-					// 					Node *previous_parent_of_child = child->godot_node->get_parent();
-
-					// 					previous_parent_of_child->remove_child(child->godot_node);
-					// 					parent->godot_node->add_child(child->godot_node);
-
-					// 					// update owner for all children - otherwise children of child are invisible
-					// 					set_owner_recursive(state.root, child->godot_node);
-					// 					Transform final_matrix = constraint_parent_global.inverse() * t;
-					// 					child->godot_node->set_global_transform(final_matrix);
-					// 					print_verbose("[doc] reparenting completed, child count of children: " + itos(child->godot_node->get_child_count()));
-					// 				} else {
-					// 					print_error("[doc] invalid node instancing in godot");
-					// 				}
-
-					// 			} else {
-					// 				print_error("[doc] can't resolve invalid parent!");
-					// 			}
-					// 		}
-					// 	} else if (parent_is_bone && !child_is_bone) {
-					// 		// // // bone attachment mode
-					// 		// Ref<FBXBone> parent = state.fbx_bone_map[parent_id];
-					// 		// Ref<FBXNode> child = state.fbx_target_map[child_id];
-
-					// 		// print_verbose("[doc] Bone to node constraint parent bone: " + parent->bone_name + " child node: " + child->node_name);
-
-					// 		// if (parent.is_valid() && child.is_valid()) {
-					// 		// 	if (child->godot_node) {
-					// 		// 		Transform t = get_global_transform(state.root, child->godot_node);
-					// 		// 		Transform bone_matrix = parent->rest_pose;
-					// 		// 		//Spatial *previous_parent_of_child = Object::cast_to<Spatial>(child->godot_node->get_parent());
-
-					// 		// 		//print_verbose("t: " + t.origin + " bone matrix: " + bone_matrix + " parent: " + get_global_transform(state.root, previous_parent_of_child).origin);
-
-					// 		// 		//print_verbose("bone: " + bone_matrix.origin + ", inverse:" + bone_matrix.inverse().origin);
-					// 		// 		//print_verbose("transform: " + t.origin + ", inverse: " + t.inverse().origin);
-
-					// 		// BoneAttachment *parent_attachment = memnew(BoneAttachment);
-					// 		// 		// parent_attachment->set_bone_name(state.skeleton->get_bone_name(parent->godot_bone_id));
-					// 		// 		// state.skeleton->add_child(parent_attachment);
-					// 		// 		// parent_attachment->set_owner(state.root);
-
-					// 		// 		// previous_parent_of_child->remove_child(child->godot_node);
-					// 		// 		// parent_attachment->add_child(child->godot_node);
-
-					// 		// 		// // update owner for all children - otherwise children of child are invisible
-					// 		// 		// set_owner_recursive(state.root, child->godot_node);
-					// 		// 		// child->godot_node->set_global_transform(t);
-
-					// 		// 		print_verbose("[doc] reparenting completed, child count of children: " + itos(child->godot_node->get_child_count()));
-					// 		// 	} else {
-					// 		// 		print_error("[doc] invalid node instancing in godot");
-					// 		// 	}
-
-					// 		// } else {
-					// 		// 	print_error("[doc] can't resolve invalid parent!");
-					// 		// }
-					// 	}
-					// }
-				}
-			}
-		}
-	}
-
-	print_verbose("Constraints count: " + itos(fbx_constraints.size()));
+//	for (uint64_t constraint_id : fbx_constraints) {
+//		Assimp::FBX::LazyObject *lazyObject = p_document->GetObject(constraint_id);
+//		const Assimp::FBX::Constraint *constraint = lazyObject->Get<Assimp::FBX::Constraint>();
+//
+//		if (constraint != nullptr) {
+//			print_verbose("[doc] FBX constraint detected");
+//
+//			// We are 'inverting' our search to do inverse lookup of the constraint id where it attached.
+//			// todo: make ProcessDomConnections rather than singular
+//			std::vector<const Assimp::FBX::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(constraint_id, "Model");
+//
+//			if (connections.size()) {
+//				uint64_t parent_id = 0;
+//				std::vector<uint64_t> children;
+//				bool valid_parent = false;
+//				for (const Assimp::FBX::Connection *connection : connections) {
+//					if (connection->prop == "Source (Parent)") {
+//						parent_id = connection->src;
+//						valid_parent = true;
+//					} else if (connection->prop == "Constrained object (Child)") {
+//						children.push_back(connection->src);
+//					}
+//				}
+//
+//				if (valid_parent && children.size() > 0) {
+//
+//					bool parent_is_bone = state.fbx_bone_map.has(parent_id);
+//					bool parent_is_node = state.fbx_target_map.has(parent_id);
+//
+//					print_error("[doc] FBX Constraint found these are banned in godot: parent: " + itos(parent_id) + " is bone " + (parent_is_bone ? "yes" : "no") + " is node " + (parent_is_node ? "yes" : "no"));
+//					// We can add these later if we want, they just require a lot of work, the code below can be used for this
+//					// for (uint64_t child_id : children) {
+//					// 	bool child_is_bone = state.fbx_bone_map.has(child_id);
+//					// 	bool child_is_node = state.fbx_target_map.has(child_id);
+//					// 	print_verbose("[doc] -- child: " + itos(child_id) + " is bone " + (child_is_bone ? "yes" : "no") + " is node " + (child_is_node ? "yes" : "no"));
+//
+//					// 	// please note check bone list before you check node list.
+//					// 	// bones are always in node list but not the other way around.
+//					// 	if (!child_is_bone && !parent_is_bone) {
+//
+//					// 		if (parent_is_node && child_is_node) {
+//					// 			Ref<FBXNode> parent = state.fbx_target_map[parent_id];
+//					// 			Ref<FBXNode> child = state.fbx_target_map[child_id];
+//
+//					// 			print_verbose("[doc] Node to node constraint parent: " + parent->node_name + " child: " + child->node_name);
+//
+//					// 			if (parent.is_valid() && child.is_valid()) {
+//					// 				if (child->godot_node && parent->godot_node) {
+//					// 					Transform t = get_global_transform(state.root, child->godot_node);
+//					// 					Transform constraint_parent_global = get_global_transform(state.root, parent->godot_node);
+//					// 					Node *previous_parent_of_child = child->godot_node->get_parent();
+//
+//					// 					previous_parent_of_child->remove_child(child->godot_node);
+//					// 					parent->godot_node->add_child(child->godot_node);
+//
+//					// 					// update owner for all children - otherwise children of child are invisible
+//					// 					set_owner_recursive(state.root, child->godot_node);
+//					// 					Transform final_matrix = constraint_parent_global.inverse() * t;
+//					// 					child->godot_node->set_global_transform(final_matrix);
+//					// 					print_verbose("[doc] reparenting completed, child count of children: " + itos(child->godot_node->get_child_count()));
+//					// 				} else {
+//					// 					print_error("[doc] invalid node instancing in godot");
+//					// 				}
+//
+//					// 			} else {
+//					// 				print_error("[doc] can't resolve invalid parent!");
+//					// 			}
+//					// 		}
+//					// 	} else if (parent_is_bone && !child_is_bone) {
+//					// 		// // // bone attachment mode
+//					// 		// Ref<FBXBone> parent = state.fbx_bone_map[parent_id];
+//					// 		// Ref<FBXNode> child = state.fbx_target_map[child_id];
+//
+//					// 		// print_verbose("[doc] Bone to node constraint parent bone: " + parent->bone_name + " child node: " + child->node_name);
+//
+//					// 		// if (parent.is_valid() && child.is_valid()) {
+//					// 		// 	if (child->godot_node) {
+//					// 		// 		Transform t = get_global_transform(state.root, child->godot_node);
+//					// 		// 		Transform bone_matrix = parent->rest_pose;
+//					// 		// 		//Spatial *previous_parent_of_child = Object::cast_to<Spatial>(child->godot_node->get_parent());
+//
+//					// 		// 		//print_verbose("t: " + t.origin + " bone matrix: " + bone_matrix + " parent: " + get_global_transform(state.root, previous_parent_of_child).origin);
+//
+//					// 		// 		//print_verbose("bone: " + bone_matrix.origin + ", inverse:" + bone_matrix.inverse().origin);
+//					// 		// 		//print_verbose("transform: " + t.origin + ", inverse: " + t.inverse().origin);
+//
+//					// 		// BoneAttachment *parent_attachment = memnew(BoneAttachment);
+//					// 		// 		// parent_attachment->set_bone_name(state.skeleton->get_bone_name(parent->godot_bone_id));
+//					// 		// 		// state.skeleton->add_child(parent_attachment);
+//					// 		// 		// parent_attachment->set_owner(state.root);
+//
+//					// 		// 		// previous_parent_of_child->remove_child(child->godot_node);
+//					// 		// 		// parent_attachment->add_child(child->godot_node);
+//
+//					// 		// 		// // update owner for all children - otherwise children of child are invisible
+//					// 		// 		// set_owner_recursive(state.root, child->godot_node);
+//					// 		// 		// child->godot_node->set_global_transform(t);
+//
+//					// 		// 		print_verbose("[doc] reparenting completed, child count of children: " + itos(child->godot_node->get_child_count()));
+//					// 		// 	} else {
+//					// 		// 		print_error("[doc] invalid node instancing in godot");
+//					// 		// 	}
+//
+//					// 		// } else {
+//					// 		// 	print_error("[doc] can't resolve invalid parent!");
+//					// 		// }
+//					// 	}
+//					// }
+//				}
+//			}
+//		}
+//	}
+//
+//	//print_verbose("Constraints count: " + itos(fbx_constraints.size()));
 
 	// get the animation FPS
 	float fps_setting = ImportUtils::get_fbx_fps(FBXSettings);

@@ -213,6 +213,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				blend_shape_vertexes_for_godot.resize(blend_vertex_count);
 				blend_shape_normals_for_godot.resize(blend_vertex_count);
 
+
+				int vertex_id = 0;
 				// blend shape mesh data
 				for (size_t j = 0; j < blend_indices.size(); j++) {
 					unsigned int index = blend_indices.at(j);
@@ -223,8 +225,9 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 					mesh_geometry->ToOutputVertexIndex(index, count);
 					for (unsigned int k = 0; k < count; k++) {
 						// allocate vertexes and normals
-						blend_shape_vertexes_for_godot[index] += vertex;
-						blend_shape_normals_for_godot[index] = normal;
+						blend_shape_vertexes_for_godot[vertex_id] = vertex;
+						blend_shape_normals_for_godot[vertex_id] = normal;
+						vertex_id++;
 					}
 				}
 
