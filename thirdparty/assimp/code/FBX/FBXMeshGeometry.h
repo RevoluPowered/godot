@@ -70,6 +70,11 @@ public:
 	/** Get the BlendShape attached to this geometry or NULL */
 	const std::vector<const BlendShape *> &GetBlendShapes() const;
 
+	size_t BlendShapeCount() const
+	{
+		return blendShapes.size();
+	}
+
 private:
 	const Skin *skin;
 	std::vector<const BlendShape *> blendShapes;

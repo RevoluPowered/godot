@@ -165,6 +165,82 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		}
 	}
 
+	Array morphs;
+	morphs.resize(mesh_geometry->BlendShapeCount());
+
+	for (const Assimp::FBX::BlendShape* blendShape : mesh_geometry->GetBlendShapes()) {
+		for (const Assimp::FBX::BlendShapeChannel* blendShapeChannel : blendShape->BlendShapeChannels()) {
+			const std::vector<const Assimp::FBX::ShapeGeometry*>& shapeGeometries = blendShapeChannel->GetShapeGeometries();
+			for (size_t i = 0; i < shapeGeometries.size(); i++) {
+				const Assimp::FBX::ShapeGeometry* shapeGeometry = shapeGeometries.at(i);
+				const std::vector<Vector3>& blend_vertices = shapeGeometry->GetVertices();
+				const std::vector<Vector3>& blend_normals = shapeGeometry->GetNormals();
+				const std::vector<unsigned int>& blend_indices = shapeGeometry->GetIndices();
+
+				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
+				print_verbose("blend shape mesh name: " + anim_mesh_name);
+
+				// empty shape name should still work
+				if (anim_mesh_name.empty()) {
+					anim_mesh_name = String("morph_") + itos(i);
+				}
+
+				// godot register blend shape.
+				mesh->add_blend_shape(anim_mesh_name);
+
+
+				int blend_vertex_count = 0;
+
+				// blend shape mesh data
+				// note: we can optimise this later, by migrating it to FBXSplitByFaceMapping
+				// this will mean less vertexes are in existence
+				for (size_t j = 0; j < blend_indices.size(); j++) {
+					unsigned int index = blend_indices.at(j);
+					unsigned int face_vertex_count = 0;
+					const unsigned int* indices = mesh_geometry->ToOutputVertexIndex(index, face_vertex_count);
+					for (unsigned int k = 0; k < face_vertex_count; k++) {
+						unsigned int index_v = indices[k];
+						blend_vertex_count++; // increment the count of the vertexes found.
+						// we are de-indexing them, to make this mesh just work in godot so we don't have to use
+						// fbx split by face surface mapping etc.
+					}
+				}
+
+				PoolVector3Array blend_shape_vertexes_for_godot, blend_shape_normals_for_godot;
+				print_verbose("[fbx:blend shape] de-indexed vertex count: " + blend_vertex_count);
+				blend_shape_vertexes_for_godot.resize(blend_vertex_count);
+				blend_shape_normals_for_godot.resize(blend_vertex_count);
+
+
+				// blend shape mesh data
+				for (size_t j = 0; j < blend_indices.size(); j++) {
+					unsigned int index = blend_indices.at(j);
+					Vector3 vertex = blend_vertices.at(j);
+					Vector3 normal = blend_normals.at(j);
+					unsigned int count = 0;
+					const unsigned int* outIndices = mesh_geometry->ToOutputVertexIndex(index, count);
+					for (unsigned int k = 0; k < count; k++) {
+						// allocate vertexes and normals
+						blend_shape_vertexes_for_godot[index] += vertex;
+						blend_shape_normals_for_godot[index] = normal;
+					}
+				}
+
+				float blend_shape_weight = shapeGeometries.size() > 1 ? blendShapeChannel->DeformPercent() / 100.0f : 1.0;
+
+				// create the blend shape mesh
+				Array blend_shape_mesh = Array();
+				blend_shape_mesh.resize(VisualServer::ARRAY_MAX);
+				blend_shape_mesh[Mesh::ARRAY_INDEX] = Variant();
+				blend_shape_mesh[VisualServer::ARRAY_VERTEX] = blend_shape_vertexes_for_godot;
+				blend_shape_mesh[VisualServer::ARRAY_NORMAL] = blend_shape_normals_for_godot;
+
+				// index the blend shape in the array for the blend shapes
+				morphs[i] = blend_shape_mesh;
+			}
+		}
+	}
+
 	print_verbose("[vertex count for mesh] " + itos(vertices.size()));
 
 	// triangles surface for triangles
@@ -261,50 +337,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	}
 
 
-	for (const Assimp::FBX::BlendShape* blendShape : mesh_geometry->GetBlendShapes()) {
-		for (const Assimp::FBX::BlendShapeChannel* blendShapeChannel : blendShape->BlendShapeChannels()) {
-			const std::vector<const Assimp::FBX::ShapeGeometry*>& shapeGeometries = blendShapeChannel->GetShapeGeometries();
-			for (size_t i = 0; i < shapeGeometries.size(); i++) {
-				const Assimp::FBX::ShapeGeometry* shapeGeometry = shapeGeometries.at(i);
-				const std::vector<Vector3>& blend_vertices = shapeGeometry->GetVertices();
-				const std::vector<Vector3>& blend_normals = shapeGeometry->GetNormals();
-				const std::vector<unsigned int>& blend_indices = shapeGeometry->GetIndices();
 
-				// blend shape name =
-				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
-				print_verbose("blend shape mesh name: " + anim_mesh_name);
-
-				// empty shape name should still work
-				if (anim_mesh_name.empty()) {
-					anim_mesh_name = String("morph_") + itos(i);
-				}
-
-				// godot register blend shape.
-				mesh->add_blend_shape(anim_mesh_name);
-
-
-				// blend shape mesh data
-				for (size_t j = 0; j < blend_indices.size(); j++) {
-					unsigned int index = blend_indices.at(j);
-					Vector3 vertex = blend_vertices.at(j);
-					Vector3 normal = blend_normals.at(j);
-					unsigned int count = 0;
-					const unsigned int* outIndices = mesh_geometry->ToOutputVertexIndex(index, count);
-					for (unsigned int k = 0; k < count; k++) {
-						unsigned int index_v = outIndices[k];
-						//print_verbose("index: " + itos(index_v) + ", normal: " + normal + " vertex " + vertex);
-						/*animMesh->mVertices[index] += vertex;
-						if (animMesh->mNormals != nullptr) {
-							animMesh->mNormals[index] += normal;
-							animMesh->mNormals[index].NormalizeSafe();
-						}*/
-					}
-				}
-//				animMesh->mWeight = shapeGeometries.size() > 1 ? blendShapeChannel->DeformPercent() / 100.0f : 1.0f;
-//				animMeshes.push_back(animMesh);
-			}
-		}
-	}
 
 	// Ref<SpatialMaterial> material;
 	// material.instance();
