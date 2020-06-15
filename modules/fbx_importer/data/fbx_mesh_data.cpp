@@ -75,6 +75,7 @@ void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<fl
 		}
 	}
 }
+
 MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
 
 	print_verbose("[doc] FBX creating godot mesh for: " + ImportUtils::FBXNodeToName(model->Name()));
@@ -254,29 +255,45 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		}
 	}
 
+	// let's generate tangents for now.
 	if (normals.size() > 0) {
 		st->generate_tangents();
 	}
-	// const std::vector<uint32_t> &face_primitives = mesh_geometry->GetFaceIndexCounts();
 
-	// uint32_t cursor;
-	// for (uint32_t indice_count : face_primitives) {
-	// 	if (indice_count == 1) {
-	// 		st->add_index(0 + cursor);
-	// 		cursor++;
-	// 	} else if (indice_count == 2) {
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(1 + cursor);
-	// 		cursor += 2;
-	// 	} else if (indice_count == 3) {
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(0 + cursor);
-	// 		st->add_index(3 + cursor);
-	// 		st->add_index(2 + cursor);
 
-	// 		cursor += 6;
-	// 	}
-	// }
+	for (const Assimp::FBX::BlendShape* blendShape : mesh_geometry->GetBlendShapes()) {
+		for (const Assimp::FBX::BlendShapeChannel* blendShapeChannel : blendShape->BlendShapeChannels()) {
+			const std::vector<const Assimp::FBX::ShapeGeometry*>& shapeGeometries = blendShapeChannel->GetShapeGeometries();
+			for (size_t i = 0; i < shapeGeometries.size(); i++) {
+				const Assimp::FBX::ShapeGeometry* shapeGeometry = shapeGeometries.at(i);
+				const std::vector<Vector3>& blend_vertices = shapeGeometry->GetVertices();
+				const std::vector<Vector3>& blend_normals = shapeGeometry->GetNormals();
+				const std::vector<unsigned int>& blend_indices = shapeGeometry->GetIndices();
+
+				// blend shape name =
+				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
+				print_verbose("blend shape mesh name: " + anim_mesh_name);
+				for (size_t j = 0; j < blend_indices.size(); j++) {
+					unsigned int index = blend_indices.at(j);
+					Vector3 vertex = blend_vertices.at(j);
+					Vector3 normal = blend_normals.at(j);
+					unsigned int count = 0;
+					const unsigned int* outIndices = mesh_geometry->ToOutputVertexIndex(index, count);
+					for (unsigned int k = 0; k < count; k++) {
+						unsigned int index_v = outIndices[k];
+						//print_verbose("index: " + itos(index_v) + ", normal: " + normal + " vertex " + vertex);
+						/*animMesh->mVertices[index] += vertex;
+						if (animMesh->mNormals != nullptr) {
+							animMesh->mNormals[index] += normal;
+							animMesh->mNormals[index].NormalizeSafe();
+						}*/
+					}
+				}
+//				animMesh->mWeight = shapeGeometries.size() > 1 ? blendShapeChannel->DeformPercent() / 100.0f : 1.0f;
+//				animMeshes.push_back(animMesh);
+			}
+		}
+	}
 
 	// Ref<SpatialMaterial> material;
 	// material.instance();

@@ -153,6 +153,16 @@ public:
 		return node_name.replace(":", "");
 	}
 
+	static std::string FBXAnimMeshName(const std::string& name) {
+		if (name.length()) {
+			size_t indexOf = name.find_first_of("::");
+			if (indexOf != std::string::npos && indexOf < name.size() - 2) {
+				return name.substr(indexOf + 2);
+			}
+		}
+		return name.length() ? name : "AnimMesh";
+	}
+
 	static Vector3 safe_import_vector3(const Vector3 &p_vec) {
 		Vector3 vector = p_vec;
 		if (Math::is_equal_approx(0, vector.x)) {
