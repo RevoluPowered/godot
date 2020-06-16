@@ -225,6 +225,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				blend_shape_normals_for_godot.resize(blend_vertex_count);
 
 				int vertex_id = 0;
+				PoolVector<Vector3>::Write vertex_writer = blend_shape_vertexes_for_godot.write();
+				PoolVector<Vector3>::Write normal_writer = blend_shape_normals_for_godot.write();
 				// blend shape mesh data
 				for (size_t j = 0; j < blend_indices.size(); j++) {
 					unsigned int index = blend_indices.at(j);
@@ -235,19 +237,19 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 					mesh_geometry->ToOutputVertexIndex(index, count);
 					for (unsigned int k = 0; k < count; k++) {
 						// allocate vertexes and normals
-						blend_shape_vertexes_for_godot[vertex_id] = vertex;
-						blend_shape_normals_for_godot[vertex_id] = normal;
+						vertex_writer[vertex_id] = vertex;
+						normal_writer[vertex_id] = normal;
+						print_verbose("vertex id: " + itos(vertex_id) + " vertex: " + vertex + " normal: " + normal);
 						vertex_id++;
 					}
 				}
 
 				// this is for animations really.
 				//float blend_shape_weight = shapeGeometries.size() > 1 ? blendShapeChannel->DeformPercent() / 100.0f : 1.0;
-
 				// create the blend shape mesh
 				Array blend_shape_mesh = Array();
 				blend_shape_mesh.resize(VisualServer::ARRAY_MAX);
-				//blend_shape_mesh[Mesh::ARRAY_INDEX] = Variant(); // nope
+				blend_shape_mesh[Mesh::ARRAY_INDEX] = Variant(); // nope
 				//blend_shape_mesh[Mesh::ARRAY_COLOR] = Variant(); // nope
 				blend_shape_mesh[VisualServer::ARRAY_VERTEX] = blend_shape_vertexes_for_godot;
 				blend_shape_mesh[VisualServer::ARRAY_NORMAL] = blend_shape_normals_for_godot;
