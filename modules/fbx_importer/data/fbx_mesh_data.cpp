@@ -167,18 +167,12 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	print_verbose("[vertex count for mesh] " + itos(vertices.size()));
 
-	Array morphs;
-	morphs.resize(mesh_geometry->BlendShapeCount());
-
+	int blend_shape_count = 0;
 	for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
 		for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
 			const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
 			for (size_t i = 0; i < shapeGeometries.size(); i++) {
 				const Assimp::FBX::ShapeGeometry *shapeGeometry = shapeGeometries.at(i);
-				const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
-				const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
-				const std::vector<unsigned int> &blend_indices = shapeGeometry->GetIndices();
-
 				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
 				print_verbose("blend shape mesh name: " + anim_mesh_name);
 
@@ -189,9 +183,26 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 				// godot register blend shape.
 				mesh->add_blend_shape(anim_mesh_name);
+				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+				blend_shape_count++;
+			}
+		}
+	}
+
+	Array morphs = Array();
+	print_verbose("blend shape count: " + itos(blend_shape_count));
+	morphs.resize(blend_shape_count);
+
+	for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
+		for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
+			const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
+			for (size_t i = 0; i < shapeGeometries.size(); i++) {
+				const Assimp::FBX::ShapeGeometry *shapeGeometry = shapeGeometries.at(i);
+				const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
+				const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
+				const std::vector<unsigned int> &blend_indices = shapeGeometry->GetIndices();
 
 				int blend_vertex_count = 0;
-
 				// blend shape mesh data
 				// note: we can optimise this later, by migrating it to FBXSplitByFaceMapping
 				// this will mean less vertexes are in existence
@@ -236,8 +247,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				// create the blend shape mesh
 				Array blend_shape_mesh = Array();
 				blend_shape_mesh.resize(VisualServer::ARRAY_MAX);
-				blend_shape_mesh[Mesh::ARRAY_INDEX] = Variant(); // nope
-				blend_shape_mesh[Mesh::ARRAY_COLOR] = Variant(); // nope
+				//blend_shape_mesh[Mesh::ARRAY_INDEX] = Variant(); // nope
+				//blend_shape_mesh[Mesh::ARRAY_COLOR] = Variant(); // nope
 				blend_shape_mesh[VisualServer::ARRAY_VERTEX] = blend_shape_vertexes_for_godot;
 				blend_shape_mesh[VisualServer::ARRAY_NORMAL] = blend_shape_normals_for_godot;
 
@@ -246,6 +257,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			}
 		}
 	}
+
 
 	// triangles surface for triangles
 	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
@@ -273,7 +285,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			Array triangle_mesh = st->commit_to_arrays();
 			triangle_mesh.resize(VS::ARRAY_MAX);
 
-			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, Array());
+			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
 		}
 
 		if (surface_split_by_material_primitive[material].has(4)) {
@@ -335,7 +347,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	// let's generate tangents for now.
 	if (normals.size() > 0) {
-		st->generate_tangents();
+		//st->generate_tangents();
 	}
 
 	// Ref<SpatialMaterial> material;
