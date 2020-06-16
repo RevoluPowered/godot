@@ -61,7 +61,8 @@ struct FBXMeshData;
 struct FBXBone;
 
 struct FBXSplitBySurfaceVertexMapping {
-	Vector<size_t> vertex_id = Vector<size_t>();
+	// Original Mesh Data
+	Map<size_t, Vector3> vertex_with_id = Map<size_t, Vector3>();
 	Vector<Vector2> uv_0, uv_1 = Vector<Vector2>();
 	Vector<Vector3> normals = Vector<Vector3>();
 	Vector<Color> colors = Vector<Color>();

@@ -96,21 +96,31 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		print_error("no material is configured for mesh " + ImportUtils::FBXNodeToName(model->Name()));
 	}
 
-	std::vector<Vector3> vertices = mesh_geometry->GetVertices();
-	ImportUtils::AlignMeshAxes(vertices);
 	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
 
 	// godot has two uv coordinate channels
 	const std::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
 	const std::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
-	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
 	const std::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
+	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
 
 	// material id, primitive_type(triangles,lines, points etc), SurfaceData
 	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
+	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping>> surface_blend_shapes;
 
-	// we need to map faces back to vertexes
+	// Blend shapes in FBX
+	// copy the entire mesh
+	// match all the vertexes
+	// match all normals to the 'index' in the ShapeGeometry from the blend shape
+	// each blend shape is a clone of the original mesh
+	// then the mesh is overwritten at indexes to provide a BLENDED SHAPE.
+	// this means the core/root mesh is read
+	// then after we copy and clone it, and apply the offsets
+
 	{
+		// data is split up
+		std::vector<Vector3> vertices = mesh_geometry->GetVertices();
+
 		// Map Reduce Algorithm
 		// The problem: reduce face primitives and also reduce material indices without duplicating vertexes :D
 		// vertex count (1,2,3,4, etc), FBX Surface Data (uvs and indices for faces...)
@@ -140,7 +150,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				}
 
 				FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material_id][vertex_count];
-				mapping.vertex_id.push_back(cursor);
+				mapping.vertex_with_id[cursor] = vertices[cursor];
 
 				// ensure we aren't outside available indexes, some will be
 				if (cursor < uv_coordinates_0.size()) {
@@ -163,9 +173,62 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				// each surface split is a mesh
 			}
 		}
+
+		// Process Blend shapes.
+		// algorithm
+		// read existing mesh data
+		// import blend shape classes
+		// check for valid blend shapes
+		// copy entire mesh
+		// update vertexes based on index in the vertex array
+		// apply same to normal data
+		// this means i can render the same as other methods
+		if(mesh_geometry->BlendShapeCount() > 0) {
+			for (Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> >::Element *material_mesh = surface_split_by_material_primitive.front(); material_mesh; material_mesh = material_mesh->next()) {
+				for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_primitive = material_mesh->value().front(); mesh_primitive; mesh_primitive = mesh_primitive->next()) {
+
+					// Now map reduce in the blend shapes
+					for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
+						for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
+							const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
+
+							for (const Assimp::FBX::ShapeGeometry *shapeGeometry : shapeGeometries) {
+								const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
+								const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
+								const std::vector<unsigned int> &vertex_index = shapeGeometry->GetIndices();
+
+								// intentionally copy entire mesh :O
+								int material_id = material_mesh->key();
+								FBXSplitBySurfaceVertexMapping blend_shape_mesh_copy = mesh_primitive->value();
+								uint32_t primitive_type = mesh_primitive->key();
+
+								// now update our copy with the new data from the blend shape
+								// as FBX blend shapes are just mesh diff's with the index being the vertex ID not the indice.
+								int idx = 0;
+								for(unsigned int id : vertex_index) {
+									// id is the cursor
+									if (blend_shape_mesh_copy.vertex_with_id.has(id)) {
+										// update the copy of the mesh with the blend shape data
+										blend_shape_mesh_copy.normals.set(id, blend_normals[idx]);
+										// Actual blending - rewrite the same ID with the correct vertex position
+										blend_shape_mesh_copy.vertex_with_id[id] = blend_vertices[idx];
+										idx++;
+									}
+								}
+
+								// make it a real thing
+								surface_blend_shapes[material_id][primitive_type] = blend_shape_mesh_copy;
+							}
+						}
+					}
+				}
+			}
+		}
+
+
 	}
 
-	print_verbose("[vertex count for mesh] " + itos(vertices.size()));
+	//print_verbose("[vertex count for mesh] " + itos(vertices.size()));
 
 	int blend_shape_count = 0;
 	for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
@@ -220,7 +283,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				}
 
 				PoolVector3Array blend_shape_vertexes_for_godot, blend_shape_normals_for_godot;
-				print_verbose("[fbx:blend shape] de-indexed vertex count: " + itos(blend_vertex_count));
+				//print_verbose("[fbx:blend shape] de-indexed vertex count: " + itos(blend_vertex_count));
 				blend_shape_vertexes_for_godot.resize(blend_vertex_count);
 				blend_shape_normals_for_godot.resize(blend_vertex_count);
 
@@ -239,7 +302,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 						// allocate vertexes and normals
 						vertex_writer[vertex_id] = vertex;
 						normal_writer[vertex_id] = normal;
-						print_verbose("vertex id: " + itos(vertex_id) + " vertex: " + vertex + " normal: " + normal);
+						print_verbose("vertex id: " + itos(vertex_id) +"i: " + itos(i)+ " vertex: " + vertex + " normal: " + normal);
 						vertex_id++;
 					}
 				}
@@ -265,17 +328,17 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
 		if (surface_split_by_material_primitive[material].has(3)) {
 			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][3];
-			Vector<size_t> &mesh_vertex_ids = mapping.vertex_id;
-			//Vector<size_t> &vertex_weight_mapping = mapping.vertex_weight_id;
+			Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
 			st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 			// stream in vertexes
-			for (int x = 0; x < mesh_vertex_ids.size(); x++) {
-				size_t vertex_id = mapping.vertex_id[x];
+			for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
+			{
+				const Vector3 vertex = vertex_element->value();
+				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
 				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-
 				mapping.GenerateSurfaceMaterial(st, vertex_id);
-				st->add_vertex(vertices[vertex_id]);
+				st->add_vertex(vertex);
 			}
 
 			for (int x = 0; x < mesh_vertex_ids.size(); x += 3) {
@@ -292,19 +355,17 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 		if (surface_split_by_material_primitive[material].has(4)) {
 			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][4];
-			Vector<size_t> &mesh_vertex_ids = mapping.vertex_id;
-
-			print_verbose("quads: " + itos(mesh_vertex_ids.size()));
+			Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
 			st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 			// stream in vertexes
-			for (int x = 0; x < mesh_vertex_ids.size(); x++) {
-				size_t vertex_id = mesh_vertex_ids[x];
+			for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
+			{
+				const Vector3 vertex = vertex_element->value();
+				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
 				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-
 				mapping.GenerateSurfaceMaterial(st, vertex_id);
-				//print_verbose("vert: " + quads[x]);
-				st->add_vertex(vertices[vertex_id]);
+				st->add_vertex(vertex);
 			}
 
 			//int cursor = 0;
