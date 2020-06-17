@@ -268,8 +268,12 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	print_verbose("blend shape count: " + itos(blend_shape_count));
 
 	// triangles surface for triangles
+
+	// basically a mesh is split by triangles, quads, lines and then by material. Godot requires this
 	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
-		if (surface_split_by_material_primitive[material].has(3)) {
+		for( Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_with_face_vertex_count = surface_split_by_material_primitive[material].front(); mesh_with_face_vertex_count; mesh_with_face_vertex_count=mesh_with_face_vertex_count->next())
+		{
+			const uint32_t face_vertex_count = mesh_with_face_vertex_count->key();
 
 			Array morphs = Array();
 
@@ -277,8 +281,9 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			// Blend shape grabber
 			//
 			if (surface_blend_shapes.has(material)) {
-				if (surface_blend_shapes[material].has(3)) {
-					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][3];
+				if (surface_blend_shapes[material].has(face_vertex_count)) {
+					// we must grab the blend shape based on the other array not the current one since it's another mesh we created
+					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][face_vertex_count];
 					for (int m = 0; m < mappings.size(); m += 1) {
 						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
 						st->begin(Mesh::PRIMITIVE_TRIANGLES);
@@ -298,11 +303,11 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				}
 			}
 
-			//
-			// Ordinary mesh handler
-			//
-			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][3];
-			Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
+			// Ordinary mesh handler - handles triangles, points, lines and quads.
+			// converts points, lines, quads to triangles
+			// indices are generated for triangles too.
+
+			const FBXSplitBySurfaceVertexMapping &mapping = mesh_with_face_vertex_count->value();
 			st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 			// stream in vertexes
@@ -314,105 +319,19 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				st->add_vertex(vertex);
 			}
 
-			for (int x = 0; x < mesh_vertex_ids.size(); x += 3) {
-				st->add_index(x + 2);
-				st->add_index(x + 1);
-				st->add_index(x);
+			// generate indices - doesn't really matter much.
+			mapping.GenerateIndices(st, face_vertex_count);
+			Array mesh_committed = st->commit_to_arrays();
+
+			// generate tangents
+			if (mapping.normals.size() > 0) {
+				st->generate_tangents();
 			}
 
-			Array triangle_mesh = st->commit_to_arrays();
-
-			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
-		}
-
-		if (surface_split_by_material_primitive[material].has(4)) {
-
-			Array morphs = Array();
-
-			//
-			// Blend shape grabber
-			//
-			if (surface_blend_shapes.has(material)) {
-				if (surface_blend_shapes[material].has(4)) {
-					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][4];
-					for (int m = 0; m < mappings.size(); m += 1) {
-						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
-						st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-						// Stream in vertexes.
-						// Note: The blend shape doesn't need the indices
-						for (const Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
-							const Vector3 vertex = vertex_element->value();
-							size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-							GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-							mapping.GenerateSurfaceMaterial(st, vertex_id);
-							st->add_vertex(vertex);
-						}
-
-						morphs.push_back(st->commit_to_arrays());
-					}
-				}
-			}
-
-			//
-			// Ordinary mesh handler
-			//
-			FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material][4];
-			Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
-			st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-			// stream in vertexes
-			for (Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
-				const Vector3 vertex = vertex_element->value();
-				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-				mapping.GenerateSurfaceMaterial(st, vertex_id);
-				st->add_vertex(vertex);
-			}
-
-			//int cursor = 0;
-			for (int x = 0; x < mesh_vertex_ids.size(); x += 4) {
-				// complete first side of triangle
-				st->add_index(x + 2);
-				st->add_index(x + 1);
-				st->add_index(x);
-
-				// complete second side of triangle
-
-				// top right
-				// bottom right
-				// top left
-
-				// first triangle is
-				// (x+2), (x+1), (x)
-				// second triangle is
-				// (x+2), (x), (x+3)
-
-				st->add_index(x + 2);
-				st->add_index(x);
-				st->add_index(x + 3);
-
-				// anti clockwise rotation in indices
-				// note had to reverse right from left here
-				// [0](x) bottom right (-1,-1)
-				// [1](x+1) bottom left (1,-1)
-				// [2](x+2) top left (1,1)
-				// [3](x+3) top right (-1,1)
-
-				// we have 4 points
-				// we have 2 triangles
-				// we have CCW
-			}
-
-			Array triangle_mesh = st->commit_to_arrays();
-			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
+			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, mesh_committed, morphs);
 		}
 	}
 
-	// let's generate tangents for now.
-	if (normals.size() > 0) {
-		//st->generate_tangents();
-	}
 
 	// Ref<SpatialMaterial> material;
 	// material.instance();

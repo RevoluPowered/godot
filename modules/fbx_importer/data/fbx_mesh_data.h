@@ -114,6 +114,74 @@ struct FBXSplitBySurfaceVertexMapping {
 		return Vector2();
 	}
 
+	void GenerateIndices(Ref<SurfaceTool> st, uint32_t mesh_face_count ) const
+	{
+		switch(mesh_face_count) {
+			case 1: // todo: validate this
+				for (int x = 0; x < vertex_with_id.size(); x += 1) {
+					st->add_index(x);
+					st->add_index(x);
+					st->add_index(x);
+				}
+				break;
+			case 2: // todo: validate this
+				for (int x = 0; x < vertex_with_id.size(); x += 2) {
+					st->add_index(x + 1);
+					st->add_index(x + 1);
+					st->add_index(x);
+				}
+				break;
+			case 3: {
+				// triangle only
+				for (int x = 0; x < vertex_with_id.size(); x += 3) {
+					st->add_index(x + 2);
+					st->add_index(x + 1);
+					st->add_index(x);
+				}
+			} break;
+			case 4: {
+				// quad conversion to triangle
+				for (int x = 0; x < vertex_with_id.size(); x += 4) {
+					// complete first side of triangle
+					st->add_index(x + 2);
+					st->add_index(x + 1);
+					st->add_index(x);
+
+					// complete second side of triangle
+
+					// top right
+					// bottom right
+					// top left
+
+					// first triangle is
+					// (x+2), (x+1), (x)
+					// second triangle is
+					// (x+2), (x), (x+3)
+
+					st->add_index(x + 2);
+					st->add_index(x);
+					st->add_index(x + 3);
+
+					// anti clockwise rotation in indices
+					// note had to reverse right from left here
+					// [0](x) bottom right (-1,-1)
+					// [1](x+1) bottom left (1,-1)
+					// [2](x+2) top left (1,1)
+					// [3](x+3) top right (-1,1)
+
+					// we have 4 points
+					// we have 2 triangles
+					// we have CCW
+				}
+			} break;
+			default:
+				print_error("number is not implemented!");
+				break;
+		}
+
+
+	}
+
 	void GenerateSurfaceMaterial(Ref<SurfaceTool> st, size_t vertex_id) const {
 		bool uv_0 = false;
 		bool uv_1 = false;
