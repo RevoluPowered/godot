@@ -300,6 +300,11 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 							st->add_vertex(vertex);
 						}
 
+						// generate tangents
+						if (mapping.normals.size() > 0) {
+							st->generate_tangents();
+						}
+
 						morphs.push_back(st->commit_to_arrays());
 					}
 				}
