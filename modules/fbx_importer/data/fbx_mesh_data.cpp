@@ -323,12 +323,13 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 			// generate indices - doesn't really matter much.
 			mapping.GenerateIndices(st, face_vertex_count);
-			Array mesh_committed = st->commit_to_arrays();
 
 			// generate tangents
 			if (mapping.normals.size() > 0) {
 				st->generate_tangents();
 			}
+
+			Array mesh_committed = st->commit_to_arrays();
 
 			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, mesh_committed, morphs);
 		}
