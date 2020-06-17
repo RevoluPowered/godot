@@ -85,6 +85,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
+	// TODO why use a Ref?
 	Ref<SurfaceTool> st;
 	st.instance();
 
@@ -106,7 +107,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	// material id, primitive_type(triangles,lines, points etc), SurfaceData
 	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
-	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping>> surface_blend_shapes;
+	Map<int, Map<uint32_t, Vector<FBXSplitBySurfaceVertexMapping> > > surface_blend_shapes;
 
 	// Blend shapes in FBX
 	// copy the entire mesh
@@ -183,7 +184,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		// update vertexes based on index in the vertex array
 		// apply same to normal data
 		// this means i can render the same as other methods
-		if(mesh_geometry->BlendShapeCount() > 0) {
+		if (mesh_geometry->BlendShapeCount() > 0) {
 			for (Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> >::Element *material_mesh = surface_split_by_material_primitive.front(); material_mesh; material_mesh = material_mesh->next()) {
 				for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_primitive = material_mesh->value().front(); mesh_primitive; mesh_primitive = mesh_primitive->next()) {
 
@@ -205,44 +206,39 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 								// now update our copy with the new data from the blend shape
 								// as FBX blend shapes are just mesh diff's with the index being the vertex ID not the indice.
 								int idx = 0;
-								for(unsigned int id : vertex_index) {
+								for (unsigned int id : vertex_index) {
 									// id is the cursor
 									if (blend_shape_mesh_copy.vertex_with_id.has(id)) {
 										// Actual blending - rewrite the same ID with the correct vertex position
 										blend_shape_mesh_copy.vertex_with_id[id] = blend_vertices[idx];
 
 										int counted_position = -1;
-										for(Map<size_t,Vector3>::Element * vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex=vertex->next())
-										{
+										for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
 											counted_position++;
-											if(vertex->key() == id)
-											{
+											if (vertex->key() == id) {
 												print_verbose("found valid vertex count for mesh vertex key");
 												break;
 											}
 										}
 
-										if(counted_position == -1)
-										{
+										if (counted_position == -1) {
 											print_error("invalid position for normal...");
 										}
 										// update copy of normals with correct blend shape values.
 										blend_shape_mesh_copy.normals.set(counted_position, blend_normals[idx]);
-										print_verbose("[success] mesh updated and cursor has valid match for " + itos(id) );
+										print_verbose("[success] mesh updated and cursor has valid match for " + itos(id));
 										idx++;
 									}
 								}
 
 								// make it a real thing
-								surface_blend_shapes[material_id][primitive_type] = blend_shape_mesh_copy;
+								surface_blend_shapes[material_id][primitive_type].push_back(blend_shape_mesh_copy);
 							}
 						}
 					}
 				}
 			}
 		}
-
-
 	}
 
 	//print_verbose("[vertex count for mesh] " + itos(vertices.size()));
@@ -263,15 +259,13 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 				// godot register blend shape.
 				mesh->add_blend_shape(anim_mesh_name);
-				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
 				blend_shape_count++;
 			}
 		}
 	}
 
-
 	print_verbose("blend shape count: " + itos(blend_shape_count));
-
 
 	// triangles surface for triangles
 	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
@@ -281,32 +275,26 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 			//
 			// Blend shape grabber
- 			//
-			if( surface_blend_shapes.has(material) )
-			{
-				if(surface_blend_shapes[material].has(3))
-				{
-					FBXSplitBySurfaceVertexMapping &mapping = surface_blend_shapes[material][3];
-					Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
-					st->begin(Mesh::PRIMITIVE_TRIANGLES);
+			//
+			if (surface_blend_shapes.has(material)) {
+				if (surface_blend_shapes[material].has(3)) {
+					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][3];
+					for (int m = 0; m < mappings.size(); m += 1) {
+						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
+						st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-					// stream in vertexes
-					for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
-					{
-						const Vector3 vertex = vertex_element->value();
-						size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-						GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-						mapping.GenerateSurfaceMaterial(st, vertex_id);
-						st->add_vertex(vertex);
+						// Stream in vertexes.
+						// Note: The blend shape doesn't need the indices
+						for (const Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
+							const Vector3 vertex = vertex_element->value();
+							size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
+							GenFBXWeightInfo(mesh_geometry, st, vertex_id);
+							mapping.GenerateSurfaceMaterial(st, vertex_id);
+							st->add_vertex(vertex);
+						}
+
+						morphs.push_back(st->commit_to_arrays());
 					}
-
-					for (int x = 0; x < mesh_vertex_ids.size(); x += 3) {
-						st->add_index(x + 2);
-						st->add_index(x + 1);
-						st->add_index(x);
-					}
-
-					morphs = st->commit_to_arrays();
 				}
 			}
 
@@ -318,8 +306,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 			// stream in vertexes
-			for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
-			{
+			for (Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
 				const Vector3 vertex = vertex_element->value();
 				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
 				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
@@ -334,47 +321,36 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			}
 
 			Array triangle_mesh = st->commit_to_arrays();
-			triangle_mesh.resize(VS::ARRAY_MAX);
 
 			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
 		}
 
 		if (surface_split_by_material_primitive[material].has(4)) {
 
-
 			Array morphs = Array();
 
 			//
 			// Blend shape grabber
 			//
-			if(surface_blend_shapes.has(material))
-			{
-				if(surface_blend_shapes[material].has(4))
-				{
-					FBXSplitBySurfaceVertexMapping &mapping = surface_blend_shapes[material][4];
-					Map<size_t, Vector3> &mesh_vertex_ids = mapping.vertex_with_id;
-					st->begin(Mesh::PRIMITIVE_TRIANGLES);
+			if (surface_blend_shapes.has(material)) {
+				if (surface_blend_shapes[material].has(4)) {
+					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][4];
+					for (int m = 0; m < mappings.size(); m += 1) {
+						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
+						st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-					// stream in vertexes
-					for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
-					{
-						const Vector3 vertex = vertex_element->value();
-						size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-						GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-						mapping.GenerateSurfaceMaterial(st, vertex_id);
-						st->add_vertex(vertex);
-					}
-					for (int x = 0; x < mesh_vertex_ids.size(); x += 4) {
-						// complete first side of triangle
-						st->add_index(x + 2);
-						st->add_index(x + 1);
-						st->add_index(x);
-						st->add_index(x + 2);
-						st->add_index(x);
-						st->add_index(x + 3);
-					}
+						// Stream in vertexes.
+						// Note: The blend shape doesn't need the indices
+						for (const Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
+							const Vector3 vertex = vertex_element->value();
+							size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
+							GenFBXWeightInfo(mesh_geometry, st, vertex_id);
+							mapping.GenerateSurfaceMaterial(st, vertex_id);
+							st->add_vertex(vertex);
+						}
 
-					morphs = st->commit_to_arrays();
+						morphs.push_back(st->commit_to_arrays());
+					}
 				}
 			}
 
@@ -386,8 +362,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 			// stream in vertexes
-			for(Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next())
-			{
+			for (Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
 				const Vector3 vertex = vertex_element->value();
 				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
 				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
@@ -430,7 +405,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			}
 
 			Array triangle_mesh = st->commit_to_arrays();
-			triangle_mesh.resize(VS::ARRAY_MAX);
 			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, triangle_mesh, morphs);
 		}
 	}
