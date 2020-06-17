@@ -210,7 +210,9 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 									// id is the cursor
 									if (blend_shape_mesh_copy.vertex_with_id.has(id)) {
 										// Actual blending - rewrite the same ID with the correct vertex position
-										blend_shape_mesh_copy.vertex_with_id[id] = blend_vertices[idx];
+
+										// todo: various formats supported go here.
+										blend_shape_mesh_copy.vertex_with_id[id] += blend_vertices[idx];
 
 										int counted_position = -1;
 										for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
