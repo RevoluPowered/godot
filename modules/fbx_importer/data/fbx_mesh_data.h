@@ -114,7 +114,7 @@ struct FBXSplitBySurfaceVertexMapping {
 		return Vector2();
 	}
 
-	void GenerateSurfaceMaterial(Ref<SurfaceTool> st, size_t vertex_id) {
+	void GenerateSurfaceMaterial(Ref<SurfaceTool> st, size_t vertex_id) const {
 		bool uv_0 = false;
 		bool uv_1 = false;
 		bool normal_found = false;
