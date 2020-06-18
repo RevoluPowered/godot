@@ -120,7 +120,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	{
 		// data is split up
-		std::vector<Vector3> vertices = mesh_geometry->GetVertices();
+		const std::vector<Vector3> &vertices = mesh_geometry->GetVertices();
 
 		// Map Reduce Algorithm
 		// The problem: reduce face primitives and also reduce material indices without duplicating vertexes :D
@@ -196,7 +196,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 							for (const Assimp::FBX::ShapeGeometry *shapeGeometry : shapeGeometries) {
 								const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
 								const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
-								const std::vector<unsigned int> &vertex_index = shapeGeometry->GetIndices();
+								const std::vector<unsigned int> &blend_vertex_indices = shapeGeometry->GetIndices();
 
 								// intentionally copy entire mesh :O
 								int material_id = material_mesh->key();
@@ -205,31 +205,35 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 								// now update our copy with the new data from the blend shape
 								// as FBX blend shapes are just mesh diff's with the index being the vertex ID not the indice.
-								int idx = 0;
-								for (unsigned int id : vertex_index) {
-									// id is the cursor
-									if (blend_shape_mesh_copy.vertex_with_id.has(id)) {
-										// Actual blending - rewrite the same ID with the correct vertex position
+								for (unsigned int blend_vertex_index : blend_vertex_indices) {
+									unsigned int indices_count;
+									const unsigned int *indices = mesh_geometry->ToOutputVertexIndex(blend_vertex_index, indices_count);
+									for (int i = 0; i < indices_count; i += 1) {
+										const unsigned int index = indices[i];
 
-										// todo: various formats supported go here.
-										blend_shape_mesh_copy.vertex_with_id[id] += blend_vertices[idx];
+										// id is the cursor
+										if (blend_shape_mesh_copy.vertex_with_id.has(index)) {
+											// Actual blending - rewrite the same ID with the correct vertex position
 
-										int counted_position = -1;
-										for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
-											counted_position++;
-											if (vertex->key() == id) {
-												print_verbose("found valid vertex count for mesh vertex key");
-												break;
+											// todo: various formats supported go here.
+											blend_shape_mesh_copy.vertex_with_id[index] += blend_vertices[blend_vertex_index];
+
+											int counted_position = -1;
+											for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
+												counted_position++;
+												if (vertex->key() == index) {
+													print_verbose("found valid vertex count for mesh vertex key");
+													break;
+												}
 											}
-										}
 
-										if (counted_position == -1) {
-											print_error("invalid position for normal...");
+											if (counted_position == -1) {
+												print_error("invalid position for normal...");
+											}
+											// update copy of normals with correct blend shape values.
+											blend_shape_mesh_copy.normals.set(counted_position, blend_normals[blend_vertex_index]);
+											print_verbose("[success] mesh updated and cursor has valid match for " + itos(index));
 										}
-										// update copy of normals with correct blend shape values.
-										blend_shape_mesh_copy.normals.set(counted_position, blend_normals[idx]);
-										print_verbose("[success] mesh updated and cursor has valid match for " + itos(id));
-										idx++;
 									}
 								}
 
@@ -273,8 +277,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 
 	// basically a mesh is split by triangles, quads, lines and then by material. Godot requires this
 	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
-		for( Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_with_face_vertex_count = surface_split_by_material_primitive[material].front(); mesh_with_face_vertex_count; mesh_with_face_vertex_count=mesh_with_face_vertex_count->next())
-		{
+		for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_with_face_vertex_count = surface_split_by_material_primitive[material].front(); mesh_with_face_vertex_count; mesh_with_face_vertex_count = mesh_with_face_vertex_count->next()) {
 			const uint32_t face_vertex_count = mesh_with_face_vertex_count->key();
 
 			Array morphs = Array();
@@ -339,7 +342,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, mesh_committed, morphs);
 		}
 	}
-
 
 	// Ref<SpatialMaterial> material;
 	// material.instance();
