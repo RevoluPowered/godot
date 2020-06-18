@@ -1141,6 +1141,13 @@ const Element &GetRequiredElement(const Scope &sc, const std::string &index, con
 }
 
 // ------------------------------------------------------------------------------------------------
+// extract a required element from a scope, abort if the element cannot be found
+const Element *GetOptionalElement(const Scope &sc, const std::string &index, const Element *element /*= NULL*/) {
+	const Element *el = sc[index];
+	return el;
+}
+
+// ------------------------------------------------------------------------------------------------
 // extract required compound scope
 const Scope &GetRequiredScope(const Element &el) {
 	const Scope *const s = el.Compound();

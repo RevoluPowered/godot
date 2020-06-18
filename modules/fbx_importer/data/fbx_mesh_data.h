@@ -116,6 +116,9 @@ struct FBXSplitBySurfaceVertexMapping {
 
 	void GenerateIndices(Ref<SurfaceTool> st, uint32_t mesh_face_count ) const
 	{
+		// todo: can we remove the split by primitive type so it's only material
+		// todo: implement the fbx poly mapping thing here
+		// todo: convert indices to the godot format
 		switch(mesh_face_count) {
 			case 1: // todo: validate this
 				for (int x = 0; x < vertex_with_id.size(); x += 1) {
@@ -143,6 +146,8 @@ struct FBXSplitBySurfaceVertexMapping {
 				// quad conversion to triangle
 				for (int x = 0; x < vertex_with_id.size(); x += 4) {
 					// complete first side of triangle
+
+					// todo: unfuck this
 					st->add_index(x + 2);
 					st->add_index(x + 1);
 					st->add_index(x);
@@ -230,9 +235,6 @@ struct FBXMeshData : Reference {
 	MeshInstance *create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
 	void GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
-
-	// basically this gives the correct ID for the vertex specified. so the weight data is correct for the meshes, as they're de-indexed.
-	void FixWeightData(const Assimp::FBX::MeshGeometry *mesh_geometry);
 
 	// verticies could go here
 	// uvs could go here

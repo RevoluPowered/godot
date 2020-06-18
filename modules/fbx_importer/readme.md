@@ -39,52 +39,6 @@ enum RotOrder {
 };
 ```
 
-## This means we must convert all rotation orders to Godot rotation ordering:
-
-```cpp
-Quat EulerToQuaternion(Assimp::FBX::Model::RotOrder mode, const Vector3 &rotation) {
-
-	// Returns a quaternion that will perform a rotation specified by Euler angles (in the YXZ convention: first Z, then X, and Y last), given in the vector format as (X-angle, Y-angle, Z-angle).
-	// Godot uses ZXY convention therefore this function needs adapted to convert
-	// TO YXZ not to ZXY, so not easy to adapt this.
-
-	// we want to convert from rot order to ZXY
-	Quat x = Quat(Vector3(Math::deg2rad(rotation.x), 0, 0));
-	Quat y = Quat(Vector3(0, Math::deg2rad(rotation.y), 0));
-	Quat z = Quat(Vector3(0, 0, Math::deg2rad(rotation.z)));
-
-	// So we can theoretically convert calls
-	switch (mode) {
-		case Assimp::FBX::Model::RotOrder_EulerXYZ:
-			// xyz = zxy
-			return z * y * x;
-		case Assimp::FBX::Model::RotOrder_EulerXZY:
-			return y * z * x;
-		case Assimp::FBX::Model::RotOrder_EulerYZX:
-			return x * z * y;
-		case Assimp::FBX::Model::RotOrder_EulerYXZ:
-			return z * x * y;
-		case Assimp::FBX::Model::RotOrder_EulerZXY:
-			return y * x * z;
-		case Assimp::FBX::Model::RotOrder_EulerZYX:
-			return x * y * z;
-		case Assimp::FBX::Model::RotOrder_SphericXYZ:
-			print_error("unsupported rotation order, defaulted to xyz");
-			return z * x * y;
-			break;
-		default:
-			break;
-	}
-
-	return z * x * y; // something went wrong
-}
-
-```
-
-## A better solution for **everyone**:
-- I recommend that we standardise rotation order for all models to Godot convention.
-- In maya export models with "keep animation sample in Quaternion" this will mean we do not have gimbal lock issues.
-
 
 # Pivot transforms
 
@@ -202,3 +156,22 @@ Coord is X positive,
 Y is up positive,
 
 Front is -Z negative
+
+
+### Explaining MeshGeometry indexing
+
+Reference type declared:
+- Direct (directly related to the mapping information type)
+- IndexToDirect (Map with key value, meaning depends on the MappingInformationType)
+
+ControlPoint is a vertex
+* None The mapping is undetermined.
+* ByVertex There will be one mapping coordinate for each surface control point/vertex.
+    * If you have direct reference type verticies[x]
+    * If you have IndexToDirect reference type the UV
+* ByPolygonVertex There will be one mapping coordinate for each vertex, for every polygon of which it is a part. This means that a vertex will have as many mapping coordinates as polygons of which it is a part. (Sorted by polygon, referencing vertex)
+* ByPolygon There can be only one mapping coordinate for the whole polygon.
+    * One mapping per polygon polygon x has this normal x
+    * For each vertex of the polygon then set the normal to x
+* ByEdge There will be one mapping coordinate for each unique edge in the mesh. This is meant to be used with smoothing layer elements. (Mapping is referencing the edge id)
+* AllSame There can be only one mapping coordinate for the whole surface. 

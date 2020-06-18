@@ -43,11 +43,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef INCLUDED_AI_FBX_MESHGEOMETRY_H
 #define INCLUDED_AI_FBX_MESHGEOMETRY_H
 
+#include "core/vector.h"
+#include "core/math/vector3.h"
+#include "core/math/vector2.h"
+#include "core/color.h"
+
 #include "FBXDocument.h"
 #include "FBXParser.h"
-#include <core/math/vector3.h>
-#include <core/math/vector2.h>
-#include <core/color.h>
+
 #include <iostream>
 
 #define AI_MAX_NUMBER_OF_TEXTURECOORDS 4
@@ -93,106 +96,72 @@ public:
 	/** The class destructor */
 	virtual ~MeshGeometry();
 
-	/** Get a list of all vertex points, non-unique*/
-	const std::vector<Vector3> &GetVertices() const;
 
-	const std::vector<uint32_t> &GetIndices() const;
+	/* 	Reference type declared:
+		- Direct (directly related to the mapping information type)
+		- IndexToDirect (Map with key value, meaning depends on the MappingInformationType)
 
-	/** Get a list of all vertex normals or an empty array if
-    *  no normals are specified. */
-	const std::vector<Vector3> &GetNormals() const;
+		ControlPoint is a vertex
+		* None The mapping is undetermined.
+		* ByVertex There will be one mapping coordinate for each surface control point/vertex.
+			* If you have direct reference type verticies[x]
+			* If you have IndexToDirect reference type the UV
+		* ByPolygonVertex There will be one mapping coordinate for each vertex, for every polygon of which it is a part. This means that a vertex will have as many mapping coordinates as polygons of which it is a part. (Sorted by polygon, referencing vertex)
+		* ByPolygon There can be only one mapping coordinate for the whole polygon.
+			* One mapping per polygon polygon x has this normal x
+			* For each vertex of the polygon then set the normal to x
+		* ByEdge There will be one mapping coordinate for each unique edge in the mesh. This is meant to be used with smoothing layer elements. (Mapping is referencing the edge id)
+		* AllSame There can be only one mapping coordinate for the whole surface.
+	 */
 
-	/** Get a list of all vertex tangents or an empty array
-    *  if no tangents are specified */
-	const std::vector<Vector3> &GetTangents() const;
 
-	/** Get a list of the winding order for this mesh **/
-	const std::vector<int32_t> &GetNormalsWindingOrder() const;
+	// None
+	// ByVertice
+	// ByPolygonVertex
+	// ByPolygon
+	// ByEdge
+	// AllSame
+	enum class MapType {
+		none=0, // no mapping type
+		vertex, // each mapping exists per vertex
+		polygon_vertex, // per polygon vertex
+		polygon, // per polygon
+		edge, // maps per edge
+		all_the_same // maps to everything
+	};
 
-	/** Get a list of all vertex bi-normals or an empty array
-    *  if no bi-normals are specified */
-	const std::vector<Vector3> &GetBinormals() const;
+	enum class ReferenceType {direct=0, index_to_direct=1};
 
-	/** Return list of faces - each entry denotes a face and specifies
-    *  how many vertices it has. Vertices are taken from the
-    *  vertex data arrays in sequential order. */
-	const std::vector<uint32_t> &GetFaceIndexCounts() const;
+	template<class T>
+	struct MappingData
+	{
+		ReferenceType ref_type = ReferenceType::direct;
+		MapType map_type = MapType::none;
+		std::vector<T> data;
+		std::vector<int> index;
+	};
 
-	/** Get a UV coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-	const std::vector<Vector2> &GetTextureCoords(unsigned int index) const;
-
-	/** Get a UV coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-	std::string GetTextureCoordChannelName(unsigned int index) const;
-
-	/** Get a vertex color coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-	const std::vector<Color> &GetVertexColors(unsigned int index) const;
-
-	/** Get per-face-vertex material assignments */
-	const MatIndexArray &GetMaterialIndices() const;
-
-	/** Convert from a fbx file vertex index (for example from a #Cluster weight) or NULL
-    * if the vertex index is not valid. */
-	const unsigned int *ToOutputVertexIndex(unsigned int in_index, unsigned int &count) const;
-
-	/** Determine the face to which a particular output vertex index belongs.
-    *  This mapping is always unique. */
-	unsigned int FaceForVertexIndex(unsigned int in_index) const;
-
+	std::vector<Vector3> &GetVertices() const;
+	std::vector<int> &GetFaceIndices() const;
+	MappingData<Vector3> &GetNormals() const;
+	MappingData<Vector2> &Get_UV_0() const;
+	MappingData<Vector2> &Get_UV_1() const;
+	MappingData<Color> &GetVertexColors() const;
+	MappingData<int> &GetMaterialAllocationID() const;
 private:
-	void ReadLayer(const Scope &layer);
-	void ReadLayerElement(const Scope &layerElement);
-	void ReadVertexData(const std::string &type, int index, const Scope &source);
-
-	void ReadVertexDataUV(std::vector<Vector2> &uv_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataNormals(std::vector<Vector3> &normals_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataNormalsWindingOrder(std::vector<int32_t> &normals_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataColors(std::vector<Color> &colors_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataTangents(std::vector<Vector3> &tangents_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataBinormals(std::vector<Vector3> &binormals_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-	void ReadVertexDataMaterials(std::vector<int> &materials_out, const Scope &source,
-			const std::string &MappingInformationType,
-			const std::string &ReferenceInformationType);
-
-private:
-	// cached data arrays
-	std::vector<int> m_materials;
+	template <class T>
+	MappingData<T> ResolveVertexDataArray(const Scope &source,
+								const std::string &MappingInformationType,
+								const std::string &ReferenceInformationType,
+								const std::string &dataElementName);
+	// read directly from the FBX file.
 	std::vector<Vector3> m_vertices;
-	std::vector<uint32_t> m_indices;
-	std::vector<uint32_t> m_faces;
-	mutable std::vector<uint32_t> m_facesVertexStartIndices;
-	std::vector<Vector3> m_tangents;
-	std::vector<Vector3> m_binormals;
-	std::vector<Vector3> m_normals;
-	std::vector<int32_t> m_normals_winding_order; // winding order definition
-
-	std::string m_uvNames[AI_MAX_NUMBER_OF_TEXTURECOORDS];
-	std::vector<Vector2> m_uvs[AI_MAX_NUMBER_OF_TEXTURECOORDS];
-	std::vector<Color> m_colors[AI_MAX_NUMBER_OF_COLOR_SETS];
-
-	std::vector<unsigned int> m_mapping_counts;
-	std::vector<unsigned int> m_mapping_offsets;
-	std::vector<unsigned int> m_mappings;
+	std::vector<int> m_face_indices;
+	MappingData<Vector3> m_normals;
+	MappingData<Vector2> m_uv_0; // first uv coordinates
+	MappingData<Vector2> m_uv_1; // second uv coordinates
+	MappingData<Color> m_colors; // colors for the mesh
+	MappingData<int> m_material_id; // slot of material used
 };
 
 /**
