@@ -103,9 +103,15 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 		return; // this happened!
 	}
 
+
 	// must have Mesh elements:
 	const Element &Vertices = GetRequiredElement(*sc, "Vertices", &element);
 	const Element &PolygonVertexIndex = GetRequiredElement(*sc, "PolygonVertexIndex", &element);
+
+	if(HasElement(*sc, "Edges")){
+		const Element &element_edges = GetRequiredElement(*sc, "Edges", &element);
+		ParseVectorDataArray(m_edges, element_edges);
+	}
 
 	// optional Mesh elements:
 	const ElementCollection &Layer = sc->GetCollection("Layer");
@@ -158,8 +164,8 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 				//Element *element = (*canditer).second;
 				std::cout << "key: " << val << std::endl;
 
-				const Scope& layer_scope = GetRequiredScope(*(*cand_iter).second);
-				const Token& layer_token = GetRequiredToken(*(*cand_iter).second, 0);
+				const Scope &layer_scope = GetRequiredScope(*(*cand_iter).second);
+				const Token &layer_token = GetRequiredToken(*(*cand_iter).second, 0);
 				const int index = ParseTokenAsInt(layer_token);
 				if (index == typedIndex) {
 					const std::string &MappingInformationType = ParseTokenAsString(GetRequiredToken(
@@ -168,23 +174,21 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 					const std::string &ReferenceInformationType = ParseTokenAsString(GetRequiredToken(
 							GetRequiredElement(layer_scope, "ReferenceInformationType"), 0));
 
-				// Not required:
-				// LayerElementTangent
-				// LayerElementBinormal - perpendicular to tangent.
-				if (type == "LayerElementUV") {
-						if(index == 0) {
-							m_uv_0 = ResolveVertexDataArray<Vector2>(layer_scope, MappingInformationType, ReferenceInformationType, "UV");
-						}
-						else if(index == 1)
-						{
-							m_uv_1 = ResolveVertexDataArray<Vector2>(layer_scope, MappingInformationType, ReferenceInformationType, "UV");
+					// Not required:
+					// LayerElementTangent
+					// LayerElementBinormal - perpendicular to tangent.
+					if (type == "LayerElementUV") {
+						if (index == 0) {
+							m_uv_0 = resolve_vertex_data_array<Vector2>(layer_scope, MappingInformationType, ReferenceInformationType, "UV");
+						} else if (index == 1) {
+							m_uv_1 = resolve_vertex_data_array<Vector2>(layer_scope, MappingInformationType, ReferenceInformationType, "UV");
 						}
 					} else if (type == "LayerElementMaterial") {
-						m_material_id = ResolveVertexDataArray<int>(layer_scope, MappingInformationType, ReferenceInformationType, "Materials");
+						m_material_allocation_ids = resolve_vertex_data_array<int>(layer_scope, MappingInformationType, ReferenceInformationType, "Materials");
 					} else if (type == "LayerElementNormal") {
-						m_normals = ResolveVertexDataArray<Vector3>(layer_scope, MappingInformationType, ReferenceInformationType, "Normals");
+						m_normals = resolve_vertex_data_array<Vector3>(layer_scope, MappingInformationType, ReferenceInformationType, "Normals");
 					} else if (type == "LayerElementColor") {
-						m_colors = ResolveVertexDataArray<Color>(layer_scope, MappingInformationType, ReferenceInformationType, "Colors");
+						m_colors = resolve_vertex_data_array<Color>(layer_scope, MappingInformationType, ReferenceInformationType, "Colors");
 					}
 				}
 			}
@@ -192,19 +196,45 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 	}
 }
 
-// ------------------------------------------------------------------------------------------------
 MeshGeometry::~MeshGeometry() {
 	// empty
 }
 
+const std::vector<Vector3> &MeshGeometry::get_vertices() const {
+	return m_vertices;
+}
 
+const std::vector<int> &MeshGeometry::get_face_indices() const {
+	return m_face_indices;
+}
 
-// ------------------------------------------------------------------------------------------------
-// Lengthy utility function to read and resolve a FBX vertex data array - that is, the
-// output is in polygon vertex order. This logic is used for reading normals, UVs, colors,
-// tangents ..
+const std::vector<int> &MeshGeometry::get_edges() const {
+	return m_edges;
+}
+
+const MeshGeometry::MappingData<Vector3> &MeshGeometry::get_normals() const {
+	return m_normals;
+}
+
+const MeshGeometry::MappingData<Vector2> &MeshGeometry::get_uv_0() const {
+	return m_uv_0;
+}
+
+const MeshGeometry::MappingData<Vector2> &MeshGeometry::get_uv_1() const {
+	return m_uv_1;
+}
+
+const MeshGeometry::MappingData<Color> &MeshGeometry::get_colors() const {
+	return m_colors;
+}
+
+const MeshGeometry::MappingData<int> &MeshGeometry::get_material_allocation_id() const {
+	return m_material_allocation_ids;
+}
+
 template <class T>
-MeshGeometry::MappingData<T> MeshGeometry::ResolveVertexDataArray(const Scope &source,
+MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
+		const Scope &source,
 		const std::string &MappingInformationType,
 		const std::string &ReferenceInformationType,
 		const std::string &dataElementName) {
@@ -253,9 +283,9 @@ MeshGeometry::MappingData<T> MeshGeometry::ResolveVertexDataArray(const Scope &s
 	ParseVectorDataArray(tempData.data, GetRequiredElement(source, dataElementName));
 
 	// index array wont always exist
-	const Element* element = GetOptionalElement(source, indexDataElementName);
-	if(element) {
-		ParseVectorDataArray(tempData.index, *element );
+	const Element *element = GetOptionalElement(source, indexDataElementName);
+	if (element) {
+		ParseVectorDataArray(tempData.index, *element);
 	}
 
 	return tempData;
