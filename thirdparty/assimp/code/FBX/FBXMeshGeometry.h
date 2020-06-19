@@ -70,10 +70,9 @@ public:
 	/** Get the Skin attached to this geometry or NULL */
 	const Skin *DeformerSkin() const;
 
-	/** Get the BlendShape attached to this geometry or NULL */
-	const std::vector<const BlendShape *> &GetBlendShapes() const;
+	const std::vector<const BlendShape *> &get_blend_shapes() const;
 
-	size_t BlendShapeCount() const {
+	size_t get_blend_shape_count() const {
 		return blendShapes.size();
 	}
 
@@ -134,7 +133,7 @@ public:
 	virtual ~MeshGeometry();
 
 	const std::vector<Vector3> &get_vertices() const;
-	const std::vector<int> &get_face_indices() const;
+	const std::vector<int> &get_polygon_indices() const;
 	const std::vector<int> &get_edges() const;
 	const MappingData<Vector3> &get_normals() const;
 	const MappingData<Vector2> &get_uv_0() const;
