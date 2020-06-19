@@ -36,6 +36,7 @@
 
 #include "test_astar.h"
 #include "test_basis.h"
+#include "test_fbx.h"
 #include "test_gdscript.h"
 #include "test_gui.h"
 #include "test_math.h"
@@ -65,6 +66,8 @@ const char **tests_get_names() {
 		"gd_bytecode",
 		"ordered_hash_map",
 		"astar",
+		"basis",
+		"fbx",
 		NULL
 	};
 
@@ -148,6 +151,14 @@ MainLoop *test_main(String p_test, const List<String> &p_args) {
 	if (p_test == "astar") {
 
 		return TestAStar::test();
+	}
+
+	if (p_test == "basis") {
+		return TestBasis::test();
+	}
+
+	if (p_test == "fbx") {
+		return TestFBX::test();
 	}
 
 	print_line("Unknown test: " + p_test);

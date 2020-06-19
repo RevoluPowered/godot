@@ -53,8 +53,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifdef __cplusplus
-#include <assimp/matrix3x3.h>
-#include <assimp/matrix4x4.h>
+#include <thirdparty/assimp/include/assimp/matrix3x3.h>
+#include <thirdparty/assimp/include/assimp/matrix4x4.h>
 
 #include <algorithm>
 #include <cmath>
