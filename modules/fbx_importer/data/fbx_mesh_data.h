@@ -31,6 +31,7 @@
 #ifndef EDITOR_SCENE_FBX_MESH_DATA_H
 #define EDITOR_SCENE_FBX_MESH_DATA_H
 
+// TODO do we really need to impor these here now?
 #include "../tools/import_utils.h"
 #include "core/bind/core_bind.h"
 #include "core/io/resource_importer.h"
@@ -114,12 +115,11 @@ struct FBXSplitBySurfaceVertexMapping {
 		return Vector2();
 	}
 
-	void GenerateIndices(Ref<SurfaceTool> st, uint32_t mesh_face_count ) const
-	{
+	void GenerateIndices(Ref<SurfaceTool> st, uint32_t mesh_face_count) const {
 		// todo: can we remove the split by primitive type so it's only material
 		// todo: implement the fbx poly mapping thing here
 		// todo: convert indices to the godot format
-		switch(mesh_face_count) {
+		switch (mesh_face_count) {
 			case 1: // todo: validate this
 				for (int x = 0; x < vertex_with_id.size(); x += 1) {
 					st->add_index(x);
@@ -183,8 +183,6 @@ struct FBXSplitBySurfaceVertexMapping {
 				print_error("number is not implemented!");
 				break;
 		}
-
-
 	}
 
 	void GenerateSurfaceMaterial(Ref<SurfaceTool> st, size_t vertex_id) const {
@@ -225,6 +223,16 @@ struct VertexMapping : Reference {
 
 // Caches mesh information and instantiates meshes for you using helper functions.
 struct FBXMeshData : Reference {
+	/// The FBX files usually have more data per single vertex (usually this
+	/// happens with the normals, that to generate the smooth groups the FBX
+	/// contains the vertex normals for each face).
+	/// With this enum is possible to control what to do, combine those or
+	/// take the average.
+	enum class CombinationMode {
+		TakeFirst,
+		Avg
+	};
+
 	// vertex id, Weight Info
 	// later: perf we can use array here
 	Map<size_t, Ref<VertexMapping> > vertex_weights;
@@ -236,10 +244,6 @@ struct FBXMeshData : Reference {
 
 	void GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
 
-	// verticies could go here
-	// uvs could go here
-	// normals could go here
-
 	/* mesh maximum weight count */
 	bool valid_weight_count = false;
 	int max_weight_count = 0;
@@ -247,6 +251,42 @@ struct FBXMeshData : Reference {
 	uint64_t armature_id = 0;
 	bool valid_armature_id = false;
 	MeshInstance *godot_mesh_instance = nullptr;
+
+private:
+	/// This function is responsible to convert the FBX polygon vertex to
+	/// vertex index.
+	/// The polygon vertices are stored in an array with some negative
+	/// values. The negative values define the last face index.
+	/// For example the following `face_array` contains two faces, the former
+	/// with 3 vertices and the latter with a line:
+	/// [0,2,-2,3,-5]
+	/// Parsed as:
+	/// [0, 2, 1, 3, 4]
+	/// The negative values are computed using this formula: `(-value) - 1`
+	///
+	/// Returns the vertex index from the poligon vertex.
+	/// Returns -1 if `p_index` is invalid.
+	const int get_vertex_from_polygon_vertex(const std::vector<int> &p_face_indices, int p_index) const;
+
+	/// Retuns true if this polygon_vertex_index is the begin of a new polygon.
+	const bool is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const;
+
+	/// Returns the number of polygons.
+	const int count_polygons(const std::vector<int> &p_face_indices) const;
+
+	/// Returns the first polygon vertex of the next polygon pointeed by the sent
+	/// polygon vertex OR -1.
+	// TODO consider remove this if not used
+	const int next_polygon(const std::vector<int> &p_face_indices, int p_polygon_vertex_index) const;
+
+	/// Used to extract data from the `MappingData` alligned with vertex.
+	template <class T>
+	Vector<T> extract_per_vertex_data(
+			int p_vertex_count,
+			const std::vector<int> &p_face_indices,
+			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
+			CombinationMode p_combination_mode,
+			void (*validate_function)(T &r_current, const T &p_fall_back)) const;
 };
 
 #endif // EDITOR_SCENE_FBX_MESH_DATA_H

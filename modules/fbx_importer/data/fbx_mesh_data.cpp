@@ -30,6 +30,7 @@
 
 #include "fbx_mesh_data.h"
 #include "core/io/image_loader.h"
+#include "core/oa_hash_map.h"
 #include "data/fbx_anim_container.h"
 #include "data/fbx_skeleton.h"
 #include "editor/editor_log.h"
@@ -45,6 +46,7 @@
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
 #include "tools/import_utils.h"
+
 #include <code/FBX/FBXDocument.h>
 #include <code/FBX/FBXImportSettings.h>
 #include <code/FBX/FBXParser.h>
@@ -76,301 +78,402 @@ void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<fl
 	}
 }
 
+template <class T>
+void validate_vector_2or3(T &r_value, const T &p_fall_back) {
+	if (r_value.length_squared() <= CMP_EPSILON) {
+		r_value = p_fall_back;
+	}
+	r_value.normalize();
+}
+
+template <class T>
+void no_validation(T &r_value, const T &p_fall_back) {
+}
+
 MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
-//
-//	print_verbose("[doc] FBX creating godot mesh for: " + ImportUtils::FBXNodeToName(model->Name()));
-//
-//	print_verbose("[doc] mesh has " + itos(max_weight_count) + " bone weights");
-//
-//	Ref<ArrayMesh> mesh;
-//	mesh.instance();
-//
-//	// TODO why use a Ref?
-//	Ref<SurfaceTool> st;
-//	st.instance();
-//
-//	const std::vector<int> &material_indices = mesh_geometry->GetMaterialIndices();
-//
-//	bool no_material_found = material_indices.size() == 0;
-//
-//	if (no_material_found) {
-//		print_error("no material is configured for mesh " + ImportUtils::FBXNodeToName(model->Name()));
-//	}
-//
-//	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
-//
-//	// godot has two uv coordinate channels
-//	const std::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
-//	const std::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
-//	const std::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
-//	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
-//
-//	// material id, primitive_type(triangles,lines, points etc), SurfaceData
-//	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
-//	Map<int, Map<uint32_t, Vector<FBXSplitBySurfaceVertexMapping> > > surface_blend_shapes;
-//
-//	// Blend shapes in FBX
-//	// copy the entire mesh
-//	// match all the vertexes
-//	// match all normals to the 'index' in the ShapeGeometry from the blend shape
-//	// each blend shape is a clone of the original mesh
-//	// then the mesh is overwritten at indexes to provide a BLENDED SHAPE.
-//	// this means the core/root mesh is read
-//	// then after we copy and clone it, and apply the offsets
-//
-//	{
-//		// data is split up
-//		const std::vector<Vector3> &vertices = mesh_geometry->GetVertices();
-//
-//		// Map Reduce Algorithm
-//		// The problem: reduce face primitives and also reduce material indices without duplicating vertexes :D
-//		// vertex count (1,2,3,4, etc), FBX Surface Data (uvs and indices for faces...)
-//		// yeah two sets.. uhuh
-//		// you read that correct. <3
-//		//Map<uint32_t, FBXSplitBySurfaceVertexMapping> primitive_geometry; // triangles, points, lines, quads
-//
-//		// material id, indices list
-//		//Map<int, Vector<int>> material_surfaces;
-//
-//		//		// fbx vertex id - value stored in the array is the material number
-//		//		for(uint32_t fbx_vertex_id = 0; fbx_vertex_id < material_indices.size(); fbx_vertex_id++) {
-//		//			const int material_id = material_indices[fbx_vertex_id];
-//		//			material_surfaces[material_id].push_back(fbx_vertex_id);
-//		//		}
-//
-//		// Mesh face data - split based on geometry type
-//		uint32_t cursor = 0;
-//		for (uint32_t face_id = 0; face_id < face_vertex_counts.size(); face_id++) {
-//			uint32_t vertex_count = face_vertex_counts[face_id];
-//			for (uint32_t y = 0; y < vertex_count; y++) {
-//
-//				// some files don't have these configured at all :P
-//				int material_id = 0;
-//				if (cursor < material_indices.size()) {
-//					material_id = material_indices[cursor];
-//				}
-//
-//				FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material_id][vertex_count];
-//				mapping.vertex_with_id[cursor] = vertices[cursor];
-//
-//				// ensure we aren't outside available indexes, some will be
-//				if (cursor < uv_coordinates_0.size()) {
-//					mapping.add_uv_0(uv_coordinates_0[cursor]);
-//				}
-//
-//				if (cursor < uv_coordinates_1.size()) {
-//					mapping.add_uv_1(uv_coordinates_1[cursor]);
-//				}
-//
-//				if (cursor < normals.size()) {
-//					mapping.normals.push_back(normals[cursor]);
-//				}
-//
-//				if (cursor < vertex_colors.size()) {
-//					mapping.colors.push_back(vertex_colors[cursor]);
-//				}
-//
-//				cursor++; // we manually increment cursor, we are essentially creating a new mesh.
-//				// each surface split is a mesh
-//			}
-//		}
-//
-//		// Process Blend shapes.
-//		// algorithm
-//		// read existing mesh data
-//		// import blend shape classes
-//		// check for valid blend shapes
-//		// copy entire mesh
-//		// update vertexes based on index in the vertex array
-//		// apply same to normal data
-//		// this means i can render the same as other methods
-//		if (mesh_geometry->BlendShapeCount() > 0) {
-//			for (Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> >::Element *material_mesh = surface_split_by_material_primitive.front(); material_mesh; material_mesh = material_mesh->next()) {
-//				for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_primitive = material_mesh->value().front(); mesh_primitive; mesh_primitive = mesh_primitive->next()) {
-//
-//					// Now map reduce in the blend shapes
-//					for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
-//						for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
-//							const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
-//
-//							for (const Assimp::FBX::ShapeGeometry *shapeGeometry : shapeGeometries) {
-//								const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
-//								const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
-//								const std::vector<unsigned int> &blend_vertex_indices = shapeGeometry->GetIndices();
-//
-//								// intentionally copy entire mesh :O
-//								int material_id = material_mesh->key();
-//								FBXSplitBySurfaceVertexMapping blend_shape_mesh_copy = mesh_primitive->value();
-//								uint32_t primitive_type = mesh_primitive->key();
-//
-//								// now update our copy with the new data from the blend shape
-//								// as FBX blend shapes are just mesh diff's with the index being the vertex ID not the indice.
-//								for (unsigned int blend_vertex_index : blend_vertex_indices) {
-//									unsigned int indices_count;
-//									const unsigned int *indices = mesh_geometry->ToOutputVertexIndex(blend_vertex_index, indices_count);
-//									for (int i = 0; i < indices_count; i += 1) {
-//										const unsigned int index = indices[i];
-//
-//										// id is the cursor
-//										if (blend_shape_mesh_copy.vertex_with_id.has(index)) {
-//											// Actual blending - rewrite the same ID with the correct vertex position
-//
-//											// todo: various formats supported go here.
-//											blend_shape_mesh_copy.vertex_with_id[index] += blend_vertices[blend_vertex_index];
-//
-//											int counted_position = -1;
-//											for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
-//												counted_position++;
-//												if (vertex->key() == index) {
-//													print_verbose("found valid vertex count for mesh vertex key");
-//													break;
-//												}
-//											}
-//
-//											if (counted_position == -1) {
-//												print_error("invalid position for normal...");
-//											}
-//											// update copy of normals with correct blend shape values.
-//											blend_shape_mesh_copy.normals.set(counted_position, blend_normals[blend_vertex_index]);
-//											print_verbose("[success] mesh updated and cursor has valid match for " + itos(index));
-//										}
-//									}
-//								}
-//
-//								// make it a real thing
-//								surface_blend_shapes[material_id][primitive_type].push_back(blend_shape_mesh_copy);
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	//print_verbose("[vertex count for mesh] " + itos(vertices.size()));
-//
-//	int blend_shape_count = 0;
-//	for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
-//		for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
-//			const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
-//			for (size_t i = 0; i < shapeGeometries.size(); i++) {
-//				const Assimp::FBX::ShapeGeometry *shapeGeometry = shapeGeometries.at(i);
-//				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
-//				print_verbose("blend shape mesh name: " + anim_mesh_name);
-//
-//				// empty shape name should still work
-//				if (anim_mesh_name.empty()) {
-//					anim_mesh_name = String("morph_") + itos(i);
-//				}
-//
-//				// godot register blend shape.
-//				mesh->add_blend_shape(anim_mesh_name);
-//				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
-//				blend_shape_count++;
-//			}
-//		}
-//	}
-//
-//	print_verbose("blend shape count: " + itos(blend_shape_count));
-//
-//	// triangles surface for triangles
-//
-//	// basically a mesh is split by triangles, quads, lines and then by material. Godot requires this
-//	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
-//		for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_with_face_vertex_count = surface_split_by_material_primitive[material].front(); mesh_with_face_vertex_count; mesh_with_face_vertex_count = mesh_with_face_vertex_count->next()) {
-//			const uint32_t face_vertex_count = mesh_with_face_vertex_count->key();
-//
-//			Array morphs = Array();
-//
-//			//
-//			// Blend shape grabber
-//			//
-//			if (surface_blend_shapes.has(material)) {
-//				if (surface_blend_shapes[material].has(face_vertex_count)) {
-//					// we must grab the blend shape based on the other array not the current one since it's another mesh we created
-//					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][face_vertex_count];
-//					for (int m = 0; m < mappings.size(); m += 1) {
-//						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
-//						st->begin(Mesh::PRIMITIVE_TRIANGLES);
-//
-//						// Stream in vertexes.
-//						// Note: The blend shape doesn't need the indices
-//						for (const Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
-//							const Vector3 vertex = vertex_element->value();
-//							size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-//							GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-//							mapping.GenerateSurfaceMaterial(st, vertex_id);
-//							st->add_vertex(vertex);
-//						}
-//
-//						// generate tangents
-//						if (mapping.normals.size() > 0) {
-//							st->generate_tangents();
-//						}
-//
-//						morphs.push_back(st->commit_to_arrays());
-//					}
-//				}
-//			}
-//
-//			// Ordinary mesh handler - handles triangles, points, lines and quads.
-//			// converts points, lines, quads to triangles
-//			// indices are generated for triangles too.
-//
-//			const FBXSplitBySurfaceVertexMapping &mapping = mesh_with_face_vertex_count->value();
-//			st->begin(Mesh::PRIMITIVE_TRIANGLES);
-//
-//
-//			// todo: move this into godot.
-//			//	// generate output vertices, computing an adjacency table to
-//			//	// preserve the mapping from fbx indices to *this* indexing.
-////    	unsigned int count = 0;
-////    	for (int index : m_face_indices) {
-////    		// convert fbx document index to normal polygon index.
-////    		const int absi = index < 0 ? (-index - 1) : index;
-////
-////
-////    		// indices
-////    		print_verbose("index: " + itos(absi));
-////    	}
-//
-//			// stream in vertexes
-//			for (Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
-//				const Vector3 vertex = vertex_element->value();
-//				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
-//				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
-//				mapping.GenerateSurfaceMaterial(st, vertex_id);
-//				st->add_vertex(vertex);
-//			}
-//
-//			// generate indices - doesn't really matter much.
-//			mapping.GenerateIndices(st, face_vertex_count);
-//
-//			// generate tangents
-//			if (mapping.normals.size() > 0) {
-//				st->generate_tangents();
-//			}
-//
-//			Array mesh_committed = st->commit_to_arrays();
-//
-//			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, mesh_committed, morphs);
-//		}
-//	}
-//
-//	// Ref<SpatialMaterial> material;
-//	// material.instance();
-//	// material->set_cull_mode(SpatialMaterial::CullMode::CULL_DISABLED);
-//
-//	// mesh->add_surface_from_arrays(Mesh::PRIMITIVE_POINTS, array_mesh, morphs);
-//	//mesh->surface_set_material(0, material);
-//	// okay now enable it
-//	mesh->set_name(ImportUtils::FBXNodeToName(mesh_geometry->Name()));
-//
-//	MeshInstance *godot_mesh = memnew(MeshInstance);
-//	godot_mesh->set_mesh(mesh);
-//
-//	return godot_mesh;
-	return nullptr;
+
+	// Phase 1. Parse all FBX data.
+	Vector<Vector3> normals = extract_per_vertex_data(
+			mesh_geometry->get_vertices().size(),
+			mesh_geometry->get_face_indices(),
+			mesh_geometry->get_normals(),
+			CombinationMode::Avg, // TODO How can we make this dynamic?
+			&validate_vector_2or3);
+
+	Vector<Vector2> uvs_0 = extract_per_vertex_data(
+			mesh_geometry->get_vertices().size(),
+			mesh_geometry->get_face_indices(),
+			mesh_geometry->get_uv_0(),
+			CombinationMode::TakeFirst,
+			&validate_vector_2or3);
+
+	Vector<Vector2> uvs_1 = extract_per_vertex_data(
+			mesh_geometry->get_vertices().size(),
+			mesh_geometry->get_face_indices(),
+			mesh_geometry->get_uv_1(),
+			CombinationMode::TakeFirst,
+			&validate_vector_2or3);
+
+	Vector<Color> colors = extract_per_vertex_data(
+			mesh_geometry->get_vertices().size(),
+			mesh_geometry->get_face_indices(),
+			mesh_geometry->get_colors(),
+			CombinationMode::TakeFirst,
+			&no_validation);
+
+	// TODO what about tangends?
+	// TODO what about binormals?
+	// TODO there is other?
+
+	Vector<int> materials = extract_per_vertex_data(
+			mesh_geometry->get_vertices().size(),
+			mesh_geometry->get_face_indices(),
+			mesh_geometry->get_material_allocation_id(),
+			CombinationMode::TakeFirst,
+			&no_validation);
+
+	// Always false conditions. Each vector is organized per vertex.
+	CRASH_COND(normals.size() != 0 && normals.size() != (int)mesh_geometry->get_vertices().size());
+	CRASH_COND(uvs_0.size() != 0 && uvs_0.size() != (int)mesh_geometry->get_vertices().size());
+	CRASH_COND(uvs_1.size() != 0 && uvs_1.size() != (int)mesh_geometry->get_vertices().size());
+	CRASH_COND(colors.size() != 0 && colors.size() != (int)mesh_geometry->get_vertices().size());
+
+	ERR_FAIL_COND_V_MSG(materials.size() != (int)mesh_geometry->get_vertices().size(), nullptr, "FBX File corrupted: #ERR100");
+
+	// Phase 2. Triangulate the vertices since into the FBX are organized per faces.
+	// TODO
+
+	/// The map key is the material allocator id.
+	OAHashMap<int, Ref<SurfaceTool> > surfaces;
+
+	// Phase 3. For each material create a surface tool (So a different mesh).
+	{
+		const Assimp::FBX::MeshGeometry::MappingData<int> &material_data = mesh_geometry->get_material_allocation_id();
+		for (size_t i = 0; i < material_data.data.size(); i += 1) {
+			Ref<SurfaceTool> material_tool;
+			material_tool.instance();
+			material_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+			surfaces.set(material_data.data[i], material_tool);
+		}
+	}
+
+	// Phase 4. Compose the meshes.
+	// TODO
+
+	// Phase 5. Compose the morphs if any.
+	// TODO
+
+	// Phase x-1. Add surface to the mesh.
+	Ref<ArrayMesh> mesh;
+	mesh.instance();
+
+	for (OAHashMap<int, Ref<SurfaceTool> >::Iterator it = surfaces.iter(); it.valid; it = surfaces.next_iter(it)) {
+		mesh->add_surface_from_arrays(
+				Mesh::PRIMITIVE_TRIANGLES,
+				(*it.value)->commit_to_arrays()
+				// TODO blend shapes / morphs, goes here
+		);
+	}
+
+	// Phase X. Return the mesh.
+	MeshInstance *godot_mesh = memnew(MeshInstance);
+	godot_mesh->set_mesh(mesh);
+
+	return godot_mesh;
+
+	//
+	//	print_verbose("[doc] FBX creating godot mesh for: " + ImportUtils::FBXNodeToName(model->Name()));
+	//
+	//	print_verbose("[doc] mesh has " + itos(max_weight_count) + " bone weights");
+	//
+	//	Ref<ArrayMesh> mesh;
+	//	mesh.instance();
+	//
+	//	// TODO why use a Ref?
+	//	Ref<SurfaceTool> st;
+	//	st.instance();
+	//
+	//	const std::vector<int> &material_indices = mesh_geometry->GetMaterialIndices();
+	//
+	//	bool no_material_found = material_indices.size() == 0;
+	//
+	//	if (no_material_found) {
+	//		print_error("no material is configured for mesh " + ImportUtils::FBXNodeToName(model->Name()));
+	//	}
+	//
+	//	std::vector<uint32_t> face_vertex_counts = mesh_geometry->GetFaceIndexCounts();
+	//
+	//	// godot has two uv coordinate channels
+	//	const std::vector<Vector2> &uv_coordinates_0 = mesh_geometry->GetTextureCoords(0);
+	//	const std::vector<Vector2> &uv_coordinates_1 = mesh_geometry->GetTextureCoords(1);
+	//	const std::vector<Color> &vertex_colors = mesh_geometry->GetVertexColors(0);
+	//	const std::vector<Vector3> &normals = mesh_geometry->GetNormals();
+	//
+	//	// material id, primitive_type(triangles,lines, points etc), SurfaceData
+	//	Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> > surface_split_by_material_primitive;
+	//	Map<int, Map<uint32_t, Vector<FBXSplitBySurfaceVertexMapping> > > surface_blend_shapes;
+	//
+	//	// Blend shapes in FBX
+	//	// copy the entire mesh
+	//	// match all the vertexes
+	//	// match all normals to the 'index' in the ShapeGeometry from the blend shape
+	//	// each blend shape is a clone of the original mesh
+	//	// then the mesh is overwritten at indexes to provide a BLENDED SHAPE.
+	//	// this means the core/root mesh is read
+	//	// then after we copy and clone it, and apply the offsets
+	//
+	//	{
+	//		// data is split up
+	//		const std::vector<Vector3> &vertices = mesh_geometry->GetVertices();
+	//
+	//		// Map Reduce Algorithm
+	//		// The problem: reduce face primitives and also reduce material indices without duplicating vertexes :D
+	//		// vertex count (1,2,3,4, etc), FBX Surface Data (uvs and indices for faces...)
+	//		// yeah two sets.. uhuh
+	//		// you read that correct. <3
+	//		//Map<uint32_t, FBXSplitBySurfaceVertexMapping> primitive_geometry; // triangles, points, lines, quads
+	//
+	//		// material id, indices list
+	//		//Map<int, Vector<int>> material_surfaces;
+	//
+	//		//		// fbx vertex id - value stored in the array is the material number
+	//		//		for(uint32_t fbx_vertex_id = 0; fbx_vertex_id < material_indices.size(); fbx_vertex_id++) {
+	//		//			const int material_id = material_indices[fbx_vertex_id];
+	//		//			material_surfaces[material_id].push_back(fbx_vertex_id);
+	//		//		}
+	//
+	//		// Mesh face data - split based on geometry type
+	//		uint32_t cursor = 0;
+	//		for (uint32_t face_id = 0; face_id < face_vertex_counts.size(); face_id++) {
+	//			uint32_t vertex_count = face_vertex_counts[face_id];
+	//			for (uint32_t y = 0; y < vertex_count; y++) {
+	//
+	//				// some files don't have these configured at all :P
+	//				int material_id = 0;
+	//				if (cursor < material_indices.size()) {
+	//					material_id = material_indices[cursor];
+	//				}
+	//
+	//				FBXSplitBySurfaceVertexMapping &mapping = surface_split_by_material_primitive[material_id][vertex_count];
+	//				mapping.vertex_with_id[cursor] = vertices[cursor];
+	//
+	//				// ensure we aren't outside available indexes, some will be
+	//				if (cursor < uv_coordinates_0.size()) {
+	//					mapping.add_uv_0(uv_coordinates_0[cursor]);
+	//				}
+	//
+	//				if (cursor < uv_coordinates_1.size()) {
+	//					mapping.add_uv_1(uv_coordinates_1[cursor]);
+	//				}
+	//
+	//				if (cursor < normals.size()) {
+	//					mapping.normals.push_back(normals[cursor]);
+	//				}
+	//
+	//				if (cursor < vertex_colors.size()) {
+	//					mapping.colors.push_back(vertex_colors[cursor]);
+	//				}
+	//
+	//				cursor++; // we manually increment cursor, we are essentially creating a new mesh.
+	//				// each surface split is a mesh
+	//			}
+	//		}
+	//
+	//		// Process Blend shapes.
+	//		// algorithm
+	//		// read existing mesh data
+	//		// import blend shape classes
+	//		// check for valid blend shapes
+	//		// copy entire mesh
+	//		// update vertexes based on index in the vertex array
+	//		// apply same to normal data
+	//		// this means i can render the same as other methods
+	//		if (mesh_geometry->BlendShapeCount() > 0) {
+	//			for (Map<int, Map<uint32_t, FBXSplitBySurfaceVertexMapping> >::Element *material_mesh = surface_split_by_material_primitive.front(); material_mesh; material_mesh = material_mesh->next()) {
+	//				for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_primitive = material_mesh->value().front(); mesh_primitive; mesh_primitive = mesh_primitive->next()) {
+	//
+	//					// Now map reduce in the blend shapes
+	//					for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
+	//						for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
+	//							const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
+	//
+	//							for (const Assimp::FBX::ShapeGeometry *shapeGeometry : shapeGeometries) {
+	//								const std::vector<Vector3> &blend_vertices = shapeGeometry->GetVertices();
+	//								const std::vector<Vector3> &blend_normals = shapeGeometry->GetNormals();
+	//								const std::vector<unsigned int> &blend_vertex_indices = shapeGeometry->GetIndices();
+	//
+	//								// intentionally copy entire mesh :O
+	//								int material_id = material_mesh->key();
+	//								FBXSplitBySurfaceVertexMapping blend_shape_mesh_copy = mesh_primitive->value();
+	//								uint32_t primitive_type = mesh_primitive->key();
+	//
+	//								// now update our copy with the new data from the blend shape
+	//								// as FBX blend shapes are just mesh diff's with the index being the vertex ID not the indice.
+	//								for (unsigned int blend_vertex_index : blend_vertex_indices) {
+	//									unsigned int indices_count;
+	//									const unsigned int *indices = mesh_geometry->ToOutputVertexIndex(blend_vertex_index, indices_count);
+	//									for (int i = 0; i < indices_count; i += 1) {
+	//										const unsigned int index = indices[i];
+	//
+	//										// id is the cursor
+	//										if (blend_shape_mesh_copy.vertex_with_id.has(index)) {
+	//											// Actual blending - rewrite the same ID with the correct vertex position
+	//
+	//											// todo: various formats supported go here.
+	//											blend_shape_mesh_copy.vertex_with_id[index] += blend_vertices[blend_vertex_index];
+	//
+	//											int counted_position = -1;
+	//											for (Map<size_t, Vector3>::Element *vertex = blend_shape_mesh_copy.vertex_with_id.front(); vertex; vertex = vertex->next()) {
+	//												counted_position++;
+	//												if (vertex->key() == index) {
+	//													print_verbose("found valid vertex count for mesh vertex key");
+	//													break;
+	//												}
+	//											}
+	//
+	//											if (counted_position == -1) {
+	//												print_error("invalid position for normal...");
+	//											}
+	//											// update copy of normals with correct blend shape values.
+	//											blend_shape_mesh_copy.normals.set(counted_position, blend_normals[blend_vertex_index]);
+	//											print_verbose("[success] mesh updated and cursor has valid match for " + itos(index));
+	//										}
+	//									}
+	//								}
+	//
+	//								// make it a real thing
+	//								surface_blend_shapes[material_id][primitive_type].push_back(blend_shape_mesh_copy);
+	//							}
+	//						}
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//
+	//	//print_verbose("[vertex count for mesh] " + itos(vertices.size()));
+	//
+	//	int blend_shape_count = 0;
+	//	for (const Assimp::FBX::BlendShape *blendShape : mesh_geometry->GetBlendShapes()) {
+	//		for (const Assimp::FBX::BlendShapeChannel *blendShapeChannel : blendShape->BlendShapeChannels()) {
+	//			const std::vector<const Assimp::FBX::ShapeGeometry *> &shapeGeometries = blendShapeChannel->GetShapeGeometries();
+	//			for (size_t i = 0; i < shapeGeometries.size(); i++) {
+	//				const Assimp::FBX::ShapeGeometry *shapeGeometry = shapeGeometries.at(i);
+	//				String anim_mesh_name = String(ImportUtils::FBXAnimMeshName(shapeGeometry->Name()).c_str());
+	//				print_verbose("blend shape mesh name: " + anim_mesh_name);
+	//
+	//				// empty shape name should still work
+	//				if (anim_mesh_name.empty()) {
+	//					anim_mesh_name = String("morph_") + itos(i);
+	//				}
+	//
+	//				// godot register blend shape.
+	//				mesh->add_blend_shape(anim_mesh_name);
+	//				mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
+	//				blend_shape_count++;
+	//			}
+	//		}
+	//	}
+	//
+	//	print_verbose("blend shape count: " + itos(blend_shape_count));
+	//
+	//	// triangles surface for triangles
+	//
+	//	// basically a mesh is split by triangles, quads, lines and then by material. Godot requires this
+	//	for (int material = 0; material < surface_split_by_material_primitive.size(); material++) {
+	//		for (Map<uint32_t, FBXSplitBySurfaceVertexMapping>::Element *mesh_with_face_vertex_count = surface_split_by_material_primitive[material].front(); mesh_with_face_vertex_count; mesh_with_face_vertex_count = mesh_with_face_vertex_count->next()) {
+	//			const uint32_t face_vertex_count = mesh_with_face_vertex_count->key();
+	//
+	//			Array morphs = Array();
+	//
+	//			//
+	//			// Blend shape grabber
+	//			//
+	//			if (surface_blend_shapes.has(material)) {
+	//				if (surface_blend_shapes[material].has(face_vertex_count)) {
+	//					// we must grab the blend shape based on the other array not the current one since it's another mesh we created
+	//					const Vector<FBXSplitBySurfaceVertexMapping> &mappings = surface_blend_shapes[material][face_vertex_count];
+	//					for (int m = 0; m < mappings.size(); m += 1) {
+	//						const FBXSplitBySurfaceVertexMapping &mapping = mappings[m];
+	//						st->begin(Mesh::PRIMITIVE_TRIANGLES);
+	//
+	//						// Stream in vertexes.
+	//						// Note: The blend shape doesn't need the indices
+	//						for (const Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
+	//							const Vector3 vertex = vertex_element->value();
+	//							size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
+	//							GenFBXWeightInfo(mesh_geometry, st, vertex_id);
+	//							mapping.GenerateSurfaceMaterial(st, vertex_id);
+	//							st->add_vertex(vertex);
+	//						}
+	//
+	//						// generate tangents
+	//						if (mapping.normals.size() > 0) {
+	//							st->generate_tangents();
+	//						}
+	//
+	//						morphs.push_back(st->commit_to_arrays());
+	//					}
+	//				}
+	//			}
+	//
+	//			// Ordinary mesh handler - handles triangles, points, lines and quads.
+	//			// converts points, lines, quads to triangles
+	//			// indices are generated for triangles too.
+	//
+	//			const FBXSplitBySurfaceVertexMapping &mapping = mesh_with_face_vertex_count->value();
+	//			st->begin(Mesh::PRIMITIVE_TRIANGLES);
+	//
+	//
+	//			// todo: move this into godot.
+	//			//	// generate output vertices, computing an adjacency table to
+	//			//	// preserve the mapping from fbx indices to *this* indexing.
+	////    	unsigned int count = 0;
+	////    	for (int index : m_face_indices) {
+	////    		// convert fbx document index to normal polygon index.
+	////    		const int absi = index < 0 ? (-index - 1) : index;
+	////
+	////
+	////    		// indices
+	////    		print_verbose("index: " + itos(absi));
+	////    	}
+	//
+	//			// stream in vertexes
+	//			for (Map<size_t, Vector3>::Element *vertex_element = mapping.vertex_with_id.front(); vertex_element; vertex_element = vertex_element->next()) {
+	//				const Vector3 vertex = vertex_element->value();
+	//				size_t vertex_id = vertex_element->key(); // vertex id is the ORIGINAL FBX vertex id, required for blend shapes and weights.
+	//				GenFBXWeightInfo(mesh_geometry, st, vertex_id);
+	//				mapping.GenerateSurfaceMaterial(st, vertex_id);
+	//				st->add_vertex(vertex);
+	//			}
+	//
+	//			// generate indices - doesn't really matter much.
+	//			mapping.GenerateIndices(st, face_vertex_count);
+	//
+	//			// generate tangents
+	//			if (mapping.normals.size() > 0) {
+	//				st->generate_tangents();
+	//			}
+	//
+	//			Array mesh_committed = st->commit_to_arrays();
+	//
+	//			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, mesh_committed, morphs);
+	//		}
+	//	}
+	//
+	//	// Ref<SpatialMaterial> material;
+	//	// material.instance();
+	//	// material->set_cull_mode(SpatialMaterial::CullMode::CULL_DISABLED);
+	//
+	//	// mesh->add_surface_from_arrays(Mesh::PRIMITIVE_POINTS, array_mesh, morphs);
+	//	//mesh->surface_set_material(0, material);
+	//	// okay now enable it
+	//	mesh->set_name(ImportUtils::FBXNodeToName(mesh_geometry->Name()));
+	//
+	//	MeshInstance *godot_mesh = memnew(MeshInstance);
+	//	godot_mesh->set_mesh(mesh);
+	//
+	//	return godot_mesh;
 }
 
 void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
@@ -405,4 +508,251 @@ void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometr
 	} else {
 		//print_error("no weight data for vertex: " + itos(vertex_id));
 	}
+}
+
+const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_face_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+		return -1;
+	}
+
+	const int vertex = p_face_indices[p_index];
+	if (vertex >= 0) {
+		return vertex;
+	} else {
+		return (-vertex) - 1;
+	}
+}
+
+const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+		return false;
+	}
+
+	if (p_index == 0) {
+		return true;
+	}
+
+	// If the previous indices is negative this is the begin of a new Polygon.
+	return p_face_indices[p_index - 1] < 0;
+}
+
+const int FBXMeshData::count_polygons(const std::vector<int> &p_face_indices) const {
+	// The negative numbers define the end of the polygon. Counting the amount of
+	// negatives the numbers of polygons are obtained.
+	int count = 0;
+	for (size_t i = 0; i < p_face_indices.size(); i += 1) {
+		if (p_face_indices[i] < 0) {
+			count += 1;
+		}
+	}
+	return count;
+}
+
+const int FBXMeshData::next_polygon(const std::vector<int> &p_face_indices, int p_polygon_vertex_index) const {
+	if (p_polygon_vertex_index < 0) {
+		return p_face_indices.size() > 0 ? 0 : -1;
+	}
+
+	if (p_polygon_vertex_index >= (int)p_face_indices.size()) {
+		return -1;
+	}
+
+	// Returns the next polygon or -1 if done.
+	for (size_t i = p_polygon_vertex_index; i < p_face_indices.size(); i += 1) {
+		if (p_face_indices[i] < 0) {
+			if (i + 1 >= p_face_indices.size()) {
+				// No more polygons.
+				return -1;
+			} else {
+				// Returns the ID of the next polygon.
+				return i + 1;
+			}
+		}
+	}
+
+	ERR_FAIL_V_MSG(-1, "This is not supposed to happe. The FBX file is corrupted.");
+}
+
+template <class T>
+Vector<T> FBXMeshData::extract_per_vertex_data(
+		int p_vertex_count,
+		const std::vector<int> &p_face_indices, // TODO consider renaming to Polygon
+		const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
+		CombinationMode p_combination_mode,
+		void (*validate_function)(T &r_current, const T &p_fall_back)) const {
+
+	ERR_FAIL_COND_V_MSG(p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::index_to_direct && p_fbx_data.index.size() == 0, Vector<T>(), "The FBX seems corrupted");
+
+	// Aggregate vertex data.
+	HashMap<int, Vector<T> > aggregate_vertex_data;
+
+	// TODO test all branch of this function.
+	switch (p_fbx_data.map_type) {
+		case Assimp::FBX::MeshGeometry::MapType::none: {
+			// No data nothing to do.
+			return Vector<T>();
+		}
+		case Assimp::FBX::MeshGeometry::MapType::vertex: {
+			if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
+				// The data is mapped per vertex directly.
+				ERR_FAIL_COND_V_MSG((int)p_fbx_data.data.size() != p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR01");
+				for (size_t vertex_index = 0; vertex_index < p_fbx_data.data.size(); vertex_index += 1) {
+					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[vertex_index]);
+				}
+			} else {
+				// The data is mapped per vertex using a reference.
+				// The indices array, contains a *reference_id for each vertex.
+				// * Note that the reference_id is the id of data into the data array.
+				//
+				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
+				// TODO NEED VALIDATION
+				ERR_FAIL_COND_V_MSG((int)p_fbx_data.index.size() != p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR02");
+				for (size_t vertex_index = 0; vertex_index < p_fbx_data.index.size(); vertex_index += 1) {
+					ERR_FAIL_COND_V_MSG(p_fbx_data.index[vertex_index] >= (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR03.")
+					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[vertex_index]]);
+				}
+			}
+			break;
+			case Assimp::FBX::MeshGeometry::MapType::polygon_vertex: {
+				if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
+					// The data are mapped per poligon vertex directly.
+					// TODO NEED VALIDATION
+					ERR_FAIL_COND_V_MSG((int)p_face_indices.size() != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR04");
+					for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.data.size(); polygon_vertex_index += 1) {
+						const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR05");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR06");
+
+						aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[polygon_vertex_index]);
+					}
+				} else {
+					// The data is mapped per polygon_vertex using a reference.
+					// The indices array, contains a *reference_id for each polygon_vertex.
+					// * Note that the reference_id is the id of data into the data array.
+					//
+					// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
+					// TODO NEED VALIDATION
+					ERR_FAIL_COND_V_MSG(p_face_indices.size() != p_fbx_data.index.size(), Vector<T>(), "FBX file corrupted: #ERR7");
+					for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.index.size(); polygon_vertex_index += 1) {
+						const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR8");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file seems corrupted: #ERR9.")
+						ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, Vector<T>(), "FBX file seems corrupted: #ERR10.")
+						ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] >= (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR11.")
+						aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_vertex_index]]);
+					}
+				}
+			} break;
+			case Assimp::FBX::MeshGeometry::MapType::polygon: {
+				if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
+					// The data are mapped per poligon directly.
+					// TODO NEED VALIDATION
+					const int polygon_count = count_polygons(p_face_indices);
+					ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR12");
+
+					// Advance each polygon vertex, each new polygon advance the polygon index.
+					int polygon_index = -1;
+					for (size_t polygon_vertex_index = 0;
+							polygon_vertex_index < p_face_indices.size();
+							polygon_vertex_index += 1) {
+
+						if (is_start_of_polygon(p_face_indices, polygon_vertex_index)) {
+							polygon_index += 1;
+							ERR_FAIL_COND_V_MSG(polygon_index >= (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR13");
+						}
+
+						const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR14");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR15");
+
+						aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[polygon_index]);
+					}
+					ERR_FAIL_COND_V_MSG((polygon_index + 1) != polygon_count, Vector<T>(), "FBX file seems corrupted: #ERR16. Not all Polygons are present in the file.")
+				} else {
+					// The data is mapped per polygon using a reference.
+					// The indices array, contains a *reference_id for each polygon.
+					// * Note that the reference_id is the id of data into the data array.
+					//
+					// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
+					// TODO NEED VALIDATION
+					const int polygon_count = count_polygons(p_face_indices);
+					ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR17");
+
+					// Advance each polygon vertex, each new polygon advance the polygon index.
+					int polygon_index = -1;
+					for (size_t polygon_vertex_index = 0;
+							polygon_vertex_index < p_face_indices.size();
+							polygon_vertex_index += 1) {
+
+						if (is_start_of_polygon(p_face_indices, polygon_vertex_index)) {
+							polygon_index += 1;
+							ERR_FAIL_COND_V_MSG(polygon_index >= (int)p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR18");
+							ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_index] >= (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR19");
+						}
+
+						const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR20");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR21");
+
+						aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_index]]);
+					}
+					ERR_FAIL_COND_V_MSG((polygon_index + 1) != polygon_count, Vector<T>(), "FBX file seems corrupted: #ERR22. Not all Polygons are present in the file.")
+				}
+			} break;
+		} break;
+		case Assimp::FBX::MeshGeometry::MapType::edge: {
+			// TODO
+			CRASH_NOW_MSG("Understand how edges are stored, so support it! This is simple to do, just don't have time now!!!!!");
+		} break;
+		case Assimp::FBX::MeshGeometry::MapType::all_the_same: {
+			// No matter the mode, no matter the data size; The first always win
+			// and is set to all the vertices.
+			ERR_FAIL_COND_V_MSG(p_fbx_data.data.size() < 1, Vector<T>(), "FBX file seems corrupted: #ERR100");
+			for (int vertex_index = 0; vertex_index < p_vertex_count; vertex_index += 1) {
+				aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[0]);
+			}
+		} break;
+	}
+
+	if (aggregate_vertex_data.size() == 0) {
+		return Vector<T>();
+	}
+
+	Vector<T> vertices;
+	vertices.resize(p_vertex_count);
+	T *vertices_ptr = vertices.ptrw();
+
+	// Iterate over the aggregated data to compute the data per vertex.
+	if (p_combination_mode == CombinationMode::TakeFirst) {
+		// Take the first value for each vertex.
+		for (int index = 0; index < p_vertex_count; index += 1) {
+			ERR_FAIL_COND_V_MSG(aggregate_vertex_data.has(index) == false, Vector<T>(), "The FBX file is corrupted, The vertex index was not found.");
+
+			const Vector<T> *aggregated_vertex = aggregate_vertex_data.getptr(index);
+			CRASH_COND(aggregated_vertex == nullptr); // Can't happen, already checked.
+
+			ERR_FAIL_COND_V_MSG(aggregated_vertex->size() <= 0, Vector<T>(), "The FBX file is corrupted, No valid data for this vertex index.");
+			// Validate the final value.
+			validate_function(vertices_ptr[index], (*aggregated_vertex)[0]);
+		}
+	} else {
+		// Take the average value for each vertex.
+		for (int index = 0; index < vertices.size(); index += 1) {
+			ERR_FAIL_COND_V_MSG(aggregate_vertex_data.has(index) == false, Vector<T>(), "The FBX file is corrupted, The vertex index was not found.");
+
+			const Vector<T> *aggregated_vertex = aggregate_vertex_data.getptr(index);
+			CRASH_COND(aggregated_vertex == nullptr); // Can't happen, already checked.
+			ERR_FAIL_COND_V_MSG(aggregated_vertex->size() <= 0, Vector<T>(), "The FBX file is corrupted, No valid data for this vertex index.");
+
+			T combined;
+			for (int i = 0; i < aggregated_vertex->size(); i += 1) {
+				combined += (*aggregated_vertex)[i];
+			}
+			vertices_ptr[index] = combined / aggregated_vertex->size();
+			// Validate the final value.
+			validate_function(vertices_ptr[index], (*aggregated_vertex)[0]);
+		}
+	}
+
+	return vertices;
 }
