@@ -92,30 +92,32 @@ void no_validation(T &r_value, const T &p_fall_back) {
 
 MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
 
+	const int vertex_count = mesh_geometry->get_vertices().size();
+
 	// Phase 1. Parse all FBX data.
 	Vector<Vector3> normals = extract_per_vertex_data(
-			mesh_geometry->get_vertices().size(),
+			vertex_count,
 			mesh_geometry->get_face_indices(),
 			mesh_geometry->get_normals(),
 			CombinationMode::Avg, // TODO How can we make this dynamic?
 			&validate_vector_2or3);
 
 	Vector<Vector2> uvs_0 = extract_per_vertex_data(
-			mesh_geometry->get_vertices().size(),
+			vertex_count,
 			mesh_geometry->get_face_indices(),
 			mesh_geometry->get_uv_0(),
 			CombinationMode::TakeFirst,
 			&validate_vector_2or3);
 
 	Vector<Vector2> uvs_1 = extract_per_vertex_data(
-			mesh_geometry->get_vertices().size(),
+			vertex_count,
 			mesh_geometry->get_face_indices(),
 			mesh_geometry->get_uv_1(),
 			CombinationMode::TakeFirst,
 			&validate_vector_2or3);
 
 	Vector<Color> colors = extract_per_vertex_data(
-			mesh_geometry->get_vertices().size(),
+			vertex_count,
 			mesh_geometry->get_face_indices(),
 			mesh_geometry->get_colors(),
 			CombinationMode::TakeFirst,
@@ -126,44 +128,114 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	// TODO there is other?
 
 	Vector<int> materials = extract_per_vertex_data(
-			mesh_geometry->get_vertices().size(),
+			vertex_count,
 			mesh_geometry->get_face_indices(),
 			mesh_geometry->get_material_allocation_id(),
 			CombinationMode::TakeFirst,
 			&no_validation);
 
-	// Always false conditions. Each vector is organized per vertex.
+	// The extract function is already doint the data check the data; so the
+	// `CRASH_COND` cannot never happen.
 	CRASH_COND(normals.size() != 0 && normals.size() != (int)mesh_geometry->get_vertices().size());
 	CRASH_COND(uvs_0.size() != 0 && uvs_0.size() != (int)mesh_geometry->get_vertices().size());
 	CRASH_COND(uvs_1.size() != 0 && uvs_1.size() != (int)mesh_geometry->get_vertices().size());
 	CRASH_COND(colors.size() != 0 && colors.size() != (int)mesh_geometry->get_vertices().size());
 
-	ERR_FAIL_COND_V_MSG(materials.size() != (int)mesh_geometry->get_vertices().size(), nullptr, "FBX File corrupted: #ERR100");
-
-	// Phase 2. Triangulate the vertices since into the FBX are organized per faces.
-	// TODO
-
 	/// The map key is the material allocator id.
 	OAHashMap<int, Ref<SurfaceTool> > surfaces;
 
-	// Phase 3. For each material create a surface tool (So a different mesh).
+	// Phase 2. For each material create a surface tool (So a different mesh).
 	{
-		const Assimp::FBX::MeshGeometry::MappingData<int> &material_data = mesh_geometry->get_material_allocation_id();
-		for (size_t i = 0; i < material_data.data.size(); i += 1) {
+		if (materials.size() == 0) {
 			Ref<SurfaceTool> material_tool;
 			material_tool.instance();
 			material_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
-			surfaces.set(material_data.data[i], material_tool);
+			surfaces.set(-1, material_tool);
+		} else {
+			const Assimp::FBX::MeshGeometry::MappingData<int> &material_data = mesh_geometry->get_material_allocation_id();
+			for (size_t i = 0; i < material_data.data.size(); i += 1) {
+				Ref<SurfaceTool> material_tool;
+				material_tool.instance();
+				material_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+				surfaces.set(material_data.data[i], material_tool);
+			}
 		}
 	}
 
-	// Phase 4. Compose the meshes.
-	// TODO
+	// Phase 3. Compose the vertices.
+	for (size_t vertex = 0; vertex < mesh_geometry->get_vertices().size(); vertex += 1) {
+		const int material_id = materials.size() == 0 ? -1 : materials[vertex];
+		// This can't happen because, above the surface is created for all the
+		// materials.
+		CRASH_COND(surfaces.has(material_id) == false);
+
+		Ref<SurfaceTool> surface;
+		surfaces.lookup(material_id, surface);
+
+		if (normals.size() != 0) {
+			surface->add_normal(normals[vertex]);
+		}
+
+		if (uvs_0.size() != 0) {
+			surface->add_uv(uvs_0[vertex]);
+		}
+
+		if (uvs_1.size() != 0) {
+			surface->add_uv2(uvs_1[vertex]);
+		}
+
+		if (colors.size() != 0) {
+			surface->add_color(colors[vertex]);
+		}
+
+		// TODO what about tangends?
+		// TODO what about binormals?
+		// TODO there is other?
+
+		// The surface tool want the vertex as last.
+		surface->add_vertex(mesh_geometry->get_vertices()[vertex]);
+	}
+
+	// Phase 4. Triangulate the polygons.
+	Vector<int> polygon_vertices;
+	for (size_t polygon_vertex_index = 0; polygon_vertex_index < mesh_geometry->get_face_indices().size(); polygon_vertex_index += 1) {
+
+		polygon_vertices.push_back(get_vertex_from_polygon_vertex(mesh_geometry->get_face_indices(), polygon_vertex_index));
+
+		if (is_end_of_polygon(mesh_geometry->get_face_indices(), polygon_vertex_index)) {
+			// Validate vertices andtake the `material_id`.
+			ERR_FAIL_COND_V_MSG(polygon_vertices.size() <= 0, nullptr, "The FBX file is corrupted: #ERR100");
+
+			int material_id = -1;
+			for (int i = 0; i < polygon_vertices.size(); i += 1) {
+				ERR_FAIL_COND_V_MSG(polygon_vertices[i] < 0, nullptr, "The FBX file is corrupted: #ERR101");
+				ERR_FAIL_COND_V_MSG(polygon_vertices[i] >= vertex_count, nullptr, "The FBX file is corrupted: #ERR102");
+				if (materials.size() > 0) {
+					material_id = materials[polygon_vertices[i]];
+					// TODO Please support the case when the poligon as more than 1 material!!
+					ERR_FAIL_COND_V_MSG(materials[polygon_vertices[0]] != material_id, nullptr, "TODO SUPPORT THIS CASE PLEASE");
+				}
+			}
+
+			// Trinagulate
+
+			// This can't happen because, above the surface is created for all the
+			// materials.
+			CRASH_COND(surfaces.has(material_id) == false);
+
+			Ref<SurfaceTool> surface;
+			surfaces.lookup(material_id, surface);
+
+			triangulate_polygon(surface, polygon_vertices);
+
+			polygon_vertices.clear();
+		}
+	}
 
 	// Phase 5. Compose the morphs if any.
 	// TODO
 
-	// Phase x-1. Add surface to the mesh.
+	// Phase 6. Compose the mesh and return it.
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
@@ -175,7 +247,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		);
 	}
 
-	// Phase X. Return the mesh.
 	MeshInstance *godot_mesh = memnew(MeshInstance);
 	godot_mesh->set_mesh(mesh);
 
@@ -476,6 +547,53 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	//	return godot_mesh;
 }
 
+void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {
+	const int polygon_vertex_count = p_polygon_vertex.size();
+	switch (polygon_vertex_count) {
+		case 1:
+			// Point triangulation
+			st->add_index(p_polygon_vertex[0]);
+			st->add_index(p_polygon_vertex[0]);
+			st->add_index(p_polygon_vertex[0]);
+			break;
+		case 2: // TODO: validate this
+			// Line triangulation
+			st->add_index(p_polygon_vertex[1]);
+			st->add_index(p_polygon_vertex[1]);
+			st->add_index(p_polygon_vertex[0]);
+			break;
+		case 3:
+			// Just a triangle.
+			st->add_index(p_polygon_vertex[2]);
+			st->add_index(p_polygon_vertex[1]);
+			st->add_index(p_polygon_vertex[0]);
+			break;
+		case 4:
+			// Quad triangulation.
+			// We have 4 points, so we have 2 triangles, and We have CCW.
+			// First triangle.
+			st->add_index(p_polygon_vertex[2]);
+			st->add_index(p_polygon_vertex[1]);
+			st->add_index(p_polygon_vertex[0]);
+
+			// Second side of triangle
+			st->add_index(p_polygon_vertex[3]);
+			st->add_index(p_polygon_vertex[2]);
+			st->add_index(p_polygon_vertex[0]);
+
+			// anti clockwise rotation in indices
+			// note had to reverse right from left here
+			// [0](x) bottom right (-1,-1)
+			// [1](x+1) bottom left (1,-1)
+			// [2](x+2) top left (1,1)
+			// [3](x+3) top right (-1,1)
+			break;
+		default:
+			ERR_FAIL_MSG("This polygon size is not yet supported, Please triangulate you mesh!");
+			break;
+	}
+}
+
 void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
 		size_t vertex_id) {
 	if (vertex_weights.has(vertex_id)) {
@@ -523,6 +641,17 @@ const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_
 	}
 }
 
+const bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_face_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+		return false;
+	}
+
+	const int vertex = p_face_indices[p_index];
+
+	// If the index is negative this is the end of the Polygon.
+	return vertex < 0;
+}
+
 const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const {
 	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
 		return false;
@@ -546,31 +675,6 @@ const int FBXMeshData::count_polygons(const std::vector<int> &p_face_indices) co
 		}
 	}
 	return count;
-}
-
-const int FBXMeshData::next_polygon(const std::vector<int> &p_face_indices, int p_polygon_vertex_index) const {
-	if (p_polygon_vertex_index < 0) {
-		return p_face_indices.size() > 0 ? 0 : -1;
-	}
-
-	if (p_polygon_vertex_index >= (int)p_face_indices.size()) {
-		return -1;
-	}
-
-	// Returns the next polygon or -1 if done.
-	for (size_t i = p_polygon_vertex_index; i < p_face_indices.size(); i += 1) {
-		if (p_face_indices[i] < 0) {
-			if (i + 1 >= p_face_indices.size()) {
-				// No more polygons.
-				return -1;
-			} else {
-				// Returns the ID of the next polygon.
-				return i + 1;
-			}
-		}
-	}
-
-	ERR_FAIL_V_MSG(-1, "This is not supposed to happe. The FBX file is corrupted.");
 }
 
 template <class T>
@@ -707,9 +811,10 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 		case Assimp::FBX::MeshGeometry::MapType::all_the_same: {
 			// No matter the mode, no matter the data size; The first always win
 			// and is set to all the vertices.
-			ERR_FAIL_COND_V_MSG(p_fbx_data.data.size() < 1, Vector<T>(), "FBX file seems corrupted: #ERR100");
-			for (int vertex_index = 0; vertex_index < p_vertex_count; vertex_index += 1) {
-				aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[0]);
+			if (p_fbx_data.data.size() > 0) {
+				for (int vertex_index = 0; vertex_index < p_vertex_count; vertex_index += 1) {
+					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[0]);
+				}
 			}
 		} break;
 	}
@@ -733,6 +838,7 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 
 			ERR_FAIL_COND_V_MSG(aggregated_vertex->size() <= 0, Vector<T>(), "The FBX file is corrupted, No valid data for this vertex index.");
 			// Validate the final value.
+			vertices_ptr[index] = (*aggregated_vertex)[0];
 			validate_function(vertices_ptr[index], (*aggregated_vertex)[0]);
 		}
 	} else {
