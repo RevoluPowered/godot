@@ -82,7 +82,7 @@ Geometry::~Geometry() {
 }
 
 // ------------------------------------------------------------------------------------------------
-const std::vector<const BlendShape *> &Geometry::GetBlendShapes() const {
+const std::vector<const BlendShape *> &Geometry::get_blend_shapes() const {
 	return blendShapes;
 }
 
@@ -103,12 +103,11 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 		return; // this happened!
 	}
 
-
 	// must have Mesh elements:
 	const Element &Vertices = GetRequiredElement(*sc, "Vertices", &element);
 	const Element &PolygonVertexIndex = GetRequiredElement(*sc, "PolygonVertexIndex", &element);
 
-	if(HasElement(*sc, "Edges")){
+	if (HasElement(*sc, "Edges")) {
 		const Element &element_edges = GetRequiredElement(*sc, "Edges", &element);
 		ParseVectorDataArray(m_edges, element_edges);
 	}
@@ -204,7 +203,7 @@ const std::vector<Vector3> &MeshGeometry::get_vertices() const {
 	return m_vertices;
 }
 
-const std::vector<int> &MeshGeometry::get_face_indices() const {
+const std::vector<int> &MeshGeometry::get_polygon_indices() const {
 	return m_face_indices;
 }
 

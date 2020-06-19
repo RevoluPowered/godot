@@ -253,6 +253,8 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
+	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const;
+
 	/// This function is responsible to convert the FBX polygon vertex to
 	/// vertex index.
 	/// The polygon vertices are stored in an array with some negative
@@ -268,18 +270,17 @@ private:
 	/// Returns -1 if `p_index` is invalid.
 	const int get_vertex_from_polygon_vertex(const std::vector<int> &p_face_indices, int p_index) const;
 
+	/// Retuns true if this polygon_vertex_index is the end of a new polygon.
+	const bool is_end_of_polygon(const std::vector<int> &p_face_indices, int p_index) const;
+
 	/// Retuns true if this polygon_vertex_index is the begin of a new polygon.
 	const bool is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const;
 
 	/// Returns the number of polygons.
 	const int count_polygons(const std::vector<int> &p_face_indices) const;
 
-	/// Returns the first polygon vertex of the next polygon pointeed by the sent
-	/// polygon vertex OR -1.
-	// TODO consider remove this if not used
-	const int next_polygon(const std::vector<int> &p_face_indices, int p_polygon_vertex_index) const;
-
 	/// Used to extract data from the `MappingData` alligned with vertex.
+	/// If the function fails somehow, it returns an hollow vectors.
 	template <class T>
 	Vector<T> extract_per_vertex_data(
 			int p_vertex_count,
