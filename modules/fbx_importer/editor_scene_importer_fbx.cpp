@@ -537,7 +537,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				print_error("[doc] unable to find armature mapping");
 			}
 
-			if (skeleton.is_valid()) {
+			if (mesh_instance && skeleton.is_valid()) {
 				mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
 				print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
 
