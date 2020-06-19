@@ -43,10 +43,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef INCLUDED_AI_FBX_MESHGEOMETRY_H
 #define INCLUDED_AI_FBX_MESHGEOMETRY_H
 
-#include "core/vector.h"
-#include "core/math/vector3.h"
-#include "core/math/vector2.h"
 #include "core/color.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/vector.h"
 
 #include "FBXDocument.h"
 #include "FBXParser.h"
@@ -73,8 +73,7 @@ public:
 	/** Get the BlendShape attached to this geometry or NULL */
 	const std::vector<const BlendShape *> &GetBlendShapes() const;
 
-	size_t BlendShapeCount() const
-	{
+	size_t BlendShapeCount() const {
 		return blendShapes.size();
 	}
 
@@ -85,83 +84,81 @@ private:
 
 typedef std::vector<int> MatIndexArray;
 
-/** 
- *  DOM class for FBX geometry of type "Mesh"
- */
+/// Map Geometry stores the FBX file information.
+///
+/// # FBX doc.
+/// ## Reference type declared:
+/// 	- Direct (directly related to the mapping information type)
+/// 	- IndexToDirect (Map with key value, meaning depends on the MappingInformationType)
+///
+/// ## Map Type:
+/// 	* None The mapping is undetermined.
+/// 	* ByVertex There will be one mapping coordinate for each surface control point/vertex (ControlPoint is a vertex).
+/// 		* If you have direct reference type verticies[x]
+/// 		* If you have IndexToDirect reference type the UV
+/// 	* ByPolygonVertex There will be one mapping coordinate for each vertex, for every polygon of which it is a part. This means that a vertex will have as many mapping coordinates as polygons of which it is a part. (Sorted by polygon, referencing vertex)
+/// 	* ByPolygon There can be only one mapping coordinate for the whole polygon.
+/// 		* One mapping per polygon polygon x has this normal x
+/// 		* For each vertex of the polygon then set the normal to x
+/// 	* ByEdge There will be one mapping coordinate for each unique edge in the mesh. This is meant to be used with smoothing layer elements. (Mapping is referencing the edge id)
+/// 	* AllSame There can be only one mapping coordinate for the whole surface.
 class MeshGeometry : public Geometry {
 public:
-	/** The class constructor */
-	MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
-
-	/** The class destructor */
-	virtual ~MeshGeometry();
-
-
-	/* 	Reference type declared:
-		- Direct (directly related to the mapping information type)
-		- IndexToDirect (Map with key value, meaning depends on the MappingInformationType)
-
-		ControlPoint is a vertex
-		* None The mapping is undetermined.
-		* ByVertex There will be one mapping coordinate for each surface control point/vertex.
-			* If you have direct reference type verticies[x]
-			* If you have IndexToDirect reference type the UV
-		* ByPolygonVertex There will be one mapping coordinate for each vertex, for every polygon of which it is a part. This means that a vertex will have as many mapping coordinates as polygons of which it is a part. (Sorted by polygon, referencing vertex)
-		* ByPolygon There can be only one mapping coordinate for the whole polygon.
-			* One mapping per polygon polygon x has this normal x
-			* For each vertex of the polygon then set the normal to x
-		* ByEdge There will be one mapping coordinate for each unique edge in the mesh. This is meant to be used with smoothing layer elements. (Mapping is referencing the edge id)
-		* AllSame There can be only one mapping coordinate for the whole surface.
-	 */
-
-
-	// None
-	// ByVertice
-	// ByPolygonVertex
-	// ByPolygon
-	// ByEdge
-	// AllSame
 	enum class MapType {
-		none=0, // no mapping type
-		vertex, // each mapping exists per vertex
-		polygon_vertex, // per polygon vertex
-		polygon, // per polygon
-		edge, // maps per edge
-		all_the_same // maps to everything
+		none = 0, // No mapping type. Stored as "None".
+		vertex, // Maps per vertex. Stored as "ByVertice".
+		polygon_vertex, // Maps per polygon vertex. Stored as "ByPolygonVertex".
+		polygon, // Maps per polygon. Stored as "ByPolygon".
+		edge, // Maps per edge. Stored as "ByEdge".
+		all_the_same // Uaps to everything. Stored as "AllSame".
 	};
 
-	enum class ReferenceType {direct=0, index_to_direct=1};
+	enum class ReferenceType {
+		direct = 0,
+		index_to_direct = 1
+	};
 
-	template<class T>
-	struct MappingData
-	{
-		ReferenceType ref_type = ReferenceType::direct;
+	template <class T>
+	struct MappingData {
 		MapType map_type = MapType::none;
+		ReferenceType ref_type = ReferenceType::direct;
 		std::vector<T> data;
+		/// The meaning of the indices depends from the `MapType`.
+		/// If `ref_type` is `direct` this map is hollow.
 		std::vector<int> index;
 	};
 
-	std::vector<Vector3> &GetVertices() const;
-	std::vector<int> &GetFaceIndices() const;
-	MappingData<Vector3> &GetNormals() const;
-	MappingData<Vector2> &Get_UV_0() const;
-	MappingData<Vector2> &Get_UV_1() const;
-	MappingData<Color> &GetVertexColors() const;
-	MappingData<int> &GetMaterialAllocationID() const;
+public:
+	MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+
+	virtual ~MeshGeometry();
+
+	const std::vector<Vector3> &get_vertices() const;
+	const std::vector<int> &get_face_indices() const;
+	const std::vector<int> &get_edges() const;
+	const MappingData<Vector3> &get_normals() const;
+	const MappingData<Vector2> &get_uv_0() const;
+	const MappingData<Vector2> &get_uv_1() const;
+	const MappingData<Color> &get_colors() const;
+	const MappingData<int> &get_material_allocation_id() const;
+
 private:
-	template <class T>
-	MappingData<T> ResolveVertexDataArray(const Scope &source,
-								const std::string &MappingInformationType,
-								const std::string &ReferenceInformationType,
-								const std::string &dataElementName);
-	// read directly from the FBX file.
+	// Read directly from the FBX file.
 	std::vector<Vector3> m_vertices;
 	std::vector<int> m_face_indices;
+	std::vector<int> m_edges;
 	MappingData<Vector3> m_normals;
 	MappingData<Vector2> m_uv_0; // first uv coordinates
 	MappingData<Vector2> m_uv_1; // second uv coordinates
 	MappingData<Color> m_colors; // colors for the mesh
-	MappingData<int> m_material_id; // slot of material used
+	MappingData<int> m_material_allocation_ids; // slot of material used
+
+	template <class T>
+	MappingData<T> resolve_vertex_data_array(
+			const Scope &source,
+			const std::string &MappingInformationType,
+			const std::string &ReferenceInformationType,
+			const std::string &dataElementName);
 };
 
 /**
