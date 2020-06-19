@@ -230,11 +230,11 @@ void PivotTransform::ComputePivotTransform() {
 	LocalTransform = Transform();
 	LocalTransform = T * Roff * Rp * Rpre * R * Rpost.affine_inverse() * Rp.affine_inverse() * Soff * Sp * S * Sp.affine_inverse();
 
-	//Transform local_translation_pivoted = Transform(Basis(), LocalTransform.origin);
+	Transform local_translation_pivoted = Transform(Basis(), LocalTransform.origin);
 	GlobalTransform = Transform();
-	GlobalTransform = parent_global_xform * LocalTransform;
-	//Transform global_origin = Transform(Basis(), parent_translation);
-	//GlobalTransform = (global_origin * local_translation_pivoted) * global_rotation_scale;
+	//GlobalTransform = parent_global_xform * LocalTransform;
+	Transform global_origin = Transform(Basis(), parent_translation);
+	GlobalTransform = (global_origin * local_translation_pivoted) * global_rotation_scale;
 
 	ImportUtils::debug_xform("local xform calculation", LocalTransform);
 	print_verbose("scale of node: " + S.basis.get_scale_local());
