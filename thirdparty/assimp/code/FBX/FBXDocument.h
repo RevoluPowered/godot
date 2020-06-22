@@ -1264,6 +1264,10 @@ public:
         return bind_poses;
 	};
 
+	const std::vector<uint64_t> &GetMaterialIDs() const {
+		return materials;
+	};
+
 private:
 	std::vector<const Connection *> GetConnectionsSequenced(uint64_t id, const ConnectionMap &) const;
 	std::vector<const Connection *> GetConnectionsSequenced(uint64_t id, bool is_src,
@@ -1295,6 +1299,7 @@ private:
 	std::vector<uint64_t> bind_poses;
 	// constraints aren't in the tree / at least they are not easy to access.
 	std::vector<uint64_t> constraints;
+	std::vector<uint64_t> materials;
 
 	mutable std::vector<const AnimationStack *> animationStacksResolved;
 

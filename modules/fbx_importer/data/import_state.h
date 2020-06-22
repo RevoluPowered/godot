@@ -61,6 +61,7 @@ struct FBXNode;
 struct FBXSkeleton;
 
 struct ImportState {
+	bool enable_material_import = false;
 	String path = String();
 	Spatial *root = nullptr;
 	Ref<FBXNode> fbx_root_node = Ref<FBXNode>();

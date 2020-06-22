@@ -400,6 +400,8 @@ void Document::ReadObjects() {
 			constraints.push_back(id);
 		} else if (!strcmp(el.first.c_str(), "Pose")) {
 			bind_poses.push_back(id);
+		} else if (!strcmp(el.first.c_str(), "Material")){
+			materials.push_back(id);
 		}
 	}
 }

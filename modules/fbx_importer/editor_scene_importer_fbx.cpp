@@ -59,7 +59,7 @@
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {
 
-	const String import_setting_string = "filesystem/import/open_asset_import/";
+	const String import_setting_string = "filesystem/import/fbx/";
 
 	Map<String, ImportFormat> import_format;
 	{
@@ -334,6 +334,15 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
 
+	// import behaviour - materials
+	_GLOBAL_DEF("filesystem/import/fbx/generate_material_for_mesh_on_import", true);
+
+	// do we need to enable material generation
+	if(ProjectSettings::get_singleton()->get("filesystem/import/fbx/generate_material_for_mesh_on_import"))
+	{
+		state.enable_material_import = true;
+	}
+
 	Ref<FBXNode> root_node;
 	root_node.instance();
 	root_node->node_name = "root node";
@@ -349,6 +358,25 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	BuildDocumentNodes(nullptr, state, p_document, 0L, NULL);
 
 	//print_verbose("[doc] debug fbx_bone_map size: " + itos(state.fbx_bone_map.size()));
+
+	// do we globally allow for import of materials
+	// (prevents overwrite of materials; so you can handle them explicitly)
+	if(state.enable_material_import)
+	{
+		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
+
+		for(uint64_t material_id: materials)
+		{
+			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
+			const Assimp::FBX::Material *material = lazy_material->Get<Assimp::FBX::Material>();
+
+			ERR_CONTINUE_MSG(!material, "Could not convert fbx material by id: " + itos(material_id));
+			if(material)
+			{
+				print_verbose("[doc] Material name: " + String(material->Name().c_str()));
+			}
+		}
+	}
 
 	// build skin and skeleton information
 	print_verbose("[doc] Skeleton Bone count: " + itos(state.fbx_bone_map.size()));
@@ -437,6 +465,8 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			skeleton_node->value()->init_skeleton(state);
 		}
 	}
+
+
 
 	// build godot node tree
 	if (state.fbx_node_list.size() > 0) {
