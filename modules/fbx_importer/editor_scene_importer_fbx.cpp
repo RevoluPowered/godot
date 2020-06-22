@@ -334,13 +334,17 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
 
-	// import behaviour - materials
-	_GLOBAL_DEF("filesystem/import/fbx/generate_material_for_mesh_on_import", true);
-
 	// do we need to enable material generation
-	if(ProjectSettings::get_singleton()->get("filesystem/import/fbx/generate_material_for_mesh_on_import"))
-	{
+	if(ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d"))	{
 		state.enable_material_import = true;
+	} else {
+		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
+	}
+
+	if(ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d")) {
+		state.enable_animation_import = true;
+	} else {
+		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
 	Ref<FBXNode> root_node;
@@ -361,7 +365,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	// do we globally allow for import of materials
 	// (prevents overwrite of materials; so you can handle them explicitly)
-	if(state.enable_material_import)
+	if(state.enable_material_import && (p_flags & IMPORT_MATERIALS_IN_INSTANCES))
 	{
 		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
 
@@ -709,7 +713,8 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	// get the animation FPS
 	float fps_setting = ImportUtils::get_fbx_fps(FBXSettings);
 
-	if (p_flags & IMPORT_ANIMATION) {
+	// enable animation import, only if local animation is enabled
+	if (state.enable_animation_import && (p_flags & IMPORT_ANIMATION)) {
 		// document animation stack list - get by ID so we can unload any non used animation stack
 		const std::vector<uint64_t> animation_stack = p_document->GetAnimationStackIDs();
 
