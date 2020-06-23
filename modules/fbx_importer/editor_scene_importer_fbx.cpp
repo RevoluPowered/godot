@@ -335,13 +335,13 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node->godot_node = state.root;
 
 	// do we need to enable material generation
-	if(ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d"))	{
+	if (ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d")) {
 		state.enable_material_import = true;
 	} else {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
-	if(ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d")) {
+	if (ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d")) {
 		state.enable_animation_import = true;
 	} else {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
