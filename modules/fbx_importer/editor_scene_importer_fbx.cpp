@@ -36,6 +36,7 @@
 #include "tools/import_utils.h"
 
 #include "data/fbx_anim_container.h"
+#include "data/fbx_material.h"
 #include "data/fbx_skeleton.h"
 #include "fbx_mesh_data.h"
 #include "scene/3d/bone_attachment.h"
@@ -365,19 +366,19 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	// do we globally allow for import of materials
 	// (prevents overwrite of materials; so you can handle them explicitly)
-	if(state.enable_material_import && (p_flags & IMPORT_MATERIALS_IN_INSTANCES))
-	{
+	if (state.enable_material_import && (p_flags & IMPORT_MATERIALS_IN_INSTANCES)) {
 		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
 
-		for(uint64_t material_id: materials)
-		{
+		for (uint64_t material_id : materials) {
 			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
-			const Assimp::FBX::Material *material = lazy_material->Get<Assimp::FBX::Material>();
+			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
 
-			ERR_CONTINUE_MSG(!material, "Could not convert fbx material by id: " + itos(material_id));
-			if(material)
-			{
-				print_verbose("[doc] Material name: " + String(material->Name().c_str()));
+			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
+			if (mat) {
+				Ref<FBXMaterial> material;
+				material.instance();
+				material->set_imported_material(mat);
+				material->import_material();
 			}
 		}
 	}
@@ -469,8 +470,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			skeleton_node->value()->init_skeleton(state);
 		}
 	}
-
-
 
 	// build godot node tree
 	if (state.fbx_node_list.size() > 0) {
