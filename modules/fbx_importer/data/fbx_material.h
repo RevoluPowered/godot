@@ -46,6 +46,23 @@ public:
 		material = p_material;
 	}
 
+	/* Godot materials
+	 *** Texture Maps:
+	 * Albedo - color, texture
+	 * Metallic - specular, metallic, texture
+	 * Roughness - roughness, texture
+	 * Emission - color, texture
+	 * Normal Map - scale, texture
+	 * Ambient Occlusion - texture
+	 * Refraction - scale, texture
+	 *** Has Settings for:
+	 * UV1 - SCALE, OFFSET
+	 * UV2 - SCALE, OFFSET
+	 *** Flags for
+	 * Transparent
+	 * Cull Mode
+	 */
+
 	const std::vector<std::string> valid_properties_to_read = {
 		// Legacy Format
 		"DiffuseColor", "Maya|DiffuseTexture",
@@ -97,10 +114,12 @@ public:
 			print_verbose("[" + String(texture.first.c_str()) + "] Texture name: " + texture_name);
 		}
 
+
+
 		//const std::string &uvSet = PropertyGet<std::string>(props, "UVSet", ok);
 
 		// does anyone use this?
-		for( auto layer_textures : material->LayeredTextures()) {
+		for( std::pair<std::string, const Assimp::FBX::LayeredTexture*>  layer_textures : material->LayeredTextures()) {
 
 		}
 	}
