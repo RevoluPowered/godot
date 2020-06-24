@@ -113,7 +113,8 @@ public:
 									  "Maya|TEX_emissive_map|file" } },
 		{ MapMode::SpecularM, {
 									  "SpecularColor",
-									  "Maya|SpecularTexture" } },
+									  "Maya|SpecularTexture",
+									  "ShininessExponent"} },
 		{ MapMode::MetallicM, {
 									  "Maya|metalness|file",
 									  "3dsMax|Parameters|metalness_map",
@@ -132,23 +133,23 @@ public:
 		{ MapMode::RefractionM, {
 										"Maya|TEX_ao_map|file"} },
 		{ MapMode::BumpM, {
-								  // depth?
 								  "Bump",
 								  "3dsMax|Parameters|bump_map"} },
 		{ MapMode::ReflectionM, {
+ 										"TransparentColor",
+										"TransparencyFactor",
 										"ReflectionColor",
 										"Maya|ReflectionMapTexture"} }
 
 	};
 
+	// todo: determine if we really care about these
 	//	const std::vector<std::string> valid_properties_to_read = {
 	//		"TransparentColor",
 	//		"ReflectionColor", "Maya|ReflectionMapTexture",
 	//		"DisplacementColor",
 	//		"NormalMap", "Maya|NormalTexture",
 	//		"Bump", "3dsMax|Parameters|bump_map",
-	//		"ShininessExponent",
-	//		"TransparencyFactor",
 	//		"Maya|FalloffTexture", // opacity
 	//	};
 
