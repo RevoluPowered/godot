@@ -247,7 +247,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 	HashMap<int, Vector<MorphsInfo> > morphs_info;
 	HashMap<int, Array> morphs;
 
-	/*for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
+	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
 		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
 			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
 			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
@@ -262,71 +262,50 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				ERR_FAIL_COND_V_MSG((int)morphs_vertices.size() > vertex_count, nullptr, "The FBX file is corrupted: #ERR105");
 				ERR_FAIL_COND_V_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR106");
 
-				int material_id = -1;
+				for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+					const SurfaceData *surface = surfaces.getptr(*surface_id);
 
-				Ref<SurfaceTool> morphs_st;
-				morphs_st.instance();
-				morphs_st->begin(Mesh::PRIMITIVE_TRIANGLES);
+					Ref<SurfaceTool> morphs_st;
+					morphs_st.instance();
+					morphs_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-				for (size_t vertex_index = 0; vertex_index < mesh_geometry->get_vertices().size(); vertex_index += 1) {
+					// Just add the vertices data.
+					for (int vi = 0; vi < surface->data.size(); vi += 1) {
+						const Vertex vertex = surface->data[vi];
 
-					Vector3 morphs_vertex;
-					Vector3 morphs_normal;
-					// Search this vertex index into morph info, to see if it change.
-					for (size_t i = 0; i < morphs_vertex_indices.size(); i += 1) {
-						if (morphs_vertex_indices[i] == vertex_index) {
-
-							ERR_FAIL_COND_V_MSG(i >= morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR107");
-							morphs_vertex = morphs_vertices[i];
-							if (i < morphs_normals.size()) {
-								morphs_normal = morphs_normals[i];
+						// See if there is a morph change for this vertex.
+						Vector3 morphs_vertex;
+						Vector3 morphs_normal;
+						for (size_t i = 0; i < morphs_vertex_indices.size(); i += 1) {
+							if ((Vertex)morphs_vertex_indices[i] == vertex) {
+								ERR_FAIL_COND_V_MSG(i >= morphs_vertices.size(), nullptr, "The FBX file is corrupted, there is a morph for this vertex but without value.");
+								morphs_vertex = morphs_vertices[i];
+								if (i < morphs_normals.size()) {
+									morphs_normal = morphs_normals[i];
+								}
+								break;
 							}
-
-							// Lockup the material for this morphs.
-							if (materials.size() > 0) {
-								// TODO Please support the case when the poligon as more than 1 material!!
-								ERR_FAIL_COND_V_MSG(material_id != -1 && materials[vertex_index] != material_id, nullptr, "TODO SUPPORT THIS CASE PLEASE!");
-								material_id = materials[vertex_index];
-							}
-
-							break;
 						}
+						add_vertex(
+								morphs_st,
+								vertex,
+								mesh_geometry->get_vertices(),
+								normals,
+								uvs_0,
+								uvs_1,
+								colors,
+								morphs_vertex,
+								morphs_normal);
 					}
 
-					if (normals.size() != 0) {
-						morphs_st->add_normal(normals[vertex_index] + morphs_normal);
-					}
-
-					if (uvs_0.size() != 0) {
-						morphs_st->add_uv(uvs_0[vertex_index]);
-					}
-
-					if (uvs_1.size() != 0) {
-						morphs_st->add_uv2(uvs_1[vertex_index]);
-					}
-
-					if (colors.size() != 0) {
-						morphs_st->add_color(colors[vertex_index]);
-					}
-
-					// TODO what about tangends?
-					// TODO what about binormals?
-					// TODO there is other?
-
-					// Note: This must always happens last (This is how ST works).
-					// Note: Never add indices.
-					morphs_st->add_vertex(mesh_geometry->get_vertices()[vertex_index] + morphs_vertex);
+					morphs[*surface_id].push_back(morphs_st->commit_to_arrays());
+					MorphsInfo info;
+					info.name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
+					morphs_info[*surface_id].push_back(info);
 				}
-
-				ERR_FAIL_COND_V_MSG(materials.size() != 0 && material_id == -1, nullptr, "This FBX file is corrupted: #108");
-
-				morphs[material_id].push_back(morphs_st->commit_to_arrays());
-				MorphsInfo info;
-				info.name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
-				morphs_info[material_id].push_back(info);
 			}
 		}
-	}*/
+	}
 
 	// Phase 6. Compose the mesh and return it.
 	Ref<ArrayMesh> mesh;
@@ -370,12 +349,14 @@ void FBXMeshData::add_vertex(
 		const Vector<Vector3> &p_normals,
 		const Vector<Vector2> &p_uvs_0,
 		const Vector<Vector2> &p_uvs_1,
-		const Vector<Color> &p_colors) {
+		const Vector<Color> &p_colors,
+		const Vector3 &p_morph_value,
+		const Vector3 &p_morph_normal) {
 
 	ERR_FAIL_COND_MSG(p_vertex >= (Vertex)p_vertices_position.size(), "FBX file is corrupted, the position of the vertex can't be retrieved.");
 
 	if (p_normals.size() != 0) {
-		p_surface_tool->add_normal(p_normals[p_vertex]);
+		p_surface_tool->add_normal(p_normals[p_vertex] + p_morph_normal);
 	}
 
 	if (p_uvs_0.size() != 0) {
@@ -395,7 +376,7 @@ void FBXMeshData::add_vertex(
 	// TODO there is other?
 
 	// The surface tool want the vertex position as last thing.
-	p_surface_tool->add_vertex(p_vertices_position[p_vertex]);
+	p_surface_tool->add_vertex(p_vertices_position[p_vertex] + p_morph_value);
 }
 
 void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {

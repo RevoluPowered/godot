@@ -260,7 +260,9 @@ private:
 			const Vector<Vector3> &p_normals,
 			const Vector<Vector2> &p_uvs_0,
 			const Vector<Vector2> &p_uvs_1,
-			const Vector<Color> &p_colors);
+			const Vector<Color> &p_colors,
+			const Vector3 &p_morph_value = Vector3(),
+			const Vector3 &p_morph_normal = Vector3());
 
 	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const;
 
