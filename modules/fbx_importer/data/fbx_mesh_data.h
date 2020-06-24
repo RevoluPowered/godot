@@ -253,6 +253,15 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
+	void add_vertex(
+			Ref<SurfaceTool> p_surface_tool,
+			int p_vertex,
+			const std::vector<Vector3> &p_vertices_position,
+			const Vector<Vector3> &p_normals,
+			const Vector<Vector2> &p_uvs_0,
+			const Vector<Vector2> &p_uvs_1,
+			const Vector<Color> &p_colors);
+
 	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const;
 
 	/// This function is responsible to convert the FBX polygon vertex to
@@ -280,9 +289,21 @@ private:
 	const int count_polygons(const std::vector<int> &p_face_indices) const;
 
 	/// Used to extract data from the `MappingData` alligned with vertex.
-	/// If the function fails somehow, it returns an hollow vectors.
+	/// Useful to extract normal/uvs/colors/tangets/etc...
+	/// If the function fails somehow, it returns an hollow vector and print an error.
 	template <class T>
 	Vector<T> extract_per_vertex_data(
+			int p_vertex_count,
+			const std::vector<int> &p_face_indices,
+			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
+			CombinationMode p_combination_mode,
+			void (*validate_function)(T &r_current, const T &p_fall_back)) const;
+
+	/// Used to extract data from the `MappingData` organized per polygon.
+	/// Useful to extract the materila
+	/// If the function fails somehow, it returns an hollow vector and print an error.
+	template <class T>
+	Vector<T> extract_per_polygon(
 			int p_vertex_count,
 			const std::vector<int> &p_face_indices,
 			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
