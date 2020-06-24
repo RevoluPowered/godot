@@ -153,6 +153,11 @@ public:
 			return node_name.replace(":", "");
 		}
 
+		if (node_name.substr(0, 10) == "Material::") {
+			node_name = node_name.substr(10, node_name.length() - 10);
+			return node_name.replace(":", "");
+		}
+
 		return node_name.replace(":", "");
 	}
 

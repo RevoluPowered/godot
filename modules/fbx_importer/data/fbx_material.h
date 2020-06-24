@@ -46,13 +46,63 @@ public:
 		material = p_material;
 	}
 
+	const std::vector<std::string> valid_properties_to_read = {
+		// Legacy Format
+		"DiffuseColor", "Maya|DiffuseTexture",
+		"AmbientColor",
+		"EmissiveColor", "EmissiveFactor",
+		"SpecularColor", "Maya|SpecularTexture",
+		"TransparentColor",
+		"ReflectionColor", "Maya|ReflectionMapTexture",
+		"DisplacementColor",
+		"NormalMap", "Maya|NormalTexture",
+		"Bump", "3dsMax|Parameters|bump_map",
+		"ShininessExponent",
+		"TransparencyFactor",
+		"Maya|FalloffTexture", // opacity
+
+		// PBR Model
+		"Maya|baseColor|file", "3dsMax|Parameters|base_color_map",
+		"Maya|normalCamera|file",
+		"Maya|emissionColor|file", "3dsMax|Parameters|emission_map",
+		"Maya|metalness|file", "3dsMax|Parameters|metalness_map",
+		"Maya|diffuseRoughness|file", "3dsMax|Parameters|roughness_map",
+
+		// Legacy PBR / Stingray
+		"Maya|TEX_color_map|file",
+		"Maya|TEX_normal_map|file",
+		"Maya|TEX_emissive_map|file",
+		"Maya|TEX_metallic_map|file",
+		"Maya|TEX_roughness_map|file",
+		"Maya|TEX_ao_map|file",
+	};
+
+
+
 	void import_material() {
 		ERR_FAIL_COND(material == nullptr);
+
 		// read the material file
 		// is material two sided
 		// read material name
 		print_verbose("[material] material name: " + ImportUtils::FBXNodeToName(material->Name()));
-		print_verbose("[material] shading model: " + String(material->GetShadingModel().c_str()));
+		// ignore this it's irrelevant right now
+		// print_verbose("[material] shading model: " + String(material->GetShadingModel().c_str()));
+
+		// string is the field 'DiffuseColor'
+		for( std::pair<std::string, const Assimp::FBX::Texture*> texture : material->Textures())
+		{
+			// string texture name
+			String texture_name = String(texture.second->Name().c_str());
+			print_verbose("[" + String(texture.first.c_str()) + "] Texture name: " + texture_name);
+		}
+
+		//const std::string &uvSet = PropertyGet<std::string>(props, "UVSet", ok);
+
+		// does anyone use this?
+		for( auto layer_textures : material->LayeredTextures()) {
+
+		}
 	}
 };
 

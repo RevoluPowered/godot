@@ -366,7 +366,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	// do we globally allow for import of materials
 	// (prevents overwrite of materials; so you can handle them explicitly)
-	if (state.enable_material_import && (p_flags & IMPORT_MATERIALS_IN_INSTANCES)) {
+	if (state.enable_material_import) {
 		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
 
 		for (uint64_t material_id : materials) {
