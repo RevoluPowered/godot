@@ -63,38 +63,94 @@ public:
 	 * Cull Mode
 	 */
 
-	const std::vector<std::string> valid_properties_to_read = {
-		// Legacy Format
-		"DiffuseColor", "Maya|DiffuseTexture",
-		"AmbientColor",
-		"EmissiveColor", "EmissiveFactor",
-		"SpecularColor", "Maya|SpecularTexture",
-		"TransparentColor",
-		"ReflectionColor", "Maya|ReflectionMapTexture",
-		"DisplacementColor",
-		"NormalMap", "Maya|NormalTexture",
-		"Bump", "3dsMax|Parameters|bump_map",
-		"ShininessExponent",
-		"TransparencyFactor",
-		"Maya|FalloffTexture", // opacity
-
-		// PBR Model
-		"Maya|baseColor|file", "3dsMax|Parameters|base_color_map",
-		"Maya|normalCamera|file",
-		"Maya|emissionColor|file", "3dsMax|Parameters|emission_map",
-		"Maya|metalness|file", "3dsMax|Parameters|metalness_map",
-		"Maya|diffuseRoughness|file", "3dsMax|Parameters|roughness_map",
-
-		// Legacy PBR / Stingray
-		"Maya|TEX_color_map|file",
-		"Maya|TEX_normal_map|file",
-		"Maya|TEX_emissive_map|file",
-		"Maya|TEX_metallic_map|file",
-		"Maya|TEX_roughness_map|file",
-		"Maya|TEX_ao_map|file",
+	enum class MapMode {
+		AlbedoM = 0,
+		MetallicM,
+		SpecularM,
+		EmissionM,
+		RoughnessM,
+		NormalM,
+		AmbientOcclusionM,
+		RefractionM,
+		BumpM,
+		ReflectionM,
 	};
 
+	struct TextureFileMapping {
+		MapMode map_mode = MapMode::AlbedoM;
+		String texture_name = String();
+	};
 
+	/* storing the texture properties like color */
+	template <class T>
+	struct TexturePropertyMapping {
+		MapMode map_mode = MapMode::AlbedoM;
+		const T property = T();
+	};
+
+	// used for texture files - so you can map albedo,diffuse,etc
+	Vector<TextureFileMapping> extract_texture_mappings() const;
+
+	// used for single properties like metalic/specularintensity/energy/scale
+	Vector<TexturePropertyMapping<float> > extract_float_properties() const;
+
+	// used for vertex color mappings
+	Vector<TexturePropertyMapping<Color> > extract_color_properties() const;
+
+	// so in 2020 when autodesk comes out with another format we can implement it with some strings
+	const std::map<MapMode, std::vector<String> > generic_fbx_properties{
+		{ MapMode::AlbedoM, {
+									"DiffuseColor",
+									"Maya|DiffuseTexture",
+									"Maya|baseColor|file",
+									"3dsMax|Parameters|base_color_map",
+									"Maya|TEX_color_map|file" } },
+		{ MapMode::EmissionM, {
+									  "EmissiveColor",
+									  "EmissiveFactor",
+									  "Maya|emissionColor|file",
+									  "3dsMax|Parameters|emission_map",
+									  "Maya|TEX_emissive_map|file" } },
+		{ MapMode::SpecularM, {
+									  "SpecularColor",
+									  "Maya|SpecularTexture" } },
+		{ MapMode::MetallicM, {
+									  "Maya|metalness|file",
+									  "3dsMax|Parameters|metalness_map",
+									  "Maya|TEX_metallic_map|file" } },
+		{ MapMode::RoughnessM, {
+									   "Maya|diffuseRoughness|file",
+									   "3dsMax|Parameters|roughness_map",
+									   "Maya|TEX_roughness_map|file" } },
+		{ MapMode::NormalM, {
+									"NormalMap",
+									"Maya|NormalTexture",
+									"Maya|normalCamera|file",
+									"Maya|TEX_normal_map|file" } },
+		{ MapMode::AmbientOcclusionM, {
+											  "Maya|TEX_ao_map|file" } },
+		{ MapMode::RefractionM, {
+										"Maya|TEX_ao_map|file"} },
+		{ MapMode::BumpM, {
+								  // depth?
+								  "Bump",
+								  "3dsMax|Parameters|bump_map"} },
+		{ MapMode::ReflectionM, {
+										"ReflectionColor",
+										"Maya|ReflectionMapTexture"} }
+
+	};
+
+	//	const std::vector<std::string> valid_properties_to_read = {
+	//		"TransparentColor",
+	//		"ReflectionColor", "Maya|ReflectionMapTexture",
+	//		"DisplacementColor",
+	//		"NormalMap", "Maya|NormalTexture",
+	//		"Bump", "3dsMax|Parameters|bump_map",
+	//		"ShininessExponent",
+	//		"TransparencyFactor",
+	//		"Maya|FalloffTexture", // opacity
+	//	};
 
 	void import_material() {
 		ERR_FAIL_COND(material == nullptr);
@@ -107,20 +163,16 @@ public:
 		// print_verbose("[material] shading model: " + String(material->GetShadingModel().c_str()));
 
 		// string is the field 'DiffuseColor'
-		for( std::pair<std::string, const Assimp::FBX::Texture*> texture : material->Textures())
-		{
+		for (std::pair<std::string, const Assimp::FBX::Texture *> texture : material->Textures()) {
 			// string texture name
 			String texture_name = String(texture.second->Name().c_str());
 			print_verbose("[" + String(texture.first.c_str()) + "] Texture name: " + texture_name);
 		}
 
-
-
 		//const std::string &uvSet = PropertyGet<std::string>(props, "UVSet", ok);
 
 		// does anyone use this?
-		for( std::pair<std::string, const Assimp::FBX::LayeredTexture*>  layer_textures : material->LayeredTextures()) {
-
+		for (std::pair<std::string, const Assimp::FBX::LayeredTexture *> layer_textures : material->LayeredTextures()) {
 		}
 	}
 };
