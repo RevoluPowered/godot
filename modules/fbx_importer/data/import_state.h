@@ -63,6 +63,9 @@ struct FBXSkeleton;
 struct ImportState {
 	bool enable_material_import = false;
 	bool enable_animation_import = false;
+
+	Map<StringName, Ref<Texture>> cached_image_searches;
+
 	String path = String();
 	Spatial *root = nullptr;
 	Ref<FBXNode> fbx_root_node = Ref<FBXNode>();

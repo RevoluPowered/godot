@@ -378,7 +378,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				Ref<FBXMaterial> material;
 				material.instance();
 				material->set_imported_material(mat);
-				material->import_material();
+				material->import_material(state);
 			}
 		}
 	}

@@ -158,6 +158,11 @@ public:
 			return node_name.replace(":", "");
 		}
 
+        if (node_name.substr(0, 9) == "Texture::") {
+            node_name = node_name.substr(9, node_name.length() - 9);
+            return node_name.replace(":", "");
+        }
+
 		return node_name.replace(":", "");
 	}
 
@@ -236,48 +241,6 @@ public:
 		};
 	};
 
-	/** Get assimp string
-    * automatically filters the string data
-    */
-	static String get_assimp_string(const aiString &p_string) {
-		//convert an assimp String to a Godot String
-		String name;
-		name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
-		if (name.find(":") != -1) {
-			String replaced_name = name.split(":")[1];
-			print_verbose("Replacing " + name + " containing : with " + replaced_name);
-			name = replaced_name;
-		}
-
-		return name;
-	}
-
-	static String get_anim_string_from_assimp(const aiString &p_string) {
-
-		String name;
-		name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
-		if (name.find(":") != -1) {
-			String replaced_name = name.split(":")[1];
-			print_verbose("Replacing " + name + " containing : with " + replaced_name);
-			name = replaced_name;
-		}
-		return name;
-	}
-
-	/**
-     * No filter logic get_raw_string_from_assimp
-     * This just convers the aiString to a parsed utf8 string
-     * Without removing special chars etc
-     */
-	static String get_raw_string_from_assimp(const aiString &p_string) {
-		String name;
-		name.parse_utf8(p_string.C_Str() /*,p_string.length*/);
-		return name;
-	}
-
-	static Ref<Animation> import_animation(const String &p_path, uint32_t p_flags, int p_bake_fps) {
-		return Ref<Animation>();
-	}
 
 	/** Get fbx fps for time mode meta data
      */
@@ -324,75 +287,9 @@ public:
 	/**
 	  * Find hardcoded textures from assimp which could be in many different directories
 	  */
-	static void find_texture_path(const String &p_path, _Directory &dir, String &path, bool &found, String extension) {
-		Vector<String> paths;
-		paths.push_back(path.get_basename() + extension);
-		paths.push_back(path + extension);
-		paths.push_back(path);
-		paths.push_back(p_path.get_base_dir().plus_file(path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file(path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file(path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("textures/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("Textures/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../Textures/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../textures/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("texture/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("Texture/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../Texture/" + path.get_file()));
-		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file().get_basename() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file() + extension));
-		paths.push_back(p_path.get_base_dir().plus_file("../texture/" + path.get_file()));
-		for (int i = 0; i < paths.size(); i++) {
-			if (dir.file_exists(paths[i])) {
-				found = true;
-				path = paths[i];
-				return;
-			}
-		}
-	}
 
-	/** find the texture path for the supplied fbx path inside godot
-      * very simple lookup for subfolders etc for a texture which may or may not be in a directory
-      */
-	static void find_texture_path(const String &r_p_path, String &r_path, bool &r_found) {
-		_Directory dir;
 
-		List<String> exts;
-		ImageLoader::get_recognized_extensions(&exts);
 
-		Vector<String> split_path = r_path.get_basename().split("*");
-		if (split_path.size() == 2) {
-			r_found = true;
-			return;
-		}
-
-		if (dir.file_exists(r_p_path.get_base_dir() + r_path.get_file())) {
-			r_path = r_p_path.get_base_dir() + r_path.get_file();
-			r_found = true;
-			return;
-		}
-
-		for (int32_t i = 0; i < exts.size(); i++) {
-			if (r_found) {
-				return;
-			}
-			find_texture_path(r_p_path, dir, r_path, r_found, "." + exts[i]);
-		}
-	}
 
 	/**
 	  * set_texture_mapping_mode
