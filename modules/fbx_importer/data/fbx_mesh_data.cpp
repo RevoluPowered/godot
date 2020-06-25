@@ -29,32 +29,9 @@
 /*************************************************************************/
 
 #include "fbx_mesh_data.h"
-#include "core/io/image_loader.h"
-#include "core/oa_hash_map.h"
-#include "data/fbx_anim_container.h"
-#include "data/fbx_skeleton.h"
-#include "editor/editor_log.h"
-#include "editor/editor_node.h"
-#include "editor/import/resource_importer_scene.h"
-#include "editor_scene_importer_fbx.h"
-#include "scene/3d/bone_attachment.h"
-#include "scene/3d/camera.h"
-#include "scene/3d/light.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/main/node.h"
-#include "scene/resources/material.h"
+
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
-#include "tools/import_utils.h"
-
-#include <code/FBX/FBXDocument.h>
-#include <code/FBX/FBXImportSettings.h>
-#include <code/FBX/FBXParser.h>
-#include <code/FBX/FBXProperties.h>
-#include <code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
-#include <assimp/Importer.hpp>
-#include <string>
 
 void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights) {
 	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] error unable to handle incorrect bone weight info");

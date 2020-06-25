@@ -33,14 +33,11 @@
 
 #include "fbx_node.h"
 #include "import_state.h"
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
+#include "thirdparty/assimp/code/FBX/FBXDocument.h"
 
-struct FBXSkeleton;
 struct PivotTransform;
-struct FBXNode;
-struct FBXBone;
 
-struct FBXBone : Reference {
+struct FBXBone : public Reference {
 	uint64_t parent_bone_id = 0;
 	uint64_t bone_id = 0;
 

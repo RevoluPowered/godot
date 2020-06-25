@@ -31,32 +31,9 @@
 #ifndef EDITOR_SCENE_FBX_MESH_DATA_H
 #define EDITOR_SCENE_FBX_MESH_DATA_H
 
-// TODO do we really need to impor these here now?
-#include "../tools/import_utils.h"
-#include "core/bind/core_bind.h"
-#include "core/io/resource_importer.h"
-#include "core/vector.h"
-#include "editor/import/resource_importer_scene.h"
-#include "editor/project_settings_editor.h"
 #include "fbx_bone.h"
-#include "fbx_node.h"
-#include "fbx_skeleton.h"
-#include "pivot_transform.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
-#include "scene/animation/animation_player.h"
-#include "scene/resources/animation.h"
-#include "scene/resources/surface_tool.h"
-
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
-#include <thirdparty/assimp/code/FBX/FBXImportSettings.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
-#include <thirdparty/assimp/code/FBX/FBXParser.h>
-#include <thirdparty/assimp/code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXUtil.h>
-#include <thirdparty/assimp/include/assimp/matrix4x4.h>
-#include <thirdparty/assimp/include/assimp/types.h>
+#include "modules/fbx_importer/tools/import_utils.h"
+#include "thirdparty/assimp/code/FBX/FBXMeshGeometry.h"
 
 struct FBXMeshData;
 struct FBXBone;
