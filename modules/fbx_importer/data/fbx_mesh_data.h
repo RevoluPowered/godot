@@ -296,6 +296,7 @@ private:
 	template <class T>
 	Vector<T> extract_per_vertex_data(
 			int p_vertex_count,
+			const std::vector<Assimp::FBX::MeshGeometry::Edge> &p_edges,
 			const std::vector<int> &p_face_indices,
 			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
 			CombinationMode p_combination_mode,
