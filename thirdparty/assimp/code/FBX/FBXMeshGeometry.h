@@ -127,12 +127,17 @@ public:
 		std::vector<int> index;
 	};
 
+	struct Edge {
+		int vertex_0 = 0, vertex_1 = 0;
+	};
+
 public:
 	MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
 
 	virtual ~MeshGeometry();
 
 	const std::vector<Vector3> &get_vertices() const;
+	const std::vector<Edge> &get_edge_map() const;
 	const std::vector<int> &get_polygon_indices() const;
 	const std::vector<int> &get_edges() const;
 	const MappingData<Vector3> &get_normals() const;
@@ -141,9 +146,17 @@ public:
 	const MappingData<Color> &get_colors() const;
 	const MappingData<int> &get_material_allocation_id() const;
 
+	/// Returns -1 if the vertices doesn't form an edge. Vertex order, doesn't
+	// matter.
+	static int get_edge_id(const std::vector<Edge> &p_map, int p_vertex_a, int p_vertex_b);
+	// Retuns the edge point bu that ID, or the edge with -1 vertices if the
+	// id is not valid.
+	static Edge get_edge(const std::vector<Edge> &p_map, int p_id);
+
 private:
 	// Read directly from the FBX file.
 	std::vector<Vector3> m_vertices;
+	std::vector<Edge> edge_map;
 	std::vector<int> m_face_indices;
 	std::vector<int> m_edges;
 	MappingData<Vector3> m_normals;

@@ -31,32 +31,10 @@
 #ifndef EDITOR_SCENE_FBX_MESH_DATA_H
 #define EDITOR_SCENE_FBX_MESH_DATA_H
 
-// TODO do we really need to impor these here now?
-#include "../tools/import_utils.h"
-#include "core/bind/core_bind.h"
-#include "core/io/resource_importer.h"
-#include "core/vector.h"
-#include "editor/import/resource_importer_scene.h"
-#include "editor/project_settings_editor.h"
+#include "core/hash_map.h"
 #include "fbx_bone.h"
-#include "fbx_node.h"
-#include "fbx_skeleton.h"
-#include "pivot_transform.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
-#include "scene/animation/animation_player.h"
-#include "scene/resources/animation.h"
-#include "scene/resources/surface_tool.h"
-
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
-#include <thirdparty/assimp/code/FBX/FBXImportSettings.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
-#include <thirdparty/assimp/code/FBX/FBXParser.h>
-#include <thirdparty/assimp/code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXUtil.h>
-#include <thirdparty/assimp/include/assimp/matrix4x4.h>
-#include <thirdparty/assimp/include/assimp/types.h>
+#include "modules/fbx_importer/tools/import_utils.h"
+#include "thirdparty/assimp/code/FBX/FBXMeshGeometry.h"
 
 struct FBXMeshData;
 struct FBXBone;
@@ -253,6 +231,17 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
+	void add_vertex(
+			Ref<SurfaceTool> p_surface_tool,
+			int p_vertex,
+			const std::vector<Vector3> &p_vertices_position,
+			const HashMap<int, Vector3> &p_normals,
+			const HashMap<int, Vector2> &p_uvs_0,
+			const HashMap<int, Vector2> &p_uvs_1,
+			const HashMap<int, Color> &p_colors,
+			const Vector3 &p_morph_value = Vector3(),
+			const Vector3 &p_morph_normal = Vector3());
+
 	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const;
 
 	/// This function is responsible to convert the FBX polygon vertex to
@@ -280,14 +269,29 @@ private:
 	const int count_polygons(const std::vector<int> &p_face_indices) const;
 
 	/// Used to extract data from the `MappingData` alligned with vertex.
-	/// If the function fails somehow, it returns an hollow vectors.
+	/// Useful to extract normal/uvs/colors/tangets/etc...
+	/// If the function fails somehow, it returns an hollow vector and print an error.
 	template <class T>
-	Vector<T> extract_per_vertex_data(
+	HashMap<int, T> extract_per_vertex_data(
+			int p_vertex_count,
+			const std::vector<Assimp::FBX::MeshGeometry::Edge> &p_edges,
+			const std::vector<int> &p_face_indices,
+			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
+			CombinationMode p_combination_mode,
+			void (*validate_function)(T &r_current, const T &p_fall_back),
+			T p_fallback_value) const;
+
+	/// Used to extract data from the `MappingData` organized per polygon.
+	/// Useful to extract the materila
+	/// If the function fails somehow, it returns an hollow vector and print an error.
+	template <class T>
+	HashMap<int, T> extract_per_polygon(
 			int p_vertex_count,
 			const std::vector<int> &p_face_indices,
 			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
 			CombinationMode p_combination_mode,
-			void (*validate_function)(T &r_current, const T &p_fall_back)) const;
+			void (*validate_function)(T &r_current, const T &p_fall_back),
+			T p_fallback_value) const;
 };
 
 #endif // EDITOR_SCENE_FBX_MESH_DATA_H

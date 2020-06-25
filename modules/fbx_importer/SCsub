@@ -5,23 +5,7 @@ Import("env_modules")
 
 env_assimp = env_modules.Clone()
 env_assimp.Prepend(CPPPATH=["#thirdparty/assimp"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/include"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/code/Importer/IFC"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/code/FBX"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/misc"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/code"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/common"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/contrib/irrXML/"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/contrib/unzip/"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/code/Importer/STEPParser"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/zlib/"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/contrib/openddlparser/include"])
-env_assimp.Prepend(CPPPATH=["#thirdparty/assimp/contrib/rapidjson/include"])
-env_assimp.Prepend(CPPPATH=["."])
-env_assimp.Prepend(CPPPATH=["data/"])
-env_assimp.Prepend(CPPPATH=["tests/"])
-# env_assimp.Append(CPPDEFINES=['ASSIMP_DOUBLE_PRECISION']) # TODO default to what godot is compiled with for future double support
+
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_BOOST_WORKAROUND"])
 env_assimp.Append(CPPDEFINES=["OPENDDLPARSER_BUILD"])
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_NO_OWN_ZLIB"])
@@ -77,7 +61,6 @@ env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_NO_GLTF2_IMPORTER"])
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_SINGLETHREADED"])
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_NO_M3D_IMPORTER"])
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_NO_MMD_IMPORTER"])
-
 env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_SINGLETHREADED"])
 
 if env["platform"] == "windows":
@@ -93,7 +76,6 @@ elif env["platform"] == "osx":
 env_thirdparty = env_assimp.Clone()
 env_thirdparty.disable_warnings()
 env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/Common/*.cpp"))
-env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/PostProcessing/*.cpp"))
 env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/Material/*.cpp"))
 env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/FBX/*.cpp"))
 

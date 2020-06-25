@@ -31,25 +31,12 @@
 #ifndef MODEL_ABSTRACTION_FBX_NODE_H
 #define MODEL_ABSTRACTION_FBX_NODE_H
 
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
-
+#include "thirdparty/assimp/code/FBX/FBXDocument.h"
 #include "fbx_skeleton.h"
 #include "model_abstraction.h"
 #include "pivot_transform.h"
 
-#include "core/bind/core_bind.h"
-#include "core/io/resource_importer.h"
-#include "core/vector.h"
-#include "editor/import/resource_importer_scene.h"
-#include "editor/project_settings_editor.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
-#include "scene/animation/animation_player.h"
-#include "scene/resources/animation.h"
-#include "scene/resources/surface_tool.h"
-
-struct FBXSkeleton;
+class Spatial;
 struct PivotTransform;
 
 struct FBXNode : Reference, ModelAbstraction {

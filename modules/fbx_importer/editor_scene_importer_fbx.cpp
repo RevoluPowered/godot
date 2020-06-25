@@ -38,7 +38,7 @@
 #include "data/fbx_anim_container.h"
 #include "data/fbx_material.h"
 #include "data/fbx_skeleton.h"
-#include "fbx_mesh_data.h"
+#include "modules/fbx_importer/data/fbx_mesh_data.h"
 #include "scene/3d/bone_attachment.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/light.h"
@@ -47,8 +47,6 @@
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
-
-#include <assimp/Importer.hpp>
 
 #include <code/FBX/FBXDocument.h>
 #include <code/FBX/FBXImportSettings.h>
