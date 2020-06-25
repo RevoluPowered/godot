@@ -464,12 +464,12 @@ void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometr
 	}
 }
 
-const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_face_indices, int p_index) const {
-	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_polygon_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return -1;
 	}
 
-	const int vertex = p_face_indices[p_index];
+	const int vertex = p_polygon_indices[p_index];
 	if (vertex >= 0) {
 		return vertex;
 	} else {
@@ -479,19 +479,19 @@ const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_
 	}
 }
 
-const bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_face_indices, int p_index) const {
-	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+const bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return false;
 	}
 
-	const int vertex = p_face_indices[p_index];
+	const int vertex = p_polygon_indices[p_index];
 
 	// If the index is negative this is the end of the Polygon.
 	return vertex < 0;
 }
 
-const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const {
-	if (p_index < 0 || p_index >= (int)p_face_indices.size()) {
+const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
+	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return false;
 	}
 
@@ -500,15 +500,15 @@ const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_face_indic
 	}
 
 	// If the previous indices is negative this is the begin of a new Polygon.
-	return p_face_indices[p_index - 1] < 0;
+	return p_polygon_indices[p_index - 1] < 0;
 }
 
-const int FBXMeshData::count_polygons(const std::vector<int> &p_face_indices) const {
+const int FBXMeshData::count_polygons(const std::vector<int> &p_polygon_indices) const {
 	// The negative numbers define the end of the polygon. Counting the amount of
 	// negatives the numbers of polygons are obtained.
 	int count = 0;
-	for (size_t i = 0; i < p_face_indices.size(); i += 1) {
-		if (p_face_indices[i] < 0) {
+	for (size_t i = 0; i < p_polygon_indices.size(); i += 1) {
+		if (p_polygon_indices[i] < 0) {
 			count += 1;
 		}
 	}
@@ -519,7 +519,7 @@ template <class T>
 Vector<T> FBXMeshData::extract_per_vertex_data(
 		int p_vertex_count,
 		const std::vector<Assimp::FBX::MeshGeometry::Edge> &p_edge_map,
-		const std::vector<int> &p_face_indices, // TODO consider renaming to Polygon
+		const std::vector<int> &p_polygon_indices,
 		const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
 		CombinationMode p_combination_mode,
 		void (*validate_function)(T &r_current, const T &p_fall_back)) const {
@@ -529,7 +529,6 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 	// Aggregate vertex data.
 	HashMap<int, Vector<T> > aggregate_vertex_data;
 
-	// TODO test all branch of this function.
 	switch (p_fbx_data.map_type) {
 		case Assimp::FBX::MeshGeometry::MapType::none: {
 			// No data nothing to do.
@@ -548,10 +547,9 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 				// * Note that the reference_id is the id of data into the data array.
 				//
 				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
-				// TODO NEED VALIDATION
 				ERR_FAIL_COND_V_MSG((int)p_fbx_data.index.size() != p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR02");
 				for (size_t vertex_index = 0; vertex_index < p_fbx_data.index.size(); vertex_index += 1) {
-					ERR_FAIL_COND_V_MSG(p_fbx_data.index[vertex_index] >= (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR03.")
+					ERR_FAIL_INDEX_V_MSG(p_fbx_data.index[vertex_index], (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR03.")
 					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[vertex_index]]);
 				}
 			}
@@ -559,10 +557,9 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 		case Assimp::FBX::MeshGeometry::MapType::polygon_vertex: {
 			if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
 				// The data are mapped per polygon vertex directly.
-				// TODO NEED VALIDATION
-				ERR_FAIL_COND_V_MSG((int)p_face_indices.size() != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR04");
+				ERR_FAIL_COND_V_MSG((int)p_polygon_indices.size() != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR04");
 				for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.data.size(); polygon_vertex_index += 1) {
-					const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR05");
 					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR06");
 
@@ -574,10 +571,9 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 				// * Note that the reference_id is the id of data into the data array.
 				//
 				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
-				// TODO NEED VALIDATION
-				ERR_FAIL_COND_V_MSG(p_face_indices.size() != p_fbx_data.index.size(), Vector<T>(), "FBX file corrupted: #ERR7");
+				ERR_FAIL_COND_V_MSG(p_polygon_indices.size() != p_fbx_data.index.size(), Vector<T>(), "FBX file corrupted: #ERR7");
 				for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.index.size(); polygon_vertex_index += 1) {
-					const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_COND_V_MSG(vertex_index < 0, Vector<T>(), "FBX file corrupted: #ERR8");
 					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, Vector<T>(), "FBX file seems corrupted: #ERR9.")
 					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, Vector<T>(), "FBX file seems corrupted: #ERR10.")
@@ -589,22 +585,21 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 		case Assimp::FBX::MeshGeometry::MapType::polygon: {
 			if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
 				// The data are mapped per polygon directly.
-				// TODO NEED VALIDATION
-				const int polygon_count = count_polygons(p_face_indices);
+				const int polygon_count = count_polygons(p_polygon_indices);
 				ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR12");
 
 				// Advance each polygon vertex, each new polygon advance the polygon index.
 				int polygon_index = -1;
 				for (size_t polygon_vertex_index = 0;
-						polygon_vertex_index < p_face_indices.size();
+						polygon_vertex_index < p_polygon_indices.size();
 						polygon_vertex_index += 1) {
 
-					if (is_start_of_polygon(p_face_indices, polygon_vertex_index)) {
+					if (is_start_of_polygon(p_polygon_indices, polygon_vertex_index)) {
 						polygon_index += 1;
 						ERR_FAIL_INDEX_V_MSG(polygon_index, (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR13");
 					}
 
-					const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_INDEX_V_MSG(vertex_index, p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR14");
 
 					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[polygon_index]);
@@ -616,23 +611,22 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 				// * Note that the reference_id is the id of data into the data array.
 				//
 				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
-				// TODO NEED VALIDATION
-				const int polygon_count = count_polygons(p_face_indices);
+				const int polygon_count = count_polygons(p_polygon_indices);
 				ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR17");
 
 				// Advance each polygon vertex, each new polygon advance the polygon index.
 				int polygon_index = -1;
 				for (size_t polygon_vertex_index = 0;
-						polygon_vertex_index < p_face_indices.size();
+						polygon_vertex_index < p_polygon_indices.size();
 						polygon_vertex_index += 1) {
 
-					if (is_start_of_polygon(p_face_indices, polygon_vertex_index)) {
+					if (is_start_of_polygon(p_polygon_indices, polygon_vertex_index)) {
 						polygon_index += 1;
 						ERR_FAIL_INDEX_V_MSG(polygon_index, (int)p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR18");
 						ERR_FAIL_INDEX_V_MSG(p_fbx_data.index[polygon_index], (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR19");
 					}
 
-					const int vertex_index = get_vertex_from_polygon_vertex(p_face_indices, polygon_vertex_index);
+					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_INDEX_V_MSG(vertex_index, p_vertex_count, Vector<T>(), "FBX file corrupted: #ERR20");
 
 					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_index]]);
@@ -643,7 +637,6 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 		case Assimp::FBX::MeshGeometry::MapType::edge: {
 			if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
 				// The data are mapped per edge directly.
-				// TODO NEED VALIDATION
 				ERR_FAIL_COND_V_MSG(p_edge_map.size() != p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR23");
 				for (size_t edge_index = 0; edge_index < p_fbx_data.data.size(); edge_index += 1) {
 					const Assimp::FBX::MeshGeometry::Edge edge = Assimp::FBX::MeshGeometry::get_edge(p_edge_map, edge_index);
@@ -660,7 +653,6 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 				// * Note that the reference_id is the id of data into the data array.
 				//
 				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
-				// TODO NEED VALIDATION
 				ERR_FAIL_COND_V_MSG(p_edge_map.size() != p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR28");
 				for (size_t edge_index = 0; edge_index < p_fbx_data.data.size(); edge_index += 1) {
 					const Assimp::FBX::MeshGeometry::Edge edge = Assimp::FBX::MeshGeometry::get_edge(p_edge_map, edge_index);
@@ -734,19 +726,18 @@ Vector<T> FBXMeshData::extract_per_vertex_data(
 template <class T>
 Vector<T> FBXMeshData::extract_per_polygon(
 		int p_vertex_count,
-		const std::vector<int> &p_face_indices, // TODO consider renaming to Polygon
+		const std::vector<int> &p_polygon_indices,
 		const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
 		CombinationMode p_combination_mode,
 		void (*validate_function)(T &r_current, const T &p_fall_back)) const {
 
 	ERR_FAIL_COND_V_MSG(p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::index_to_direct && p_fbx_data.index.size() == 0, Vector<T>(), "The FBX seems corrupted");
 
-	const int polygon_count = count_polygons(p_face_indices);
+	const int polygon_count = count_polygons(p_polygon_indices);
 
 	// Aggregate vertex data.
 	HashMap<int, Vector<T> > aggregate_polygon_data;
 
-	// TODO test all branch of this function.
 	switch (p_fbx_data.map_type) {
 		case Assimp::FBX::MeshGeometry::MapType::none: {
 			// No data nothing to do.
@@ -761,14 +752,14 @@ Vector<T> FBXMeshData::extract_per_polygon(
 		case Assimp::FBX::MeshGeometry::MapType::polygon: {
 			if (p_fbx_data.ref_type == Assimp::FBX::MeshGeometry::ReferenceType::direct) {
 				// The data are mapped per polygon directly.
-				// TODO NEED VALIDATION
-				ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file seems corrupted: #ERR51");
+				ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.data.size(), Vector<T>(), "FBX file is corrupted: #ERR51");
 
 				// Advance each polygon vertex, each new polygon advance the polygon index.
 				for (int polygon_index = 0;
 						polygon_index < polygon_count;
 						polygon_index += 1) {
 
+					ERR_FAIL_INDEX_V_MSG(polygon_index, (int)p_fbx_data.data.size(), Vector<T>(), "FBX file is corrupted: #ERR52");
 					aggregate_polygon_data[polygon_index].push_back(p_fbx_data.data[polygon_index]);
 				}
 			} else {
@@ -777,7 +768,6 @@ Vector<T> FBXMeshData::extract_per_polygon(
 				// * Note that the reference_id is the id of data into the data array.
 				//
 				// https://help.autodesk.com/view/FBX/2017/ENU/?guid=__cpp_ref_class_fbx_layer_element_html
-				// TODO NEED VALIDATION
 				ERR_FAIL_COND_V_MSG(polygon_count != (int)p_fbx_data.index.size(), Vector<T>(), "FBX file seems corrupted: #ERR52");
 
 				// Advance each polygon vertex, each new polygon advance the polygon index.
@@ -785,18 +775,19 @@ Vector<T> FBXMeshData::extract_per_polygon(
 						polygon_index < polygon_count;
 						polygon_index += 1) {
 
+					ERR_FAIL_INDEX_V_MSG(polygon_index, (int)p_fbx_data.index.size(), Vector<T>(), "FBX file is corrupted: #ERR53");
+					ERR_FAIL_INDEX_V_MSG(p_fbx_data.index[polygon_index], (int)p_fbx_data.data.size(), Vector<T>(), "FBX file is corrupted: #ERR54");
 					aggregate_polygon_data[polygon_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_index]]);
 				}
 			}
 		} break;
 		case Assimp::FBX::MeshGeometry::MapType::edge: {
-			// TODO Probably support this?
 			ERR_FAIL_V_MSG(Vector<T>(), "This data can't be extracted and organized per polygon, since into the FBX is mapped per edge. This should not happen.");
 		} break;
 		case Assimp::FBX::MeshGeometry::MapType::all_the_same: {
 			// No matter the mode, no matter the data size; The first always win
 			// and is set to all the vertices.
-			ERR_FAIL_COND_V_MSG(p_fbx_data.data.size() <= 0, Vector<T>(), "FBX file seems corrupted: #ERR53");
+			ERR_FAIL_COND_V_MSG(p_fbx_data.data.size() <= 0, Vector<T>(), "FBX file seems corrupted: #ERR55");
 			if (p_fbx_data.data.size() > 0) {
 				for (int polygon_index = 0; polygon_index < polygon_count; polygon_index += 1) {
 					aggregate_polygon_data[polygon_index].push_back(p_fbx_data.data[0]);
