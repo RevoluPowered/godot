@@ -240,10 +240,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 	// Phase 5. Compose the morphs if any.
 	// The morphs are organized also per material.
-	struct MorphsInfo {
-		String name;
-	};
-	HashMap<int, Vector<MorphsInfo> > morphs_info;
+	int no_name_count = 0;
+	Set<String> morphs_names;
 	HashMap<int, Array> morphs;
 
 	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
@@ -298,9 +296,12 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 					}
 
 					morphs[*surface_id].push_back(morphs_st->commit_to_arrays());
-					MorphsInfo info;
-					info.name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
-					morphs_info[*surface_id].push_back(info);
+					String name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
+					if (name.empty()) {
+						name = "morph_" + itos(no_name_count);
+						no_name_count += 1;
+					}
+					morphs_names.insert(name);
 				}
 			}
 		}
@@ -310,21 +311,16 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
+	for (Set<String>::Element *e = morphs_names.front(); e; e = e->next()) {
+		mesh->add_blend_shape(e->get());
+	}
+
 	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
 		SurfaceData *surface = surfaces.getptr(*surface_id);
 		Array material_morphs;
 		// Add the morphs for this material into the mesh.
 		if (morphs.has(*surface_id)) {
 			material_morphs = *morphs.getptr(*surface_id);
-			Vector<MorphsInfo> *infos = morphs_info.getptr(*surface_id);
-			for (int i = 0; i < infos->size(); i += 1) {
-				if ((*infos)[i].name.empty()) {
-					// Note: Don't need to make this unique here.
-					mesh->add_blend_shape("morphs");
-				} else {
-					mesh->add_blend_shape((*infos)[i].name);
-				}
-			}
 		}
 
 		mesh->add_surface_from_arrays(
