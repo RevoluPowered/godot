@@ -7,7 +7,8 @@
 
 Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
 	print_verbose("bone name: " + bone_name);
-	ERR_FAIL_COND_V_MSG(cluster == nullptr || cluster->TargetNode() == nullptr, Ref<FBXNode>(), "invalid link for bone");
+	ERR_FAIL_COND_V_MSG(cluster == nullptr, nullptr,"bone has invalid cluster");
+	ERR_FAIL_COND_V_MSG(cluster->TargetNode() == nullptr, nullptr,"bone has invalid target node");
 
 	Ref<FBXNode> link_node;
 	uint64_t id = cluster->TargetNode()->ID();
@@ -27,7 +28,7 @@ Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
 // shear, pivots, geometric pivots, pre rotation and post rotation
 // additionally DO NOT EDIT THIS if your blender file isn't working.
 // Contact RevoluPowered Gordon MacPherson if you are contemplating making edits to this.
-Transform FBXBone::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position) {
+Transform FBXBone::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool& valid_pose) {
 	print_verbose("get_vertex_skin_xform: " + bone_name);
 	ERR_FAIL_COND_V_MSG(cluster == nullptr, Transform(), "[serious] unable to resolve the fbx cluster for this bone " + bone_name);
 	// these methods will ONLY work for Maya.
@@ -38,6 +39,8 @@ Transform FBXBone::get_vertex_skin_xform(const ImportState &state, Transform mes
 		Transform reference_global_init_position = cluster->GetTransform();
 		Transform cluster_global_init_position = cluster->TransformLink();
 		Ref<FBXNode> link_node = get_link(state);
+		ERR_FAIL_COND_V_MSG(link_node.is_null(), Transform(), "invalid link corrupt file detected");
+		valid_pose=true;
 		Transform cluster_global_current_position = link_node.is_valid() && link_node->pivot_transform.is_valid() ? link_node->pivot_transform->GlobalTransform : Transform();
 
 		vertex_transform_matrix = reference_global_init_position.affine_inverse() * associate_global_init_position * associate_global_current_position.affine_inverse() *
@@ -51,6 +54,7 @@ Transform FBXBone::get_vertex_skin_xform(const ImportState &state, Transform mes
 		Transform cluster_relative_init_position = global_init_position.affine_inverse() * reference_global_position;
 		Transform cluster_relative_position_inverse = reference_global_current_position.affine_inverse() * global_init_position;
 		vertex_transform_matrix = cluster_relative_position_inverse * cluster_relative_init_position;
+		valid_pose=true;
 	}
 
 	return vertex_transform_matrix;

@@ -70,7 +70,7 @@ struct FBXBone : public Reference {
 
 	/* link node is the parent bone */
 	Ref<FBXNode> get_link(const ImportState &state) const;
-	Transform get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position);
+	Transform get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &valid);
 	Transform vertex_transform_matrix;
 	Transform local_cluster_matrix; // set_bone_pose
 

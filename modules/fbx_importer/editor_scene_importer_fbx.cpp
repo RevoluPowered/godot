@@ -1215,7 +1215,11 @@ void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref
 			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
 
 			if (bone->get_link(state).is_valid()) {
-				skin->add_named_bind(bone->bone_name, bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform));
+				bool valid_bind = false;
+				Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
+				if(valid_bind) {
+					skin->add_named_bind(bone->bone_name, bind);
+				}
 			}
 		}
 		state.MeshSkins[mesh_id] = skin;
@@ -1371,18 +1375,18 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 								Ref<VertexMapping> vertex_weight;
 								if (mesh_vertex_data->vertex_weights.has(vertex_index)) {
 									vertex_weight = mesh_vertex_data->vertex_weights[vertex_index];
-									//print_verbose("grabbed pre-existing vertex index for " + itos(vertex_index));
+									print_verbose("grabbed pre-existing vertex index for " + itos(vertex_index));
 								} else {
 									vertex_weight.instance();
 									mesh_vertex_data->vertex_weights.insert(vertex_index, vertex_weight);
-									//print_verbose("created new vertex index for " + itos(vertex_index));
+									print_verbose("created new vertex index for " + itos(vertex_index));
 								}
 
 								float influence_weight = weights[idx];
 
 								vertex_weight->weights.push_back(influence_weight);
 								vertex_weight->bones.push_back(bone_element);
-								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
+								print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
 							}
 
 							for (size_t idx = 0; idx < indexes.size(); idx++) {
