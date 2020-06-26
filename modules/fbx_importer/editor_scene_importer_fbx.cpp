@@ -124,6 +124,8 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 		fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
 	}
 
+
+
 	print_verbose("[doc] opening fbx file: " + p_path);
 	print_verbose("[doc] fbx header: " + fbx_header_string);
 
@@ -331,6 +333,14 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.root = memnew(Spatial);
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
+
+	// size relative to cm
+	float size_relative_to_cm = p_document->GlobalSettings().UnitScaleFactor();
+
+	// Set FBX file scale is relative to CM must be converted to M
+	state.root->scale(Vector3(1,1,1) * size_relative_to_cm * 0.01f);
+
+	print_verbose("File scale is: " + rtos(size_relative_to_cm * 0.01f));
 
 	// do we need to enable material generation
 	if (ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d")) {

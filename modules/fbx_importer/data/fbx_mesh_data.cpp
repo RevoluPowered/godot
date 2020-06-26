@@ -437,6 +437,8 @@ void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon
 
 void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
 		size_t vertex_id) {
+	// todo: validate weights exist
+	// todo: validate vertex id is correct
 	ERR_FAIL_COND_MSG(!vertex_weights.has(vertex_id), "unable to resolve vertex supplied to weight information");
 
 	Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
