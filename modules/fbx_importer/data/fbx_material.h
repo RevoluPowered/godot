@@ -43,6 +43,12 @@ protected:
 	mutable const Assimp::FBX::Material *material = nullptr;
 
 public:
+
+	String get_material_name() const
+	{
+		return material_name;
+	}
+
 	void set_imported_material(const Assimp::FBX::Material *p_material) {
 		material = p_material;
 	}
@@ -212,6 +218,7 @@ public:
 		// is material two sided
 		// read material name
 		print_verbose("[material] material name: " + ImportUtils::FBXNodeToName(material->Name()));
+		material_name = ImportUtils::FBXNodeToName(material->Name());
 
 		// allocate texture mappings
 		const Vector<Ref<TextureFileMapping>> texture_mappings = extract_texture_mappings(material);
@@ -227,6 +234,7 @@ public:
 			}
 			else
 			{
+				print_verbose("material mapping name: " + mapping->name);
 				String path = find_texture_path_by_filename(mapping->name, p_fbx_current_directory);
 				if(!path.empty())
 				{
@@ -241,6 +249,9 @@ public:
 						texture = image_texture;
 						state.cached_image_searches[mapping->name] = texture;
 
+						int32_t flags = Texture::FLAGS_DEFAULT;
+						texture->set_flags(flags);
+
 						print_verbose("created texture for loaded image file");
 					}
 					else
@@ -248,11 +259,11 @@ public:
 						ERR_CONTINUE_MSG(true, "unable to import image file not loaded yet TODO");
 					}
 				}
-
 			}
-
 			spatial_material->set_texture(mapping->map_mode, texture);
 		}
+
+		spatial_material->set_name(material_name);
 
 		return spatial_material;
 	}

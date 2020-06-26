@@ -34,7 +34,6 @@
 #include "editor/editor_node.h"
 #include "editor/import/resource_importer_scene.h"
 #include "tools/import_utils.h"
-
 #include "data/fbx_anim_container.h"
 #include "data/fbx_material.h"
 #include "data/fbx_skeleton.h"
@@ -372,12 +371,13 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
 
 			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
-			if (mat) {
-				Ref<FBXMaterial> material;
-				material.instance();
-				material->set_imported_material(mat);
-				material->import_material(state);
-			}
+			Ref<FBXMaterial> material;
+			material.instance();
+			material->set_imported_material(mat);
+			Ref<SpatialMaterial> godot_material = material->import_material(state);
+
+			ERR_CONTINUE_MSG(godot_material.is_null(), "unable to convert fbx material to godot material corrupt data");
+			state.cached_materials.insert(material_id, godot_material);
 		}
 	}
 
@@ -503,8 +503,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						}
 
 						// mesh node, mesh id
-						mesh_node = mesh_data_precached->create_fbx_mesh(mesh_geometry, fbx_node->fbx_model);
-
+						mesh_node = mesh_data_precached->create_fbx_mesh(state, mesh_geometry, fbx_node->fbx_model);
 						if (!state.MeshNodes.has(mesh_id)) {
 							print_verbose("caching skin creation call for later");
 							state.MeshNodes.insert(mesh_id, fbx_node);

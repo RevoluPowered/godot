@@ -33,6 +33,7 @@
 
 #ifdef TOOLS_ENABLED
 
+
 #include "core/bind/core_bind.h"
 #include "core/io/resource_importer.h"
 #include "core/vector.h"
@@ -45,7 +46,6 @@
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
 
-#include <thirdparty/assimp/include/assimp/matrix4x4.h>
 #include <thirdparty/assimp/include/assimp/types.h>
 #include <thirdparty/assimp/include/assimp/Importer.hpp>
 // thirdparty/assimp/include/assimp/

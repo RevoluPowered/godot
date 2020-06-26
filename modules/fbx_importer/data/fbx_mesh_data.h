@@ -31,6 +31,7 @@
 #ifndef EDITOR_SCENE_FBX_MESH_DATA_H
 #define EDITOR_SCENE_FBX_MESH_DATA_H
 
+#include "modules/fbx_importer/data/import_state.h"
 #include "core/hash_map.h"
 #include "fbx_bone.h"
 #include "modules/fbx_importer/tools/import_utils.h"
@@ -38,6 +39,7 @@
 
 struct FBXMeshData;
 struct FBXBone;
+struct ImportState;
 
 struct FBXSplitBySurfaceVertexMapping {
 	// Original Mesh Data
@@ -218,7 +220,7 @@ struct FBXMeshData : Reference {
 	// translate fbx mesh data from document context to FBX Mesh Geometry Context
 	bool valid_weight_indexes = false;
 
-	MeshInstance *create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
+	MeshInstance *create_fbx_mesh(const ImportState& state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
 	void GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
 

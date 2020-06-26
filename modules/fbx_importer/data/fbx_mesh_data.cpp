@@ -32,6 +32,7 @@
 
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
+#include <algorithm>
 
 void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights) {
 	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] error unable to handle incorrect bone weight info");
@@ -76,12 +77,16 @@ struct SurfaceData {
 	Ref<SurfaceTool> surface_tool;
 	// Contains vertices, calling this data so it's the same name used in the FBX format.
 	Vector<Vertex> data;
+	Ref<SpatialMaterial> material;
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
 };
 
-MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
+MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState& state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
 
 	const int vertex_count = mesh_geometry->get_vertices().size();
+
+	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
+	const std::vector<const Assimp::FBX::Material*> &material_lookup = model->GetMaterials();
 
 	// Phase 1. Parse all FBX data.
 	HashMap<int, Vector3> normals = extract_per_vertex_data(
@@ -153,6 +158,24 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				SurfaceData sd;
 				sd.surface_tool.instance();
 				sd.surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+
+				if(surface_id < 0)
+				{
+					// nothing to do
+				}
+				else if( surface_id < material_lookup.size())
+				{
+					const Assimp::FBX::Material* mat_mapping = material_lookup.at(surface_id);
+					const uint64_t mapping_id = mat_mapping->ID();
+					if(state.cached_materials.has(mapping_id)) {
+						sd.material = state.cached_materials[mapping_id];
+					}
+				}
+				else
+				{
+					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
+				}
+
 				surfaces.set(surface_id, sd);
 			}
 		}
@@ -196,6 +219,12 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 		for (int i = 0; i < surface->data.size(); i += 1) {
 			const Vertex vertex = surface->data[i];
 
+			// This must be done before add_vertex because the surface tool is
+			// expecting this before the st->add_vertex() call
+			// todo: please use your own API inside this to retrieve vertex mapping data
+
+			GenFBXWeightInfo(mesh_geometry, surface->surface_tool, vertex);
+			// todo: please fix the uv coordinates
 			add_vertex(
 					surface->surface_tool,
 					vertex,
@@ -308,6 +337,11 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const Assimp::FBX::MeshGeometry *mesh
 				surface->surface_tool->commit_to_arrays(),
 				material_morphs);
 
+		if(surface->material.is_valid()) {
+			mesh->surface_set_name(*surface_id, surface->material->get_name());
+			mesh->surface_set_material(*surface_id, surface->material);
+		}
+
 		mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
 	}
 
@@ -403,35 +437,29 @@ void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon
 
 void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
 		size_t vertex_id) {
-	if (vertex_weights.has(vertex_id)) {
-		Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
-		int weight_size = VertexWeights->weights.size();
+	ERR_FAIL_COND_MSG(!vertex_weights.has(vertex_id), "unable to resolve vertex supplied to weight information");
 
-		if (weight_size > 0) {
+	Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
+	int weight_size = VertexWeights->weights.size();
 
-			//print_error("initial count: " + itos(weight_size));
-			if (VertexWeights->weights.size() < max_weight_count) {
-				// missing weight count - how many do we not have?
-				int missing_count = max_weight_count - weight_size;
-				//print_verbose("adding missing count : " + itos(missing_count));
-				for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
-					VertexWeights->weights.push_back(0); // no weight
-					VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
-				}
+	if (weight_size > 0) {
+		// Weight normalisation to make bone weights in correct ordering
+		if (VertexWeights->weights.size() < max_weight_count) {
+			// missing weight count - how many do we not have?
+			int missing_count = max_weight_count - weight_size;
+			//print_verbose("adding missing count : " + itos(missing_count));
+			for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
+				VertexWeights->weights.push_back(0); // no weight
+				VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
 			}
-
-			Vector<float> valid_weights;
-			Vector<int> valid_bone_ids;
-
-			VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
-
-			st->add_weights(valid_weights);
-			st->add_bones(valid_bone_ids);
-
-			//print_verbose("[doc] triangle added weights to mesh for bones");
 		}
-	} else {
-		//print_error("no weight data for vertex: " + itos(vertex_id));
+
+		Vector<float> valid_weights;
+		Vector<int> valid_bone_ids;
+		VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
+		st->add_weights(valid_weights);
+		st->add_bones(valid_bone_ids);
+		print_verbose("[doc] triangle added weights to mesh for bones");
 	}
 }
 

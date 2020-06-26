@@ -206,21 +206,20 @@ Texture::Texture(uint64_t id, const Element &element, const Document &doc, const
 	}
 
 	// resolve video links
-	if (doc.Settings().readTextures) {
-		const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID());
-		for (const Connection *con : conns) {
-			const Object *const ob = con->SourceObject();
-			if (!ob) {
-				DOMWarning("failed to read source object for texture link, ignoring", &element);
-				continue;
-			}
+	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID());
+	for (const Connection *con : conns) {
+		const Object *const ob = con->SourceObject();
+		if (!ob) {
+			DOMWarning("failed to read source object for texture link, ignoring", &element);
+			continue;
+		}
 
-			const Video *const video = dynamic_cast<const Video *>(ob);
-			if (video) {
-				media = video;
-			}
+		const Video *const video = dynamic_cast<const Video *>(ob);
+		if (video) {
+			media = video;
 		}
 	}
+
 }
 
 Texture::~Texture() {
