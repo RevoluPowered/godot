@@ -64,8 +64,8 @@ struct ImportState {
 	bool enable_material_import = false;
 	bool enable_animation_import = false;
 
-	Map<StringName, Ref<Texture>> cached_image_searches;
-	Map<uint64_t, Ref<SpatialMaterial>> cached_materials;
+	Map<StringName, Ref<Texture> > cached_image_searches;
+	Map<uint64_t, Ref<SpatialMaterial> > cached_materials;
 
 	String path = String();
 	Spatial *root = nullptr;

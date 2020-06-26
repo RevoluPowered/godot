@@ -33,7 +33,6 @@
 
 #ifdef TOOLS_ENABLED
 
-
 #include "core/bind/core_bind.h"
 #include "core/io/resource_importer.h"
 #include "core/vector.h"

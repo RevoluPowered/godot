@@ -81,12 +81,12 @@ struct SurfaceData {
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
 };
 
-MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState& state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
+MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
 
 	const int vertex_count = mesh_geometry->get_vertices().size();
 
 	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
-	const std::vector<const Assimp::FBX::Material*> &material_lookup = model->GetMaterials();
+	const std::vector<const Assimp::FBX::Material *> &material_lookup = model->GetMaterials();
 
 	// Phase 1. Parse all FBX data.
 	HashMap<int, Vector3> normals = extract_per_vertex_data(
@@ -159,20 +159,15 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState& state, const Assim
 				sd.surface_tool.instance();
 				sd.surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-				if(surface_id < 0)
-				{
+				if (surface_id < 0) {
 					// nothing to do
-				}
-				else if( surface_id < material_lookup.size())
-				{
-					const Assimp::FBX::Material* mat_mapping = material_lookup.at(surface_id);
+				} else if (surface_id < material_lookup.size()) {
+					const Assimp::FBX::Material *mat_mapping = material_lookup.at(surface_id);
 					const uint64_t mapping_id = mat_mapping->ID();
-					if(state.cached_materials.has(mapping_id)) {
+					if (state.cached_materials.has(mapping_id)) {
 						sd.material = state.cached_materials[mapping_id];
 					}
-				}
-				else
-				{
+				} else {
 					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
 				}
 
@@ -337,7 +332,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState& state, const Assim
 				surface->surface_tool->commit_to_arrays(),
 				material_morphs);
 
-		if(surface->material.is_valid()) {
+		if (surface->material.is_valid()) {
 			mesh->surface_set_name(*surface_id, surface->material->get_name());
 			mesh->surface_set_material(*surface_id, surface->material);
 		}
@@ -437,8 +432,7 @@ void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon
 
 void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
 		size_t vertex_id) {
-	if(vertex_weights.empty())
-	{
+	if (vertex_weights.empty()) {
 		return;
 	}
 

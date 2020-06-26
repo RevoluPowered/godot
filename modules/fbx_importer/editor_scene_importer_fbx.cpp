@@ -30,13 +30,12 @@
 
 #include "editor_scene_importer_fbx.h"
 #include "core/io/image_loader.h"
-#include "editor/editor_log.h"
-#include "editor/editor_node.h"
-#include "editor/import/resource_importer_scene.h"
-#include "tools/import_utils.h"
 #include "data/fbx_anim_container.h"
 #include "data/fbx_material.h"
 #include "data/fbx_skeleton.h"
+#include "editor/editor_log.h"
+#include "editor/editor_node.h"
+#include "editor/import/resource_importer_scene.h"
 #include "modules/fbx_importer/data/fbx_mesh_data.h"
 #include "scene/3d/bone_attachment.h"
 #include "scene/3d/camera.h"
@@ -46,6 +45,7 @@
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
+#include "tools/import_utils.h"
 
 #include <code/FBX/FBXDocument.h>
 #include <code/FBX/FBXImportSettings.h>
@@ -123,8 +123,6 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 		PoolByteArray::Read r = fbx_header.read();
 		fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
 	}
-
-
 
 	print_verbose("[doc] opening fbx file: " + p_path);
 	print_verbose("[doc] fbx header: " + fbx_header_string);
@@ -338,7 +336,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	float size_relative_to_cm = p_document->GlobalSettings().UnitScaleFactor();
 
 	// Set FBX file scale is relative to CM must be converted to M
-	state.root->scale(Vector3(1,1,1) * size_relative_to_cm * 0.01f);
+	state.root->scale(Vector3(1, 1, 1) * size_relative_to_cm * 0.01f);
 
 	print_verbose("File scale is: " + rtos(size_relative_to_cm * 0.01f));
 
@@ -1217,7 +1215,7 @@ void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref
 			if (bone->get_link(state).is_valid()) {
 				bool valid_bind = false;
 				Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
-				if(valid_bind) {
+				if (valid_bind) {
 					skin->add_named_bind(bone->bone_name, bind);
 				}
 			}

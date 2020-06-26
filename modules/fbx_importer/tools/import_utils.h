@@ -158,10 +158,10 @@ public:
 			return node_name.replace(":", "");
 		}
 
-        if (node_name.substr(0, 9) == "Texture::") {
-            node_name = node_name.substr(9, node_name.length() - 9);
-            return node_name.replace(":", "");
-        }
+		if (node_name.substr(0, 9) == "Texture::") {
+			node_name = node_name.substr(9, node_name.length() - 9);
+			return node_name.replace(":", "");
+		}
 
 		return node_name.replace(":", "");
 	}
@@ -241,7 +241,6 @@ public:
 		};
 	};
 
-
 	/** Get fbx fps for time mode meta data
      */
 	static float get_fbx_fps(int32_t time_mode) {
@@ -287,9 +286,6 @@ public:
 	/**
 	  * Find hardcoded textures from assimp which could be in many different directories
 	  */
-
-
-
 
 	/**
 	  * set_texture_mapping_mode
