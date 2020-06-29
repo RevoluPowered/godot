@@ -57,7 +57,7 @@ void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<fl
 }
 
 template <class T>
-void validate_vector_2or3(T &r_value, const T &p_fall_back) {
+void validate_normals(T &r_value, const T &p_fall_back) {
 	if (r_value.length_squared() <= CMP_EPSILON) {
 		r_value = p_fall_back;
 	}
@@ -96,7 +96,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_normals(),
 			CombinationMode::Avg, // TODO How can we make this dynamic?
-			&validate_vector_2or3,
+			&validate_normals,
 			Vector3(1, 0, 0));
 
 	HashMap<int, Vector2> uvs_0 = extract_per_vertex_data(
@@ -105,7 +105,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_uv_0(),
 			CombinationMode::TakeFirst,
-			&validate_vector_2or3,
+			&no_validation,
 			Vector2());
 
 	HashMap<int, Vector2> uvs_1 = extract_per_vertex_data(
@@ -114,7 +114,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_uv_1(),
 			CombinationMode::TakeFirst,
-			&validate_vector_2or3,
+			&no_validation,
 			Vector2());
 
 	HashMap<int, Color> colors = extract_per_vertex_data(
