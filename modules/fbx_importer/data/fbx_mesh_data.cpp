@@ -79,6 +79,7 @@ struct SurfaceData {
 	Vector<Vertex> data;
 	Ref<SpatialMaterial> material;
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
+	Array morphs;
 };
 
 MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
@@ -161,7 +162,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 				if (surface_id < 0) {
 					// nothing to do
-				} else if (surface_id < material_lookup.size()) {
+				} else if (surface_id < (int)material_lookup.size()) {
 					const Assimp::FBX::Material *mat_mapping = material_lookup.at(surface_id);
 					const uint64_t mapping_id = mat_mapping->ID();
 					if (state.cached_materials.has(mapping_id)) {
@@ -242,12 +243,18 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	// The morphs are organized also per material.
 	int no_name_count = 0;
 	Set<String> morphs_names;
-	HashMap<int, Array> morphs;
 
 	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
 		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
 			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
 			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
+
+				String name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
+				if (name.empty()) {
+					name = "morph_" + itos(no_name_count);
+					no_name_count += 1;
+				}
+				morphs_names.insert(name);
 
 				// TODO we have only these??
 				const std::vector<unsigned int> &morphs_vertex_indices = shape_geometry->GetIndices();
@@ -260,13 +267,14 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 				ERR_FAIL_COND_V_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR106");
 
 				for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-					const SurfaceData *surface = surfaces.getptr(*surface_id);
+					SurfaceData *surface = surfaces.getptr(*surface_id);
 
 					Ref<SurfaceTool> morphs_st;
 					morphs_st.instance();
 					morphs_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
 					// Just add the vertices data.
+					//for (Vertex vertex = 0; vertex < (int)mesh_geometry->get_vertices().size(); vertex += 1) {
 					for (int vi = 0; vi < surface->data.size(); vi += 1) {
 						const Vertex vertex = surface->data[vi];
 
@@ -295,13 +303,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 								morphs_normal);
 					}
 
-					morphs[*surface_id].push_back(morphs_st->commit_to_arrays());
-					String name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
-					if (name.empty()) {
-						name = "morph_" + itos(no_name_count);
-						no_name_count += 1;
-					}
-					morphs_names.insert(name);
+					surface->morphs.push_back(morphs_st->commit_to_arrays());
 				}
 			}
 		}
@@ -311,34 +313,34 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
+	// Add blend shape info.
 	for (Set<String>::Element *e = morphs_names.front(); e; e = e->next()) {
 		mesh->add_blend_shape(e->get());
 	}
 
+	// TODO always normalized, Why?
+	mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+
+	// Add surfaces.
+	int in_mesh_surface_id = 0;
 	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
 		SurfaceData *surface = surfaces.getptr(*surface_id);
-		Array material_morphs;
-		// Add the morphs for this material into the mesh.
-		if (morphs.has(*surface_id)) {
-			material_morphs = *morphs.getptr(*surface_id);
-		}
 
 		mesh->add_surface_from_arrays(
 				Mesh::PRIMITIVE_TRIANGLES,
 				surface->surface_tool->commit_to_arrays(),
-				material_morphs);
+				surface->morphs);
 
 		if (surface->material.is_valid()) {
-			mesh->surface_set_name(*surface_id, surface->material->get_name());
-			mesh->surface_set_material(*surface_id, surface->material);
+			mesh->surface_set_name(in_mesh_surface_id, surface->material->get_name());
+			mesh->surface_set_material(in_mesh_surface_id, surface->material);
 		}
 
-		mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
+		in_mesh_surface_id += 1;
 	}
 
 	MeshInstance *godot_mesh = memnew(MeshInstance);
 	godot_mesh->set_mesh(mesh);
-
 	return godot_mesh;
 }
 
