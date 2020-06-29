@@ -228,7 +228,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 			}
 			// As the algorithm above, this check is useless. Because the first
 			// ever vertex is always considered the begining of a polygon.
-			ERR_FAIL_COND_MSG(found_it== false, "Was not possible to find the first vertex of this polygon. FBX file is corrupted.");
+			ERR_FAIL_COND_MSG(found_it == false, "Was not possible to find the first vertex of this polygon. FBX file is corrupted.");
 
 		} else {
 			ERR_FAIL_INDEX_MSG(m_edges[i] + 1, m_face_indices.size(), "FBX The other FBX edge seems to point to an invalid vertices. This FBX file is corrupted.");

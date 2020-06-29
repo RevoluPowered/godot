@@ -217,10 +217,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 			// This must be done before add_vertex because the surface tool is
 			// expecting this before the st->add_vertex() call
-			// todo: please use your own API inside this to retrieve vertex mapping data
-
-			GenFBXWeightInfo(mesh_geometry, surface->surface_tool, vertex);
-			// todo: please fix the uv coordinates
 			add_vertex(
 					surface->surface_tool,
 					vertex,
@@ -240,72 +236,42 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	}
 
 	// Phase 5. Compose the morphs if any.
-	// The morphs are organized also per material.
-	int no_name_count = 0;
-	Set<String> morphs_names;
+	HashMap<String, MorphVertexData> morphs;
+	extract_morphs(mesh_geometry, morphs);
 
-	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
-		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
-			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
-			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
 
-				String name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
-				if (name.empty()) {
-					name = "morph_" + itos(no_name_count);
-					no_name_count += 1;
-				}
-				morphs_names.insert(name);
+		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+			MorphVertexData *morph_data = morphs.getptr(*morph_name);
 
-				// TODO we have only these??
-				const std::vector<unsigned int> &morphs_vertex_indices = shape_geometry->GetIndices();
-				const std::vector<Vector3> &morphs_vertices = shape_geometry->GetVertices();
-				const std::vector<Vector3> &morphs_normals = shape_geometry->GetNormals();
+			// As said by the docs, this is not supposed to be different than
+			// vertex_count.
+			CRASH_COND(morph_data->vertices.size() != vertex_count);
+			CRASH_COND(morph_data->normals.size() != vertex_count);
 
-				ERR_FAIL_COND_V_MSG((int)morphs_vertex_indices.size() > vertex_count, nullptr, "The FBX file is corrupted: #ERR103");
-				ERR_FAIL_COND_V_MSG(morphs_vertex_indices.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR104");
-				ERR_FAIL_COND_V_MSG((int)morphs_vertices.size() > vertex_count, nullptr, "The FBX file is corrupted: #ERR105");
-				ERR_FAIL_COND_V_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR106");
+			Vector3 *vertices_ptr = morph_data->vertices.ptrw();
+			Vector3 *normals_ptr = morph_data->normals.ptrw();
 
-				for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-					SurfaceData *surface = surfaces.getptr(*surface_id);
+			Ref<SurfaceTool> morph_st;
+			morph_st.instance();
+			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-					Ref<SurfaceTool> morphs_st;
-					morphs_st.instance();
-					morphs_st->begin(Mesh::PRIMITIVE_TRIANGLES);
-
-					// Just add the vertices data.
-					//for (Vertex vertex = 0; vertex < (int)mesh_geometry->get_vertices().size(); vertex += 1) {
-					for (int vi = 0; vi < surface->data.size(); vi += 1) {
-						const Vertex vertex = surface->data[vi];
-
-						// See if there is a morph change for this vertex.
-						Vector3 morphs_vertex;
-						Vector3 morphs_normal;
-						for (size_t i = 0; i < morphs_vertex_indices.size(); i += 1) {
-							if ((Vertex)morphs_vertex_indices[i] == vertex) {
-								ERR_FAIL_COND_V_MSG(i >= morphs_vertices.size(), nullptr, "The FBX file is corrupted, there is a morph for this vertex but without value.");
-								morphs_vertex = morphs_vertices[i];
-								if (i < morphs_normals.size()) {
-									morphs_normal = morphs_normals[i];
-								}
-								break;
-							}
-						}
-						add_vertex(
-								morphs_st,
-								vertex,
-								mesh_geometry->get_vertices(),
-								normals,
-								uvs_0,
-								uvs_1,
-								colors,
-								morphs_vertex,
-								morphs_normal);
-					}
-
-					surface->morphs.push_back(morphs_st->commit_to_arrays());
-				}
+			for (int vi = 0; vi < surface->data.size(); vi += 1) {
+				const Vertex vertex = surface->data[vi];
+				add_vertex(
+						morph_st,
+						vertex,
+						mesh_geometry->get_vertices(),
+						normals,
+						uvs_0,
+						uvs_1,
+						colors,
+						vertices_ptr[vertex],
+						normals_ptr[vertex]);
 			}
+
+			surface->morphs.push_back(morph_st->commit_to_arrays());
 		}
 	}
 
@@ -314,8 +280,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	mesh.instance();
 
 	// Add blend shape info.
-	for (Set<String>::Element *e = morphs_names.front(); e; e = e->next()) {
-		mesh->add_blend_shape(e->get());
+	for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+		mesh->add_blend_shape(*morph_name);
 	}
 
 	// TODO always normalized, Why?
@@ -377,6 +343,8 @@ void FBXMeshData::add_vertex(
 	// TODO what about binormals?
 	// TODO there is other?
 
+	gen_weight_info(p_surface_tool, p_vertex);
+
 	// The surface tool want the vertex position as last thing.
 	p_surface_tool->add_vertex(p_vertices_position[p_vertex] + p_morph_value);
 }
@@ -428,8 +396,7 @@ void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon
 	}
 }
 
-void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
-		size_t vertex_id) {
+void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) {
 	if (vertex_weights.empty()) {
 		return;
 	}
@@ -864,4 +831,59 @@ HashMap<int, T> FBXMeshData::extract_per_polygon(
 	}
 
 	return polygons;
+}
+
+void FBXMeshData::extract_morphs(const Assimp::FBX::MeshGeometry *mesh_geometry, HashMap<String, MorphVertexData> &r_data) {
+
+	r_data.clear();
+
+	const int vertex_count = mesh_geometry->get_vertices().size();
+
+	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
+		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
+			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
+			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
+
+				String morph_name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
+				if (morph_name.empty()) {
+					morph_name = "morph";
+				}
+
+				// TODO we have only these??
+				const std::vector<unsigned int> &morphs_vertex_indices = shape_geometry->GetIndices();
+				const std::vector<Vector3> &morphs_vertices = shape_geometry->GetVertices();
+				const std::vector<Vector3> &morphs_normals = shape_geometry->GetNormals();
+
+				ERR_FAIL_COND_MSG((int)morphs_vertex_indices.size() > vertex_count, "The FBX file is corrupted: #ERR103");
+				ERR_FAIL_COND_MSG(morphs_vertex_indices.size() != morphs_vertices.size(), "The FBX file is corrupted: #ERR104");
+				ERR_FAIL_COND_MSG((int)morphs_vertices.size() > vertex_count, "The FBX file is corrupted: #ERR105");
+				ERR_FAIL_COND_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), "The FBX file is corrupted: #ERR106");
+
+				if (r_data.has(morph_name) == false) {
+					// This morph doesn't exist yet.
+					// Create it.
+					MorphVertexData md;
+					md.vertices.resize(vertex_count);
+					md.normals.resize(vertex_count);
+					r_data.set(morph_name, md);
+				}
+
+				MorphVertexData *data = r_data.getptr(morph_name);
+				Vector3 *data_vertices_ptr = data->vertices.ptrw();
+				Vector3 *data_normals_ptr = data->normals.ptrw();
+
+				for (int i = 0; i < (int)morphs_vertex_indices.size(); i += 1) {
+					const Vertex vertex = morphs_vertex_indices[i];
+
+					ERR_FAIL_INDEX_MSG(vertex, vertex_count, "The blend shapes of this FBX file are corrupted. It has a not valid vertex.");
+
+					data_vertices_ptr[vertex] = morphs_vertices[i];
+
+					if (morphs_normals.size() != 0) {
+						data_normals_ptr[vertex] = morphs_normals[i];
+					}
+				}
+			}
+		}
+	}
 }
