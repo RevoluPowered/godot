@@ -328,11 +328,13 @@ void FBXMeshData::add_vertex(
 	}
 
 	if (p_uvs_0.has(p_vertex)) {
-		p_surface_tool->add_uv(p_uvs_0[p_vertex]);
+		// Inverts Y UV.
+		p_surface_tool->add_uv(p_uvs_0[p_vertex] * Vector2(1, -1));
 	}
 
 	if (p_uvs_1.has(p_vertex)) {
-		p_surface_tool->add_uv2(p_uvs_1[p_vertex]);
+		// Inverts Y UV.
+		p_surface_tool->add_uv2(p_uvs_1[p_vertex] * Vector2(1, -1));
 	}
 
 	if (p_colors.has(p_vertex)) {

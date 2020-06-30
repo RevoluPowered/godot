@@ -34,6 +34,7 @@
 #include "modules/jpg/image_loader_jpegd.h"
 #include "scene/resources/material.h"
 #include "scene/resources/texture.h"
+#include "thirdparty/assimp/include/assimp/material.h"
 
 String FBXMaterial::get_material_name() const {
 	return material_name;
@@ -118,7 +119,6 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	const String p_fbx_current_directory = state.path;
 
 	Ref<SpatialMaterial> spatial_material;
-	spatial_material.instance();
 
 	// read the material file
 	// is material two sided
@@ -205,12 +205,18 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping->name + "`, is not stored as embedded file nor as external file. Make sure to insert the texture as embedded file or into the project, then reimport.");
 			}
 		}
+		if (spatial_material.is_null()) {
+			// Done here so if no textures no material is created.
+			spatial_material.instance();
+		}
 		spatial_material->set_texture(mapping->map_mode, texture);
 	}
 
 	// TODO read other data like colors, UV, etc.. ?
 
-	spatial_material->set_name(material_name);
+	if (spatial_material.is_valid()) {
+		spatial_material->set_name(material_name);
+	}
 
 	return spatial_material;
 }
