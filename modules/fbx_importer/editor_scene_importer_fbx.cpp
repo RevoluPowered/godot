@@ -375,16 +375,18 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
 
 		for (uint64_t material_id : materials) {
+
 			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
 			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
-
 			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
+
 			Ref<FBXMaterial> material;
 			material.instance();
 			material->set_imported_material(mat);
-			Ref<SpatialMaterial> godot_material = material->import_material(state);
 
+			Ref<SpatialMaterial> godot_material = material->import_material(state);
 			ERR_CONTINUE_MSG(godot_material.is_null(), "unable to convert fbx material to godot material corrupt data");
+
 			state.cached_materials.insert(material_id, godot_material);
 		}
 	}
