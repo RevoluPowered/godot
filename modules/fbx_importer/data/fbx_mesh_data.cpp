@@ -351,48 +351,22 @@ void FBXMeshData::add_vertex(
 
 void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {
 	const int polygon_vertex_count = p_polygon_vertex.size();
-	switch (polygon_vertex_count) {
-		case 1:
-			// Point triangulation
+	if (polygon_vertex_count == 1) {
+		// Point triangulation
+		st->add_index(p_polygon_vertex[0]);
+		st->add_index(p_polygon_vertex[0]);
+		st->add_index(p_polygon_vertex[0]);
+	} else if (polygon_vertex_count == 2) {
+		// Line triangulation
+		st->add_index(p_polygon_vertex[1]);
+		st->add_index(p_polygon_vertex[1]);
+		st->add_index(p_polygon_vertex[0]);
+	} else {
+		for (int i = 0; i < (polygon_vertex_count - 2); i += 1) {
+			st->add_index(p_polygon_vertex[2 + i]);
+			st->add_index(p_polygon_vertex[1 + i]);
 			st->add_index(p_polygon_vertex[0]);
-			st->add_index(p_polygon_vertex[0]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 2: // TODO: validate this
-			// Line triangulation
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 3:
-			// Just a triangle.
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 4:
-			// Quad triangulation.
-			// We have 4 points, so we have 2 triangles, and We have CCW.
-			// First triangle.
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-
-			// Second side of triangle
-			st->add_index(p_polygon_vertex[3]);
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[0]);
-
-			// anti clockwise rotation in indices
-			// note had to reverse right from left here
-			// [0](x) bottom right (-1,-1)
-			// [1](x+1) bottom left (1,-1)
-			// [2](x+2) top left (1,1)
-			// [3](x+3) top right (-1,1)
-			break;
-		default:
-			ERR_FAIL_MSG("This polygon size is not yet supported, Please triangulate you mesh!");
-			break;
+		}
 	}
 }
 
@@ -539,8 +513,8 @@ HashMap<int, T> FBXMeshData::extract_per_vertex_data(
 				for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.index.size(); polygon_vertex_index += 1) {
 					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, T>()), "FBX file corrupted: #ERR8");
-					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, T>()), "FBX file seems corrupted: #ERR9.")
-					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, T>()), "FBX file seems corrupted: #ERR10.")
+					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, T>()), "FBX fileseems  corrupted: #ERR9.")
+					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, T>()), "FBX fileseems  corrupted: #ERR10.")
 					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] >= (int)p_fbx_data.data.size(), (HashMap<int, T>()), "FBX file seems corrupted: #ERR11.")
 					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_vertex_index]]);
 				}

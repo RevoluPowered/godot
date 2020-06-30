@@ -137,7 +137,6 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 		if (state.cached_image_searches.has(mapping->name)) {
 			texture = state.cached_image_searches[mapping->name];
 		} else {
-			print_verbose("material mapping name: " + mapping->name);
 			String path = find_texture_path_by_filename(mapping->name, p_fbx_current_directory);
 			if (!path.empty()) {
 				Ref<Image> image;
@@ -148,7 +147,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 					image_texture.instance();
 					image_texture->create_from_image(image);
 					int32_t flags = Texture::FLAGS_DEFAULT;
-					texture->set_flags(flags);
+					image_texture->set_flags(flags);
 
 					texture = image_texture;
 					state.cached_image_searches[mapping->name] = texture;
@@ -202,10 +201,14 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				texture = image_texture;
 				state.cached_image_searches[mapping->name] = texture;
 				print_verbose("Created texture from embedded image.");
+			} else {
+				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping->name + "`, is not stored as embedded file nor as external file. Make sure to insert the texture as embedded file or into the project, then reimport.");
 			}
 		}
 		spatial_material->set_texture(mapping->map_mode, texture);
 	}
+
+	// TODO read other data like colors, UV, etc.. ?
 
 	spatial_material->set_name(material_name);
 
