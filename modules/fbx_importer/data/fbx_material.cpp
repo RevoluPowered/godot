@@ -143,18 +143,17 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				image.instance();
 				Ref<ImageTexture> image_texture;
 
-				if (ImageLoader::load_image(path, image) == OK) {
-					image_texture.instance();
-					image_texture->create_from_image(image);
-					int32_t flags = Texture::FLAGS_DEFAULT;
-					image_texture->set_flags(flags);
+				ERR_CONTINUE_MSG(ImageLoader::load_image(path, image) != OK, "unable to import image file not loaded yet TODO");
 
-					texture = image_texture;
-					state.cached_image_searches[mapping->name] = texture;
-					print_verbose("Created texture from loaded image file.");
-				} else {
-					ERR_CONTINUE_MSG(true, "unable to import image file not loaded yet TODO");
-				}
+				image_texture.instance();
+				image_texture->create_from_image(image);
+				int32_t flags = Texture::FLAGS_DEFAULT;
+				image_texture->set_flags(flags);
+
+				texture = image_texture;
+				state.cached_image_searches[mapping->name] = texture;
+				print_verbose("Created texture from loaded image file.");
+
 			} else if (mapping->texture != nullptr && mapping->texture->Media() != nullptr && mapping->texture->Media()->ContentLength() > 0) {
 				// This is an embedded texture. Extract it.
 

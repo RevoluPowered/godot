@@ -340,16 +340,23 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	print_verbose("File scale is: " + rtos(size_relative_to_cm * 0.01f));
 
-	// do we need to enable material generation
-	if (ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d")) {
-		state.enable_material_import = true;
-	} else {
+	// Enabled by default.
+	state.enable_material_import = true;
+	const Variant override_enable_import_mat = ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d");
+	if (override_enable_import_mat.get_type() == Variant::BOOL) {
+		state.enable_material_import = override_enable_import_mat;
+	}
+	if (state.enable_material_import == false) {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
-	if (ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d")) {
-		state.enable_animation_import = true;
-	} else {
+	// Enabled by default.
+	state.enable_animation_import = true;
+	const Variant override_enable_import_anim = ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d");
+	if (override_enable_import_anim.get_type() == Variant::BOOL) {
+		state.enable_animation_import = override_enable_import_anim;
+	}
+	if (state.enable_animation_import == false) {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
