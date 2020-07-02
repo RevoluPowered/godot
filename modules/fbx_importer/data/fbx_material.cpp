@@ -53,6 +53,33 @@ void FBXMaterial::add_search_string(String p_filename, String p_current_director
 	}
 }
 
+String find_file(const String &p_base, const String &p_file_to_find) {
+	_Directory dir;
+	dir.open(p_base);
+
+	dir.list_dir_begin();
+	String n = dir.get_next();
+	while (n != String()) {
+		if (n == "." || n == "..") {
+			n = dir.get_next();
+			continue;
+		}
+		if (dir.current_is_dir()) {
+			// Don't use `path_to` or the returned path will be wrong.
+			const String f = find_file(p_base + "/" + n, p_file_to_find);
+			if (f != "") {
+				return f;
+			}
+		} else if (n == p_file_to_find) {
+			return p_base + "/" + n;
+		}
+		n = dir.get_next();
+	}
+	dir.list_dir_end();
+
+	return String();
+}
+
 // fbx will not give us good path information and let's not regex them to fix them
 // no relative paths are in fbx generally they have a rel field but it's populated incorrectly by the SDK.
 String FBXMaterial::find_texture_path_by_filename(const String p_filename, const String p_current_directory) {
@@ -72,11 +99,54 @@ String FBXMaterial::find_texture_path_by_filename(const String p_filename, const
 		}
 	}
 
+	// We were not able to find the texture in the common locations,
+	// try to find it into the project globally.
+	// The common textures can be stored into one of those folders:
+	// res://asset
+	// res://texture
+	// res://material
+	// res://mat
+	// res://image
+	// res://picture
+	//
+	// Note the folders can also be called with custom names, like:
+	// res://my_assets
+	// since the keyword `asset` is into the directory name the textures will be
+	// searched there too.
+
+	dir.list_dir_begin();
+	String n = dir.get_next();
+	while (n != String()) {
+		if (n == "." || n == "..") {
+			n = dir.get_next();
+			continue;
+		}
+		if (dir.current_is_dir()) {
+			const String lower_n = n.to_lower();
+			if (
+					// Don't need to use plural.
+					lower_n.find("asset") >= 0 ||
+					lower_n.find("texture") >= 0 ||
+					lower_n.find("material") >= 0 ||
+					lower_n.find("mat") >= 0 ||
+					lower_n.find("image") >= 0 ||
+					lower_n.find("picture") >= 0) {
+				// Don't use `path_to` or the returned path will be wrong.
+				const String f = find_file(String("res://") + n, p_filename);
+				if (f != "") {
+					return f;
+				}
+			}
+		}
+		n = dir.get_next();
+	}
+	dir.list_dir_end();
+
 	return "";
 }
 
-Vector<Ref<FBXMaterial::TextureFileMapping> > FBXMaterial::extract_texture_mappings(const Assimp::FBX::Material *material) const {
-	Vector<Ref<TextureFileMapping> > mappings = Vector<Ref<TextureFileMapping> >();
+FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::Material *material) const {
+	MaterialInfo mat_info;
 
 	// TODO Layered textures are a collection on textures stored into an array.
 	// Extract layered textures is not yet supported. Per each texture in the
@@ -84,6 +154,12 @@ Vector<Ref<FBXMaterial::TextureFileMapping> > FBXMaterial::extract_texture_mappi
 
 	for (std::pair<std::string, const Assimp::FBX::Texture *> texture : material->Textures()) {
 		const std::string &fbx_mapping_name = texture.first;
+
+		if (fbx_feature_mapping_paths.count(fbx_mapping_name) > 0) {
+			// This is a feature not a normal texture.
+			mat_info.features.push_back(fbx_feature_mapping_paths.at(fbx_mapping_name));
+			continue;
+		}
 
 		ERR_CONTINUE_MSG(fbx_mapping_paths.count(fbx_mapping_name) <= 0, "This FBX has a material with mapping name: " + String(fbx_mapping_name.c_str()) + " which is not yet supported by this importer. Consider open an issue so we can support it.");
 
@@ -106,10 +182,10 @@ Vector<Ref<FBXMaterial::TextureFileMapping> > FBXMaterial::extract_texture_mappi
 		file_mapping->map_mode = mapping_mode;
 		file_mapping->name = texture_name;
 		file_mapping->texture = texture.second;
-		mappings.push_back(file_mapping);
+		mat_info.textures.push_back(file_mapping);
 	}
 
-	return mappings;
+	return mat_info;
 }
 
 Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
@@ -126,11 +202,12 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	print_verbose("[material] material name: " + ImportUtils::FBXNodeToName(material->Name()));
 	material_name = ImportUtils::FBXNodeToName(material->Name());
 
-	// allocate texture mappings
-	const Vector<Ref<TextureFileMapping> > texture_mappings = extract_texture_mappings(material);
+	// Extract info.
+	const MaterialInfo material_info = extract_material_info(material);
 
-	for (int x = 0; x < texture_mappings.size(); x++) {
-		Ref<TextureFileMapping> mapping = texture_mappings.get(x);
+	// Set the textures.
+	for (int x = 0; x < material_info.textures.size(); x++) {
+		Ref<TextureFileMapping> mapping = material_info.textures.get(x);
 		Ref<Texture> texture;
 		print_verbose("texture mapping name: " + mapping->name);
 
@@ -201,7 +278,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				state.cached_image_searches[mapping->name] = texture;
 				print_verbose("Created texture from embedded image.");
 			} else {
-				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping->name + "`, is not stored as embedded file nor as external file. Make sure to insert the texture as embedded file or into the project, then reimport.");
+				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping->name + "`, is not found into the project nor is stored as embedded file. Make sure to insert the texture as embedded file or into the project, then reimport.");
 			}
 		}
 		if (spatial_material.is_null()) {
@@ -209,6 +286,11 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 			spatial_material.instance();
 		}
 		spatial_material->set_texture(mapping->map_mode, texture);
+	}
+
+	// Now set the material features.
+	for (int x = 0; x < material_info.features.size(); x++) {
+		spatial_material->set_feature(material_info.features[x], true);
 	}
 
 	// TODO read other data like colors, UV, etc.. ?

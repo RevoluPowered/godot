@@ -129,6 +129,9 @@ public:
 
 	struct Edge {
 		int vertex_0 = 0, vertex_1 = 0;
+		Edge(int v0, int v1) :
+				vertex_0(v0), vertex_1(v1) {}
+		Edge() {}
 	};
 
 public:

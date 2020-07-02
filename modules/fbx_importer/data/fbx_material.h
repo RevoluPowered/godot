@@ -68,29 +68,45 @@ struct FBXMaterial : public Reference {
 		ReflectionM,
 	};
 
+	const std::map<std::string, SpatialMaterial::Feature> fbx_feature_mapping_paths = {
+		/* Transparent */
+		{ "TransparentColor", SpatialMaterial::Feature::FEATURE_TRANSPARENT },
+		{ "Maya|opacity", SpatialMaterial::Feature::FEATURE_TRANSPARENT }
+	};
+
 	const std::map<std::string, SpatialMaterial::TextureParam> fbx_mapping_paths = {
 		/* Diffuse */
 		{ "DiffuseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|DiffuseTexture", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|baseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|baseColor|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "3dsMax|Parameters|base_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|TEX_color_map|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|TEX_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		/* Emission */
 		{ "EmissiveColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "EmissiveFactor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|emissionColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "Maya|emissionColor|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "3dsMax|Parameters|emission_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|TEX_emissive_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "Maya|TEX_emissive_map|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		/* Metallic */
+		{ "Maya|metalness", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|metalness|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "3dsMax|Parameters|metalness_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|TEX_metallic_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|TEX_metallic_map|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "SpecularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|specularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|SpecularTexture", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|SpecularTexture|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "ShininessExponent", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		/* Roughness */
+		{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "3dsMax|Parameters|roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
+		{ "Maya|TEX_roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "Maya|TEX_roughness_map|file", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "ReflectionFactor", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		/* Normal */
@@ -98,9 +114,12 @@ struct FBXMaterial : public Reference {
 		{ "Bump", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "3dsMax|Parameters|bump_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|NormalTexture", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|normalCamera", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|normalCamera|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|TEX_normal_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|TEX_normal_map|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		/* AO */
+		{ "Maya|TEX_ao_map", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 		{ "Maya|TEX_ao_map|file", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 		//	{"TransparentColor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA },
 		//	{"TransparencyFactor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA }
@@ -127,8 +146,12 @@ struct FBXMaterial : public Reference {
 
 	void set_imported_material(const Assimp::FBX::Material *p_material);
 
-	// used for texture files - so you can map albedo,diffuse,etc
-	Vector<Ref<TextureFileMapping> > extract_texture_mappings(const Assimp::FBX::Material *material) const;
+	struct MaterialInfo {
+		Vector<Ref<TextureFileMapping> > textures;
+		Vector<SpatialMaterial::Feature> features;
+	};
+	/// Extracts the material information.
+	MaterialInfo extract_material_info(const Assimp::FBX::Material *material) const;
 
 	// TODO remove this
 	// used for single properties like metalic/specularintensity/energy/scale

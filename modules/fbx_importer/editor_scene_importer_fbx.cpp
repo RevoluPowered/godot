@@ -333,12 +333,11 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node->godot_node = state.root;
 
 	// size relative to cm
-	float size_relative_to_cm = p_document->GlobalSettings().UnitScaleFactor();
+	const real_t fbx_unit_scale = p_document->GlobalSettings().UnitScaleFactor();
 
 	// Set FBX file scale is relative to CM must be converted to M
-	state.root->scale(Vector3(1, 1, 1) * size_relative_to_cm * 0.01f);
-
-	print_verbose("File scale is: " + rtos(size_relative_to_cm * 0.01f));
+	state.root->scale(Vector3(1.0, 1.0, 1.0) * fbx_unit_scale * 0.01f);
+	print_verbose("FBX unit scale is: " + rtos(fbx_unit_scale * 0.01f));
 
 	// Enabled by default.
 	state.enable_material_import = true;
@@ -392,7 +391,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			material->set_imported_material(mat);
 
 			Ref<SpatialMaterial> godot_material = material->import_material(state);
-			ERR_CONTINUE_MSG(godot_material.is_null(), "unable to convert fbx material to godot material corrupt data");
 
 			state.cached_materials.insert(material_id, godot_material);
 		}
