@@ -49,6 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXCompileConfig.h"
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Assimp {
 namespace FBX {
@@ -65,121 +66,120 @@ class Element;
 */
 class Property {
 protected:
-    Property();
+	Property();
 
 public:
-    virtual ~Property();
+	virtual ~Property();
 
 public:
-    template <typename T>
-    const T* As() const {
-        return dynamic_cast<const T*>(this);
-    }
+	template <typename T>
+	const T *As() const {
+		return dynamic_cast<const T *>(this);
+	}
 };
 
-template<typename T>
+template <typename T>
 class TypedProperty : public Property {
 public:
-    explicit TypedProperty(const T& value)
-    : value(value) {
-        // empty
-    }
+	explicit TypedProperty(const T &value) :
+			value(value) {
+		// empty
+	}
 
-    const T& Value() const {
-        return value;
-    }
+	const T &Value() const {
+		return value;
+	}
 
 private:
-    T value;
+	T value;
 };
 
-
-typedef std::fbx_unordered_map<std::string,std::shared_ptr<Property> > DirectPropertyMap;
-typedef std::fbx_unordered_map<std::string,const Property*>            PropertyMap;
-typedef std::fbx_unordered_map<std::string,const Element*>             LazyPropertyMap;
+typedef std::fbx_unordered_map<std::string, std::shared_ptr<Property> > DirectPropertyMap;
+typedef std::fbx_unordered_map<std::string, const Property *> PropertyMap;
+typedef std::fbx_unordered_map<std::string, const Element *> LazyPropertyMap;
 
 /** 
  *  Represents a property table as can be found in the newer FBX files (Properties60, Properties70)
  */
 class PropertyTable {
 public:
-    // in-memory property table with no source element
-    PropertyTable();
-    PropertyTable(const Element& element, std::shared_ptr<const PropertyTable> templateProps);
-    ~PropertyTable();
+	// in-memory property table with no source element
+	PropertyTable();
+	PropertyTable(const Element &element, std::shared_ptr<const PropertyTable> templateProps);
+	~PropertyTable();
 
-    const Property* Get(const std::string& name) const;
+	const Property *Get(const std::string &name) const;
 
-    // PropertyTable's need not be coupled with FBX elements so this can be NULL
-    const Element* GetElement() const {
-        return element;
-    }
+	// PropertyTable's need not be coupled with FBX elements so this can be NULL
+	const Element *GetElement() const {
+		return element;
+	}
 
-    const PropertyTable* TemplateProps() const {
-        return templateProps.get();
-    }
+	const PropertyTable *TemplateProps() const {
+		return templateProps.get();
+	}
 
-    DirectPropertyMap GetUnparsedProperties() const;
+	const std::vector<std::string> get_properties_name() const;
+
+	DirectPropertyMap GetUnparsedProperties() const;
 
 private:
-    LazyPropertyMap lazyProps;
-    mutable PropertyMap props;
-    const std::shared_ptr<const PropertyTable> templateProps;
-    const Element* const element;
+	LazyPropertyMap lazyProps;
+	mutable PropertyMap props;
+	const std::shared_ptr<const PropertyTable> templateProps;
+	const Element *const element;
 };
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline 
-T PropertyGet(const PropertyTable& in, const std::string& name, const T& defaultValue) {
-    const Property* const prop = in.Get(name);
-    if( nullptr == prop) {
-        return defaultValue;
-    }
+inline T PropertyGet(const PropertyTable &in, const std::string &name, const T &defaultValue) {
+	const Property *const prop = in.Get(name);
+	if (nullptr == prop) {
+		return defaultValue;
+	}
 
-    // strong typing, no need to be lenient
-    const TypedProperty<T>* const tprop = prop->As< TypedProperty<T> >();
-    if( nullptr == tprop) {
-        return defaultValue;
-    }
+	// strong typing, no need to be lenient
+	const TypedProperty<T> *const tprop = prop->As<TypedProperty<T> >();
+	if (nullptr == tprop) {
+		return defaultValue;
+	}
 
-    return tprop->Value();
+	return tprop->Value();
 }
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline 
-T PropertyGet(const PropertyTable& in, const std::string& name, bool& result, bool useTemplate=false ) {
-    const Property* prop = in.Get(name);
-    if( nullptr == prop) {
-        if ( ! useTemplate ) {
-            result = false;
-            return T();
-        }
-        const PropertyTable* templ = in.TemplateProps();
-        if ( nullptr == templ ) {
-            result = false;
-            return T();
-        }
-        prop = templ->Get(name);
-        if ( nullptr == prop ) {
-            result = false;
-            return T();
-        }
-    }
+inline T PropertyGet(const PropertyTable &in, const std::string &name, bool &result, bool useTemplate = false) {
+	const Property *prop = in.Get(name);
+	if (nullptr == prop) {
+		if (!useTemplate) {
+			result = false;
+			return T();
+		}
+		const PropertyTable *templ = in.TemplateProps();
+		if (nullptr == templ) {
+			result = false;
+			return T();
+		}
+		prop = templ->Get(name);
+		if (nullptr == prop) {
+			result = false;
+			return T();
+		}
+	}
 
-    // strong typing, no need to be lenient
-    const TypedProperty<T>* const tprop = prop->As< TypedProperty<T> >();
-    if( nullptr == tprop) {
-        result = false;
-        return T();
-    }
+	// strong typing, no need to be lenient
+	const TypedProperty<T> *const tprop = prop->As<TypedProperty<T> >();
+	if (nullptr == tprop) {
+		result = false;
+		return T();
+	}
 
-    result = true;
-    return tprop->Value();
+	result = true;
+	return tprop->Value();
 }
 
-} //! FBX
-} //! Assimp
+} // namespace FBX
+} // namespace Assimp
 
 #endif // INCLUDED_AI_FBX_PROPERTIES_H

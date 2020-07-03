@@ -68,13 +68,15 @@ struct FBXMaterial : public Reference {
 		ReflectionM,
 	};
 
-	const std::map<std::string, SpatialMaterial::Feature> fbx_feature_mapping_paths = {
+	// TODO make this static?
+	const std::map<std::string, SpatialMaterial::Feature> fbx_feature_mapping_desc = {
 		/* Transparent */
 		{ "TransparentColor", SpatialMaterial::Feature::FEATURE_TRANSPARENT },
 		{ "Maya|opacity", SpatialMaterial::Feature::FEATURE_TRANSPARENT }
 	};
 
-	const std::map<std::string, SpatialMaterial::TextureParam> fbx_mapping_paths = {
+	// TODO make this static?
+	const std::map<std::string, SpatialMaterial::TextureParam> fbx_texture_mapping_desc = {
 		/* Diffuse */
 		{ "DiffuseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|DiffuseTexture", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
@@ -125,6 +127,75 @@ struct FBXMaterial : public Reference {
 		//	{"TransparencyFactor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA }
 	};
 
+	// TODO make this static?
+	enum PropertyDesc {
+		PROPERTY_DESC_NOT_FOUND,
+		PROPERTY_DESC_ALBEDO_COLOR,
+		PROPERTY_DESC_TRANSPARENT,
+		PROPERTY_DESC_METALLIC,
+		PROPERTY_DESC_ROUGHNESS,
+		PROPERTY_DESC_COAT,
+		PROPERTY_DESC_COAT_ROUGHNESS,
+		PROPERTY_DESC_EMISSIVE,
+		PROPERTY_DESC_EMISSIVE_COLOR,
+		PROPERTY_DESC_IGNORE
+	};
+
+	const std::map<std::string, PropertyDesc> fbx_properties_desc = {
+		/* Albedo */
+		{ "DiffuseColor", PROPERTY_DESC_ALBEDO_COLOR },
+		{ "Maya|baseColor", PROPERTY_DESC_ALBEDO_COLOR },
+
+		/* Transparent */
+		{ "Opacity", PROPERTY_DESC_TRANSPARENT },
+		{ "TransparencyFactor", PROPERTY_DESC_TRANSPARENT },
+		{ "Maya|opacity", PROPERTY_DESC_TRANSPARENT },
+
+		/* Metallic */
+		{ "Shininess", PROPERTY_DESC_METALLIC },
+		{ "Reflectivity", PROPERTY_DESC_METALLIC },
+		{ "Maya|metalness", PROPERTY_DESC_METALLIC },
+
+		/* Roughness */
+		{ "Maya|diffuseRoughness", PROPERTY_DESC_ROUGHNESS },
+
+		/* Coat */
+		{ "Maya|coat", PROPERTY_DESC_COAT },
+
+		/* Coat roughness */
+		{ "Maya|coatRoughness", PROPERTY_DESC_COAT_ROUGHNESS },
+
+		/* Emissive */
+		{ "Maya|emission", PROPERTY_DESC_EMISSIVE },
+
+		/* Emissive color */
+		{ "EmissiveColor", PROPERTY_DESC_EMISSIVE_COLOR },
+		{ "Maya|emissionColor", PROPERTY_DESC_EMISSIVE_COLOR },
+
+		/* Ignore */
+		{ "Maya", PROPERTY_DESC_IGNORE },
+		{ "Diffuse", PROPERTY_DESC_IGNORE },
+		{ "Maya|TypeId", PROPERTY_DESC_IGNORE },
+		{ "Ambient", PROPERTY_DESC_IGNORE },
+		{ "AmbientColor", PROPERTY_DESC_IGNORE },
+		{ "ShininessExponent", PROPERTY_DESC_IGNORE },
+		{ "Specular", PROPERTY_DESC_IGNORE },
+		{ "SpecularColor", PROPERTY_DESC_IGNORE },
+		{ "SpecularFactor", PROPERTY_DESC_IGNORE },
+		//{ "BumpFactor", PROPERTY_DESC_IGNORE },
+		{ "Maya|exitToBackground", PROPERTY_DESC_IGNORE },
+		{ "Maya|indirectDiffuse", PROPERTY_DESC_IGNORE },
+		{ "Maya|indirectSpecular", PROPERTY_DESC_IGNORE },
+		{ "Maya|internalReflections", PROPERTY_DESC_IGNORE },
+		{ "DiffuseFactor", PROPERTY_DESC_IGNORE },
+		{ "AmbientFactor", PROPERTY_DESC_IGNORE },
+		{ "ReflectionColor", PROPERTY_DESC_IGNORE },
+		{ "Emissive", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatColor", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatNormal", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatIOR", PROPERTY_DESC_IGNORE },
+	};
+
 	struct TextureFileMapping : Reference {
 		SpatialMaterial::TextureParam map_mode = SpatialMaterial::TEXTURE_ALBEDO;
 		String name = String();
@@ -152,14 +223,6 @@ struct FBXMaterial : public Reference {
 	};
 	/// Extracts the material information.
 	MaterialInfo extract_material_info(const Assimp::FBX::Material *material) const;
-
-	// TODO remove this
-	// used for single properties like metalic/specularintensity/energy/scale
-	//Vector<TexturePropertyMapping<float> > extract_float_properties() const;
-
-	// TODO remove this
-	// used for vertex color mappings
-	//Vector<TexturePropertyMapping<Color> > extract_color_properties() const;
 
 	Ref<SpatialMaterial> import_material(ImportState &state);
 };

@@ -99,6 +99,15 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			&validate_normals,
 			Vector3(1, 0, 0));
 
+	//HashMap<int, Vector3> tangents = extract_per_vertex_data(
+	//		vertex_count,
+	//		mesh_geometry->get_edge_map(),
+	//		mesh_geometry->get_polygon_indices(),
+	//		mesh_geometry->get_tange
+	//		CombinationMode::Avg, // TODO How can we make this dynamic?
+	//		&validate_normals,
+	//		Vector3(1, 0, 0));
+
 	HashMap<int, Vector2> uvs_0 = extract_per_vertex_data(
 			vertex_count,
 			mesh_geometry->get_edge_map(),
@@ -271,6 +280,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 						normals_ptr[vertex]);
 			}
 
+			morph_st->generate_tangents();
 			surface->morphs.push_back(morph_st->commit_to_arrays());
 		}
 	}
@@ -291,6 +301,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	int in_mesh_surface_id = 0;
 	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
 		SurfaceData *surface = surfaces.getptr(*surface_id);
+
+		surface->surface_tool->generate_tangents();
 
 		mesh->add_surface_from_arrays(
 				Mesh::PRIMITIVE_TRIANGLES,

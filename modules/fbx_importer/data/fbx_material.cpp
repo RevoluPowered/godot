@@ -35,6 +35,7 @@
 #include "scene/resources/material.h"
 #include "scene/resources/texture.h"
 #include "thirdparty/assimp/include/assimp/material.h"
+#include <typeinfo>
 
 String FBXMaterial::get_material_name() const {
 	return material_name;
@@ -155,13 +156,13 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 	for (std::pair<std::string, const Assimp::FBX::Texture *> texture : material->Textures()) {
 		const std::string &fbx_mapping_name = texture.first;
 
-		if (fbx_feature_mapping_paths.count(fbx_mapping_name) > 0) {
+		if (fbx_feature_mapping_desc.count(fbx_mapping_name) > 0) {
 			// This is a feature not a normal texture.
-			mat_info.features.push_back(fbx_feature_mapping_paths.at(fbx_mapping_name));
+			mat_info.features.push_back(fbx_feature_mapping_desc.at(fbx_mapping_name));
 			continue;
 		}
 
-		ERR_CONTINUE_MSG(fbx_mapping_paths.count(fbx_mapping_name) <= 0, "This FBX has a material with mapping name: " + String(fbx_mapping_name.c_str()) + " which is not yet supported by this importer. Consider open an issue so we can support it.");
+		ERR_CONTINUE_MSG(fbx_texture_mapping_desc.count(fbx_mapping_name) <= 0, "This FBX has a material with mapping name: " + String(fbx_mapping_name.c_str()) + " which is not yet supported by this importer. Consider open an issue so we can support it.");
 
 		const String absoulte_fbx_file_path = texture.second->FileName().c_str();
 		const String file_extension = absoulte_fbx_file_path.get_extension();
@@ -175,7 +176,7 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 				"The FBX file contains a texture with an unrecognized extension: " + file_extension);
 
 		const String texture_name = absoulte_fbx_file_path.get_file();
-		const SpatialMaterial::TextureParam mapping_mode = fbx_mapping_paths.at(fbx_mapping_name);
+		const SpatialMaterial::TextureParam mapping_mode = fbx_texture_mapping_desc.at(fbx_mapping_name);
 
 		Ref<TextureFileMapping> file_mapping;
 		file_mapping.instance();
@@ -183,9 +184,58 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 		file_mapping->name = texture_name;
 		file_mapping->texture = texture.second;
 		mat_info.textures.push_back(file_mapping);
+
+		// Make sure to active the various features.
+		switch (mapping_mode) {
+			case SpatialMaterial::TextureParam::TEXTURE_ALBEDO:
+			case SpatialMaterial::TextureParam::TEXTURE_METALLIC:
+			case SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS:
+			case SpatialMaterial::TextureParam::TEXTURE_FLOWMAP:
+			case SpatialMaterial::TextureParam::TEXTURE_REFRACTION:
+			case SpatialMaterial::TextureParam::TEXTURE_MAX:
+				// No features required.
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_EMISSION:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_EMISSION);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_NORMAL:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_NORMAL_MAPPING);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_RIM:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_RIM);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_CLEARCOAT:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_CLEARCOAT);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_AMBIENT_OCCLUSION);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_DEPTH:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_DEPTH_MAPPING);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_SUBSURFACE_SCATTERING:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_SUBSURACE_SCATTERING);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_TRANSMISSION:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_TRANSMISSION);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_DETAIL_ALBEDO:
+			case SpatialMaterial::TextureParam::TEXTURE_DETAIL_MASK:
+			case SpatialMaterial::TextureParam::TEXTURE_DETAIL_NORMAL:
+				mat_info.features.push_back(SpatialMaterial::Feature::FEATURE_DETAIL);
+				break;
+		}
 	}
 
 	return mat_info;
+}
+
+template <class T>
+T extract_from_prop(const Assimp::FBX::Property *prop, const T &p_default, const std::string &p_name, const String &p_type) {
+	const Assimp::FBX::TypedProperty<T> *val = prop->As<Assimp::FBX::TypedProperty<T> >();
+	ERR_FAIL_COND_V_MSG(val == nullptr, p_default, "The FBX is corrupted, the property `" + String(p_name.c_str()) + "` is a `" + String(typeid(*prop).name()) + "` but should be a " + p_type);
+	// Make sure to not lost any eventual opacity.
+	return val->Value();
 }
 
 Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
@@ -203,7 +253,97 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	material_name = ImportUtils::FBXNodeToName(material->Name());
 
 	// Extract info.
-	const MaterialInfo material_info = extract_material_info(material);
+	MaterialInfo material_info = extract_material_info(material);
+
+	// Extract other parameters info.
+	const std::vector<std::string> properties_name = material->Props().get_properties_name();
+	for (std::string name : properties_name) {
+		if (name.empty()) {
+			continue;
+		}
+		PropertyDesc desc = PROPERTY_DESC_NOT_FOUND;
+		if (fbx_properties_desc.count(name) > 0) {
+			desc = fbx_properties_desc.at(name);
+		}
+
+		if (desc == PROPERTY_DESC_IGNORE) {
+			print_verbose("The FBX material parameter: `" + String(name.c_str()) + "` is ignored.");
+			continue;
+		}
+		ERR_CONTINUE_MSG(desc == PROPERTY_DESC_NOT_FOUND, "The FBX material parameter: `" + String(name.c_str()) + "` was not recognized. Please open an issue so we can add the support to it.");
+
+		const Assimp::FBX::Property *prop = material->Props().Get(name);
+		ERR_CONTINUE_MSG(prop == nullptr, "This is most likely a bug, the property is not supposed to be null at this point.");
+
+		if (spatial_material.is_null()) {
+			// Done here so if no data no material is created.
+			spatial_material.instance();
+		}
+
+		switch (desc) {
+			case PROPERTY_DESC_ALBEDO_COLOR: {
+				const Vector3 color = extract_from_prop(prop, Vector3(0, 0, 0), name, "Vector3");
+				// Make sure to not lost any eventual opacity.
+				Color c = spatial_material->get_albedo();
+				c[0] = color[0];
+				c[1] = color[1];
+				c[2] = color[2];
+				spatial_material->set_albedo(c);
+			} break;
+			case PROPERTY_DESC_TRANSPARENT: {
+				const real_t opacity = extract_from_prop(prop, 1.0f, name, "float");
+				if (opacity < 1.0 - CMP_EPSILON) {
+					Color c = spatial_material->get_albedo();
+					c[3] = opacity;
+					spatial_material->set_albedo(c);
+					material_info.features.push_back(SpatialMaterial::Feature::FEATURE_TRANSPARENT);
+				}
+			} break;
+			case PROPERTY_DESC_METALLIC: {
+				spatial_material->set_metallic(extract_from_prop(prop, 1.0f, name, "float"));
+			} break;
+			case PROPERTY_DESC_ROUGHNESS: {
+				spatial_material->set_roughness(extract_from_prop(prop, 1.0f, name, "float"));
+			} break;
+			case PROPERTY_DESC_COAT: {
+				spatial_material->set_clearcoat(extract_from_prop(prop, 1.0f, name, "float"));
+				material_info.features.push_back(SpatialMaterial::Feature::FEATURE_CLEARCOAT);
+			} break;
+			case PROPERTY_DESC_COAT_ROUGHNESS: {
+				spatial_material->set_clearcoat_gloss(1.0 - extract_from_prop(prop, 0.5f, name, "float"));
+				material_info.features.push_back(SpatialMaterial::Feature::FEATURE_CLEARCOAT);
+			} break;
+			case PROPERTY_DESC_EMISSIVE: {
+				const real_t emissive = extract_from_prop(prop, 0.0f, name, "float");
+				if (emissive > CMP_EPSILON) {
+					spatial_material->set_emission_energy(emissive);
+					material_info.features.push_back(SpatialMaterial::Feature::FEATURE_EMISSION);
+				}
+			} break;
+			case PROPERTY_DESC_EMISSIVE_COLOR: {
+				const Vector3 color = extract_from_prop(prop, Vector3(0, 0, 0), name, "Vector3");
+				Color c;
+				c[0] = color[0];
+				c[1] = color[1];
+				c[2] = color[2];
+				spatial_material->set_emission(c);
+			} break;
+			case PROPERTY_DESC_NOT_FOUND:
+			case PROPERTY_DESC_IGNORE:
+				// Already checked, can't happen.
+				CRASH_NOW();
+				break;
+		}
+	}
+
+	// Set the material features.
+	for (int x = 0; x < material_info.features.size(); x++) {
+		if (spatial_material.is_null()) {
+			// Done here so if no textures no material is created.
+			spatial_material.instance();
+		}
+		spatial_material->set_feature(material_info.features[x], true);
+	}
 
 	// Set the textures.
 	for (int x = 0; x < material_info.textures.size(); x++) {
@@ -285,15 +425,31 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 			// Done here so if no textures no material is created.
 			spatial_material.instance();
 		}
+
+		switch (mapping->map_mode) {
+			case SpatialMaterial::TextureParam::TEXTURE_METALLIC:
+				// Use grayscale as default.
+				spatial_material->set_metallic_texture_channel(SpatialMaterial::TextureChannel::TEXTURE_CHANNEL_GRAYSCALE);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS:
+				// Use grayscale as default.
+				spatial_material->set_roughness_texture_channel(SpatialMaterial::TextureChannel::TEXTURE_CHANNEL_GRAYSCALE);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION:
+				// Use grayscale as default.
+				spatial_material->set_ao_texture_channel(SpatialMaterial::TextureChannel::TEXTURE_CHANNEL_GRAYSCALE);
+				break;
+			case SpatialMaterial::TextureParam::TEXTURE_REFRACTION:
+				// Use grayscale as default.
+				spatial_material->set_refraction_texture_channel(SpatialMaterial::TextureChannel::TEXTURE_CHANNEL_GRAYSCALE);
+				break;
+			default:
+				// Nothing to do.
+				break;
+		}
+
 		spatial_material->set_texture(mapping->map_mode, texture);
 	}
-
-	// Now set the material features.
-	for (int x = 0; x < material_info.features.size(); x++) {
-		spatial_material->set_feature(material_info.features[x], true);
-	}
-
-	// TODO read other data like colors, UV, etc.. ?
 
 	if (spatial_material.is_valid()) {
 		spatial_material->set_name(material_name);
