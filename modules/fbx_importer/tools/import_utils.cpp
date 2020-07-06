@@ -120,3 +120,7 @@ Vector3 ImportUtils::BasisToEuler(Assimp::FBX::Model::RotOrder mode, const Basis
 Vector3 ImportUtils::QuaternionToEuler(Assimp::FBX::Model::RotOrder mode, const Quat &p_rotation) {
 	return BasisToEuler(mode, p_rotation);
 }
+
+Transform get_unscaled_transform(const Transform &p_initial, real_t p_scale) {
+	return Transform(p_initial.basis, p_initial.origin * p_scale);
+}

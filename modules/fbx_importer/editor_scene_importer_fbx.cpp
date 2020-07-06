@@ -332,11 +332,11 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
 
-	// size relative to cm
+	// Size relative to cm.
 	const real_t fbx_unit_scale = p_document->GlobalSettings().UnitScaleFactor();
 
 	// Set FBX file scale is relative to CM must be converted to M
-	state.root->scale(Vector3(1.0, 1.0, 1.0) * fbx_unit_scale * 0.01f);
+	state.scale = fbx_unit_scale * 0.01f;
 	print_verbose("FBX unit scale is: " + rtos(fbx_unit_scale * 0.01f));
 
 	// Enabled by default.
@@ -551,8 +551,8 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				fbx_node->godot_node->set_owner(state.root);
 			}
 
-			// set local xform data
-			fbx_node->godot_node->set_transform(fbx_node->pivot_transform->LocalTransform);
+			// Node Transform debug, set local xform data.
+			fbx_node->godot_node->set_transform(get_unscaled_transform(fbx_node->pivot_transform->LocalTransform, state.scale));
 
 			// populate our mesh node reference
 			if (mesh_node != nullptr && mesh_data_precached.is_valid()) {
@@ -1223,7 +1223,7 @@ void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref
 				bool valid_bind = false;
 				Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
 				if (valid_bind) {
-					skin->add_named_bind(bone->bone_name, bind);
+					skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind, state.scale));
 				}
 			}
 		}
@@ -1270,7 +1270,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 		if (model != nullptr) {
 			const Assimp::FBX::LimbNodeMaya *const limb_node = dynamic_cast<const Assimp::FBX::LimbNodeMaya *>(model);
 			if (limb_node != nullptr) {
-				// write bone into bone list for FBX
+				// Write bone into bone list for FBX
 				if (!state.fbx_bone_map.has(limb_node->ID())) {
 					bool parent_is_bone = state.fbx_bone_map.find(p_id);
 					bone_element.instance();
@@ -1339,6 +1339,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 						print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
 
 						// assign FBX animation bind pose compensation data;
+						// TODO Do I need scale this?
 						bone_element->transform_link = deformer->TransformLink();
 						bone_element->transform_matrix = deformer->GetTransform();
 						bone_element->cluster = deformer;
@@ -1380,18 +1381,18 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 								Ref<VertexMapping> vertex_weight;
 								if (mesh_vertex_data->vertex_weights.has(vertex_index)) {
 									vertex_weight = mesh_vertex_data->vertex_weights[vertex_index];
-									print_verbose("grabbed pre-existing vertex index for " + itos(vertex_index));
+									//print_verbose("grabbed pre-existing vertex index for " + itos(vertex_index));
 								} else {
 									vertex_weight.instance();
 									mesh_vertex_data->vertex_weights.insert(vertex_index, vertex_weight);
-									print_verbose("created new vertex index for " + itos(vertex_index));
+									//print_verbose("created new vertex index for " + itos(vertex_index));
 								}
 
 								float influence_weight = weights[idx];
 
 								vertex_weight->weights.push_back(influence_weight);
 								vertex_weight->bones.push_back(bone_element);
-								print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
+								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
 							}
 
 							for (size_t idx = 0; idx < indexes.size(); idx++) {

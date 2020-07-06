@@ -417,4 +417,7 @@ public:
 	// }
 };
 
+// Apply the transforms so the basis will have scale 1.
+Transform get_unscaled_transform(const Transform &p_initial, real_t p_scale);
+
 #endif // IMPORT_UTILS_FBX_IMPORTER_H

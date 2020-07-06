@@ -243,6 +243,7 @@ struct FBXMeshData : Reference {
 private:
 	void add_vertex(
 			Ref<SurfaceTool> p_surface_tool,
+			real_t p_scale,
 			int p_vertex,
 			const std::vector<Vector3> &p_vertices_position,
 			const HashMap<int, Vector3> &p_normals,

@@ -29,7 +29,8 @@
 /*************************************************************************/
 
 #include "pivot_transform.h"
-#include <modules/fbx_importer/tools/import_utils.h>
+
+#include "modules/fbx_importer/tools/import_utils.h"
 
 void PivotTransform::ReadTransformChain() {
 	const Assimp::FBX::PropertyTable &props = fbx_model->Props();
