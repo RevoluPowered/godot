@@ -336,8 +336,8 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	const real_t fbx_unit_scale = p_document->GlobalSettings().UnitScaleFactor();
 
 	// Set FBX file scale is relative to CM must be converted to M
-	state.scale = fbx_unit_scale * 0.01f;
-	print_verbose("FBX unit scale is: " + rtos(fbx_unit_scale * 0.01f));
+	state.scale = fbx_unit_scale / 100.0;
+	print_verbose("FBX unit scale is: " + rtos(state.scale));
 
 	// Enabled by default.
 	state.enable_material_import = true;
@@ -1021,7 +1021,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						double anim_length = animation->get_length();
 
 						for (std::pair<uint64_t, Vector3> position_key : translation_keys.keyframes) {
-							pos_values.push_back(ImportUtils::FixAxisConversions(position_key.second));
+							pos_values.push_back(position_key.second * state.scale);
 							double animation_track_time = CONVERT_FBX_TIME(position_key.first);
 
 							if (animation_track_time > max_duration) {
@@ -1091,10 +1091,23 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							rot_values.push_back(final_rotation);
 							rot_times.push_back(animation_track_time);
 						}
-						const Vector3 def_pos = translation_keys.has_default ? translation_keys.default_value : Vector3();
-						const Quat def_rot = rotation_keys.has_default ? ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_keys.default_value)) : Quat();
-						const Vector3 def_scale = scale_keys.has_default ? scale_keys.default_value : Vector3(1, 1, 1);
+
+						Transform bone_rest;
+						int skeleton_bone = -1;
+						if (state.fbx_bone_map.has(target_id)) {
+							if (bone.is_valid() && bone->fbx_skeleton.is_valid()) {
+								skeleton_bone = bone->godot_bone_id;
+								if (skeleton_bone >= 0) {
+									bone_rest = bone->fbx_skeleton->skeleton->get_bone_rest(skeleton_bone);
+								}
+							}
+						}
+
+						const Vector3 def_pos = translation_keys.has_default ? (translation_keys.default_value * state.scale) : bone_rest.origin;
+						const Quat def_rot = rotation_keys.has_default ? ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_keys.default_value)) : bone_rest.basis.get_quat();
+						const Vector3 def_scale = scale_keys.has_default ? scale_keys.default_value : bone_rest.basis.get_scale();
 						print_verbose("track defaults: p(" + def_pos + ") s(" + def_scale + ") r(" + def_rot + ")");
+
 						while (true) {
 							Vector3 pos = def_pos;
 							Quat rot = def_rot;
@@ -1116,29 +1129,18 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 							}
 
 							// node animations must also include pivots
-							if (state.fbx_bone_map.has(target_id)) {
-								//print_verbose("this animation is for bone on skeleton: " + itos(target_id));
+							if (skeleton_bone >= 0) {
 
-								if (bone.is_valid() && bone->fbx_skeleton.is_valid()) {
-									int skeleton_bone = bone->godot_bone_id;
-									Ref<FBXSkeleton> fbx_skeleton = bone->fbx_skeleton;
-									String bone_name = fbx_skeleton->skeleton->get_bone_name(skeleton_bone);
+								Transform xform = Transform();
+								xform.basis.set_quat_scale(rot, scale);
+								xform.origin = pos;
+								const Transform t = bone_rest.affine_inverse() * xform;
 
-									if (skeleton_bone >= 0) {
-										Transform xform = Transform();
-										xform.basis.set_quat_scale(rot, scale);
-										xform.origin = pos;
-										Transform t = fbx_skeleton->skeleton->get_bone_rest(skeleton_bone).affine_inverse() * xform;
-
-										// populate	this again
-										rot = t.basis.get_rotation_quat();
-										rot.normalize();
-										scale = t.basis.get_scale();
-										pos = t.origin;
-									} else {
-										print_error("failed to resolve target to generate pivot track for");
-									}
-								}
+								// populate	this again
+								rot = t.basis.get_rotation_quat();
+								rot.normalize();
+								scale = t.basis.get_scale();
+								pos = t.origin;
 							}
 
 							animation->transform_track_insert_key(track_idx, time, pos, rot, scale);
