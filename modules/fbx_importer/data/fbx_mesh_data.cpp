@@ -57,7 +57,7 @@ void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<fl
 }
 
 template <class T>
-void validate_vector_2or3(T &r_value, const T &p_fall_back) {
+void validate_normals(T &r_value, const T &p_fall_back) {
 	if (r_value.length_squared() <= CMP_EPSILON) {
 		r_value = p_fall_back;
 	}
@@ -79,6 +79,7 @@ struct SurfaceData {
 	Vector<Vertex> data;
 	Ref<SpatialMaterial> material;
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
+	Array morphs;
 };
 
 MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model) {
@@ -95,8 +96,17 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_normals(),
 			CombinationMode::Avg, // TODO How can we make this dynamic?
-			&validate_vector_2or3,
+			&validate_normals,
 			Vector3(1, 0, 0));
+
+	//HashMap<int, Vector3> tangents = extract_per_vertex_data(
+	//		vertex_count,
+	//		mesh_geometry->get_edge_map(),
+	//		mesh_geometry->get_polygon_indices(),
+	//		mesh_geometry->get_tange
+	//		CombinationMode::Avg, // TODO How can we make this dynamic?
+	//		&validate_normals,
+	//		Vector3(1, 0, 0));
 
 	HashMap<int, Vector2> uvs_0 = extract_per_vertex_data(
 			vertex_count,
@@ -104,7 +114,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_uv_0(),
 			CombinationMode::TakeFirst,
-			&validate_vector_2or3,
+			&no_validation,
 			Vector2());
 
 	HashMap<int, Vector2> uvs_1 = extract_per_vertex_data(
@@ -113,7 +123,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			mesh_geometry->get_polygon_indices(),
 			mesh_geometry->get_uv_1(),
 			CombinationMode::TakeFirst,
-			&validate_vector_2or3,
+			&no_validation,
 			Vector2());
 
 	HashMap<int, Color> colors = extract_per_vertex_data(
@@ -161,7 +171,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 				if (surface_id < 0) {
 					// nothing to do
-				} else if (surface_id < material_lookup.size()) {
+				} else if (surface_id < (int)material_lookup.size()) {
 					const Assimp::FBX::Material *mat_mapping = material_lookup.at(surface_id);
 					const uint64_t mapping_id = mat_mapping->ID();
 					if (state.cached_materials.has(mapping_id)) {
@@ -216,10 +226,6 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 			// This must be done before add_vertex because the surface tool is
 			// expecting this before the st->add_vertex() call
-			// todo: please use your own API inside this to retrieve vertex mapping data
-
-			GenFBXWeightInfo(mesh_geometry, surface->surface_tool, vertex);
-			// todo: please fix the uv coordinates
 			add_vertex(
 					surface->surface_tool,
 					vertex,
@@ -239,70 +245,43 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	}
 
 	// Phase 5. Compose the morphs if any.
-	// The morphs are organized also per material.
-	struct MorphsInfo {
-		String name;
-	};
-	HashMap<int, Vector<MorphsInfo> > morphs_info;
-	HashMap<int, Array> morphs;
+	HashMap<String, MorphVertexData> morphs;
+	extract_morphs(mesh_geometry, morphs);
 
-	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
-		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
-			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
-			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
 
-				// TODO we have only these??
-				const std::vector<unsigned int> &morphs_vertex_indices = shape_geometry->GetIndices();
-				const std::vector<Vector3> &morphs_vertices = shape_geometry->GetVertices();
-				const std::vector<Vector3> &morphs_normals = shape_geometry->GetNormals();
+		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+			MorphVertexData *morph_data = morphs.getptr(*morph_name);
 
-				ERR_FAIL_COND_V_MSG((int)morphs_vertex_indices.size() > vertex_count, nullptr, "The FBX file is corrupted: #ERR103");
-				ERR_FAIL_COND_V_MSG(morphs_vertex_indices.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR104");
-				ERR_FAIL_COND_V_MSG((int)morphs_vertices.size() > vertex_count, nullptr, "The FBX file is corrupted: #ERR105");
-				ERR_FAIL_COND_V_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), nullptr, "The FBX file is corrupted: #ERR106");
+			// As said by the docs, this is not supposed to be different than
+			// vertex_count.
+			CRASH_COND(morph_data->vertices.size() != vertex_count);
+			CRASH_COND(morph_data->normals.size() != vertex_count);
 
-				for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-					const SurfaceData *surface = surfaces.getptr(*surface_id);
+			Vector3 *vertices_ptr = morph_data->vertices.ptrw();
+			Vector3 *normals_ptr = morph_data->normals.ptrw();
 
-					Ref<SurfaceTool> morphs_st;
-					morphs_st.instance();
-					morphs_st->begin(Mesh::PRIMITIVE_TRIANGLES);
+			Ref<SurfaceTool> morph_st;
+			morph_st.instance();
+			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-					// Just add the vertices data.
-					for (int vi = 0; vi < surface->data.size(); vi += 1) {
-						const Vertex vertex = surface->data[vi];
-
-						// See if there is a morph change for this vertex.
-						Vector3 morphs_vertex;
-						Vector3 morphs_normal;
-						for (size_t i = 0; i < morphs_vertex_indices.size(); i += 1) {
-							if ((Vertex)morphs_vertex_indices[i] == vertex) {
-								ERR_FAIL_COND_V_MSG(i >= morphs_vertices.size(), nullptr, "The FBX file is corrupted, there is a morph for this vertex but without value.");
-								morphs_vertex = morphs_vertices[i];
-								if (i < morphs_normals.size()) {
-									morphs_normal = morphs_normals[i];
-								}
-								break;
-							}
-						}
-						add_vertex(
-								morphs_st,
-								vertex,
-								mesh_geometry->get_vertices(),
-								normals,
-								uvs_0,
-								uvs_1,
-								colors,
-								morphs_vertex,
-								morphs_normal);
-					}
-
-					morphs[*surface_id].push_back(morphs_st->commit_to_arrays());
-					MorphsInfo info;
-					info.name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
-					morphs_info[*surface_id].push_back(info);
-				}
+			for (int vi = 0; vi < surface->data.size(); vi += 1) {
+				const Vertex vertex = surface->data[vi];
+				add_vertex(
+						morph_st,
+						vertex,
+						mesh_geometry->get_vertices(),
+						normals,
+						uvs_0,
+						uvs_1,
+						colors,
+						vertices_ptr[vertex],
+						normals_ptr[vertex]);
 			}
+
+			morph_st->generate_tangents();
+			surface->morphs.push_back(morph_st->commit_to_arrays());
 		}
 	}
 
@@ -310,39 +289,36 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	Ref<ArrayMesh> mesh;
 	mesh.instance();
 
+	// Add blend shape info.
+	for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+		mesh->add_blend_shape(*morph_name);
+	}
+
+	// TODO always normalized, Why?
+	mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+
+	// Add surfaces.
+	int in_mesh_surface_id = 0;
 	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
 		SurfaceData *surface = surfaces.getptr(*surface_id);
-		Array material_morphs;
-		// Add the morphs for this material into the mesh.
-		if (morphs.has(*surface_id)) {
-			material_morphs = *morphs.getptr(*surface_id);
-			Vector<MorphsInfo> *infos = morphs_info.getptr(*surface_id);
-			for (int i = 0; i < infos->size(); i += 1) {
-				if ((*infos)[i].name.empty()) {
-					// Note: Don't need to make this unique here.
-					mesh->add_blend_shape("morphs");
-				} else {
-					mesh->add_blend_shape((*infos)[i].name);
-				}
-			}
-		}
+
+		surface->surface_tool->generate_tangents();
 
 		mesh->add_surface_from_arrays(
 				Mesh::PRIMITIVE_TRIANGLES,
 				surface->surface_tool->commit_to_arrays(),
-				material_morphs);
+				surface->morphs);
 
 		if (surface->material.is_valid()) {
-			mesh->surface_set_name(*surface_id, surface->material->get_name());
-			mesh->surface_set_material(*surface_id, surface->material);
+			mesh->surface_set_name(in_mesh_surface_id, surface->material->get_name());
+			mesh->surface_set_material(in_mesh_surface_id, surface->material);
 		}
 
-		mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED); // TODO always normalized, Why?
+		in_mesh_surface_id += 1;
 	}
 
 	MeshInstance *godot_mesh = memnew(MeshInstance);
 	godot_mesh->set_mesh(mesh);
-
 	return godot_mesh;
 }
 
@@ -364,11 +340,13 @@ void FBXMeshData::add_vertex(
 	}
 
 	if (p_uvs_0.has(p_vertex)) {
-		p_surface_tool->add_uv(p_uvs_0[p_vertex]);
+		// Inverts Y UV.
+		p_surface_tool->add_uv(Vector2(p_uvs_0[p_vertex].x, 1 - p_uvs_0[p_vertex].y));
 	}
 
 	if (p_uvs_1.has(p_vertex)) {
-		p_surface_tool->add_uv2(p_uvs_1[p_vertex]);
+		// Inverts Y UV.
+		p_surface_tool->add_uv2(Vector2(p_uvs_1[p_vertex].x, 1 - p_uvs_1[p_vertex].y));
 	}
 
 	if (p_colors.has(p_vertex)) {
@@ -379,59 +357,34 @@ void FBXMeshData::add_vertex(
 	// TODO what about binormals?
 	// TODO there is other?
 
+	gen_weight_info(p_surface_tool, p_vertex);
+
 	// The surface tool want the vertex position as last thing.
 	p_surface_tool->add_vertex(p_vertices_position[p_vertex] + p_morph_value);
 }
 
 void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {
 	const int polygon_vertex_count = p_polygon_vertex.size();
-	switch (polygon_vertex_count) {
-		case 1:
-			// Point triangulation
+	if (polygon_vertex_count == 1) {
+		// Point triangulation
+		st->add_index(p_polygon_vertex[0]);
+		st->add_index(p_polygon_vertex[0]);
+		st->add_index(p_polygon_vertex[0]);
+	} else if (polygon_vertex_count == 2) {
+		// Line triangulation
+		st->add_index(p_polygon_vertex[1]);
+		st->add_index(p_polygon_vertex[1]);
+		st->add_index(p_polygon_vertex[0]);
+	} else {
+		for (int i = 0; i < (polygon_vertex_count - 2); i += 1) {
+			st->add_index(p_polygon_vertex[2 + i]);
+			st->add_index(p_polygon_vertex[1 + i]);
 			st->add_index(p_polygon_vertex[0]);
-			st->add_index(p_polygon_vertex[0]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 2: // TODO: validate this
-			// Line triangulation
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 3:
-			// Just a triangle.
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-			break;
-		case 4:
-			// Quad triangulation.
-			// We have 4 points, so we have 2 triangles, and We have CCW.
-			// First triangle.
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[1]);
-			st->add_index(p_polygon_vertex[0]);
-
-			// Second side of triangle
-			st->add_index(p_polygon_vertex[3]);
-			st->add_index(p_polygon_vertex[2]);
-			st->add_index(p_polygon_vertex[0]);
-
-			// anti clockwise rotation in indices
-			// note had to reverse right from left here
-			// [0](x) bottom right (-1,-1)
-			// [1](x+1) bottom left (1,-1)
-			// [2](x+2) top left (1,1)
-			// [3](x+3) top right (-1,1)
-			break;
-		default:
-			ERR_FAIL_MSG("This polygon size is not yet supported, Please triangulate you mesh!");
-			break;
+		}
 	}
 }
 
-void FBXMeshData::GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st,
-		size_t vertex_id) {
+void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) {
 	if (vertex_weights.empty()) {
 		return;
 	}
@@ -574,8 +527,8 @@ HashMap<int, T> FBXMeshData::extract_per_vertex_data(
 				for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_fbx_data.index.size(); polygon_vertex_index += 1) {
 					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, T>()), "FBX file corrupted: #ERR8");
-					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, T>()), "FBX file seems corrupted: #ERR9.")
-					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, T>()), "FBX file seems corrupted: #ERR10.")
+					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, T>()), "FBX fileseems  corrupted: #ERR9.")
+					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, T>()), "FBX fileseems  corrupted: #ERR10.")
 					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] >= (int)p_fbx_data.data.size(), (HashMap<int, T>()), "FBX file seems corrupted: #ERR11.")
 					aggregate_vertex_data[vertex_index].push_back(p_fbx_data.data[p_fbx_data.index[polygon_vertex_index]]);
 				}
@@ -866,4 +819,59 @@ HashMap<int, T> FBXMeshData::extract_per_polygon(
 	}
 
 	return polygons;
+}
+
+void FBXMeshData::extract_morphs(const Assimp::FBX::MeshGeometry *mesh_geometry, HashMap<String, MorphVertexData> &r_data) {
+
+	r_data.clear();
+
+	const int vertex_count = mesh_geometry->get_vertices().size();
+
+	for (const Assimp::FBX::BlendShape *blend_shape : mesh_geometry->get_blend_shapes()) {
+		for (const Assimp::FBX::BlendShapeChannel *blend_shape_channel : blend_shape->BlendShapeChannels()) {
+			const std::vector<const Assimp::FBX::ShapeGeometry *> &shape_geometries = blend_shape_channel->GetShapeGeometries();
+			for (const Assimp::FBX::ShapeGeometry *shape_geometry : shape_geometries) {
+
+				String morph_name = ImportUtils::FBXAnimMeshName(shape_geometry->Name()).c_str();
+				if (morph_name.empty()) {
+					morph_name = "morph";
+				}
+
+				// TODO we have only these??
+				const std::vector<unsigned int> &morphs_vertex_indices = shape_geometry->GetIndices();
+				const std::vector<Vector3> &morphs_vertices = shape_geometry->GetVertices();
+				const std::vector<Vector3> &morphs_normals = shape_geometry->GetNormals();
+
+				ERR_FAIL_COND_MSG((int)morphs_vertex_indices.size() > vertex_count, "The FBX file is corrupted: #ERR103");
+				ERR_FAIL_COND_MSG(morphs_vertex_indices.size() != morphs_vertices.size(), "The FBX file is corrupted: #ERR104");
+				ERR_FAIL_COND_MSG((int)morphs_vertices.size() > vertex_count, "The FBX file is corrupted: #ERR105");
+				ERR_FAIL_COND_MSG(morphs_normals.size() != 0 && morphs_normals.size() != morphs_vertices.size(), "The FBX file is corrupted: #ERR106");
+
+				if (r_data.has(morph_name) == false) {
+					// This morph doesn't exist yet.
+					// Create it.
+					MorphVertexData md;
+					md.vertices.resize(vertex_count);
+					md.normals.resize(vertex_count);
+					r_data.set(morph_name, md);
+				}
+
+				MorphVertexData *data = r_data.getptr(morph_name);
+				Vector3 *data_vertices_ptr = data->vertices.ptrw();
+				Vector3 *data_normals_ptr = data->normals.ptrw();
+
+				for (int i = 0; i < (int)morphs_vertex_indices.size(); i += 1) {
+					const Vertex vertex = morphs_vertex_indices[i];
+
+					ERR_FAIL_INDEX_MSG(vertex, vertex_count, "The blend shapes of this FBX file are corrupted. It has a not valid vertex.");
+
+					data_vertices_ptr[vertex] = morphs_vertices[i];
+
+					if (morphs_normals.size() != 0) {
+						data_normals_ptr[vertex] = morphs_normals[i];
+					}
+				}
+			}
+		}
+	}
 }

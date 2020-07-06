@@ -182,6 +182,15 @@ const Property *PropertyTable::Get(const std::string &name) const {
 	return (*it).second;
 }
 
+const std::vector<std::string> PropertyTable::get_properties_name() const {
+	std::vector<std::string> properties;
+	properties.resize(lazyProps.size());
+	for (auto it = lazyProps.begin(); it != lazyProps.end(); it++) {
+		properties.push_back((*it).first.c_str());
+	}
+	return properties;
+}
+
 DirectPropertyMap PropertyTable::GetUnparsedProperties() const {
 	DirectPropertyMap result;
 

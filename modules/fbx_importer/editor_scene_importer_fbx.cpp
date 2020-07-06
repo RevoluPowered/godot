@@ -333,23 +333,29 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node->godot_node = state.root;
 
 	// size relative to cm
-	float size_relative_to_cm = p_document->GlobalSettings().UnitScaleFactor();
+	const real_t fbx_unit_scale = p_document->GlobalSettings().UnitScaleFactor();
 
 	// Set FBX file scale is relative to CM must be converted to M
-	state.root->scale(Vector3(1, 1, 1) * size_relative_to_cm * 0.01f);
+	state.root->scale(Vector3(1.0, 1.0, 1.0) * fbx_unit_scale * 0.01f);
+	print_verbose("FBX unit scale is: " + rtos(fbx_unit_scale * 0.01f));
 
-	print_verbose("File scale is: " + rtos(size_relative_to_cm * 0.01f));
-
-	// do we need to enable material generation
-	if (ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d")) {
-		state.enable_material_import = true;
-	} else {
+	// Enabled by default.
+	state.enable_material_import = true;
+	const Variant override_enable_import_mat = ProjectSettings::get_singleton()->get("filesystem/import/import_materials_for_3d");
+	if (override_enable_import_mat.get_type() == Variant::BOOL) {
+		state.enable_material_import = override_enable_import_mat;
+	}
+	if (state.enable_material_import == false) {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
-	if (ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d")) {
-		state.enable_animation_import = true;
-	} else {
+	// Enabled by default.
+	state.enable_animation_import = true;
+	const Variant override_enable_import_anim = ProjectSettings::get_singleton()->get("filesystem/import/import_animations_for_3d");
+	if (override_enable_import_anim.get_type() == Variant::BOOL) {
+		state.enable_animation_import = override_enable_import_anim;
+	}
+	if (state.enable_animation_import == false) {
 		WARN_PRINT("[fbx] Project override: disabled import of animations edit project settings to re-enable this");
 	}
 
@@ -375,16 +381,17 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
 
 		for (uint64_t material_id : materials) {
+
 			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
 			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
-
 			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
+
 			Ref<FBXMaterial> material;
 			material.instance();
 			material->set_imported_material(mat);
+
 			Ref<SpatialMaterial> godot_material = material->import_material(state);
 
-			ERR_CONTINUE_MSG(godot_material.is_null(), "unable to convert fbx material to godot material corrupt data");
 			state.cached_materials.insert(material_id, godot_material);
 		}
 	}

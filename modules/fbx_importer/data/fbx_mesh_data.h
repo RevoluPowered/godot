@@ -213,6 +213,14 @@ struct FBXMeshData : Reference {
 		Avg
 	};
 
+	struct MorphVertexData {
+		// TODO we have only these??
+		/// Each element is a vertex. Not supposed to be void.
+		Vector<Vector3> vertices;
+		/// Each element is a vertex. Not supposed to be void.
+		Vector<Vector3> normals;
+	};
+
 	// vertex id, Weight Info
 	// later: perf we can use array here
 	Map<size_t, Ref<VertexMapping> > vertex_weights;
@@ -222,7 +230,7 @@ struct FBXMeshData : Reference {
 
 	MeshInstance *create_fbx_mesh(const ImportState &state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
-	void GenFBXWeightInfo(const Assimp::FBX::MeshGeometry *mesh_geometry, Ref<SurfaceTool> st, size_t vertex_id);
+	void gen_weight_info(Ref<SurfaceTool> st, int vertex_id);
 
 	/* mesh maximum weight count */
 	bool valid_weight_count = false;
@@ -294,6 +302,11 @@ private:
 			CombinationMode p_combination_mode,
 			void (*validate_function)(T &r_current, const T &p_fall_back),
 			T p_fallback_value) const;
+
+	/// Extracts the morph data and organizes it per vertices.
+	/// The returned `MorphVertexData` arrays are never something different
+	/// then the `vertex_count`.
+	void extract_morphs(const Assimp::FBX::MeshGeometry *mesh_geometry, HashMap<String, MorphVertexData> &r_data);
 };
 
 #endif // EDITOR_SCENE_FBX_MESH_DATA_H

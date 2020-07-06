@@ -123,8 +123,12 @@ private:
 	void _register_project_setting_import(const String generic, const String import_setting_string, const Vector<String> &exts, List<String> *r_extensions, const bool p_enabled) const;
 
 	struct ImportFormat {
-		Vector<String> extensions = Vector<String>();
+		Vector<String> extensions;
 		bool is_default = false;
+		ImportFormat(){};
+		ImportFormat(const Vector<String> &ext, bool def) :
+				extensions(ext), is_default(def) {
+		}
 	};
 
 protected:

@@ -34,53 +34,10 @@
 #include "core/reference.h"
 #include "core/ustring.h"
 #include "modules/fbx_importer/tools/import_utils.h"
-#include "scene/resources/material.h"
-#include "thirdparty/assimp/code/FBX/FBXDocument.h"
 
-struct FBXMaterial : Reference {
-protected:
+struct FBXMaterial : public Reference {
 	String material_name = String();
 	mutable const Assimp::FBX::Material *material = nullptr;
-
-public:
-	String get_material_name() const {
-		return material_name;
-	}
-
-	void set_imported_material(const Assimp::FBX::Material *p_material) {
-		material = p_material;
-	}
-
-	static void add_search_string(String p_filename, String p_current_directory, String search_directory, Vector<String> &texture_search_paths) {
-		if (search_directory.empty()) {
-			texture_search_paths.push_back(p_current_directory.get_base_dir().plus_file(p_filename));
-		} else {
-			texture_search_paths.push_back(p_current_directory.get_base_dir().plus_file(search_directory + "/" + p_filename));
-			texture_search_paths.push_back(p_current_directory.get_base_dir().plus_file("../" + search_directory + "/" + p_filename));
-		}
-	}
-
-	// fbx will not give us good path information and let's not regex them to fix them
-	// no relative paths are in fbx generally they have a rel field but it's populated incorrectly by the SDK.
-	static String find_texture_path_by_filename(const String p_filename, const String p_current_directory) {
-		_Directory dir;
-		Vector<String> paths;
-		add_search_string(p_filename, p_current_directory, "", paths);
-		add_search_string(p_filename, p_current_directory, "texture", paths);
-		add_search_string(p_filename, p_current_directory, "textures", paths);
-		add_search_string(p_filename, p_current_directory, "materials", paths);
-		add_search_string(p_filename, p_current_directory, "mats", paths);
-		add_search_string(p_filename, p_current_directory, "pictures", paths);
-		add_search_string(p_filename, p_current_directory, "images", paths);
-
-		for (int i = 0; i < paths.size(); i++) {
-			if (dir.file_exists(paths[i])) {
-				return paths[i];
-			}
-		}
-
-		return "";
-	}
 
 	/* Godot materials
 	 *** Texture Maps:
@@ -111,46 +68,138 @@ public:
 		ReflectionM,
 	};
 
-	const std::map<std::string, SpatialMaterial::TextureParam> fbx_mapping_paths = {
+	// TODO make this static?
+	const std::map<std::string, SpatialMaterial::Feature> fbx_feature_mapping_desc = {
+		/* Transparent */
+		{ "TransparentColor", SpatialMaterial::Feature::FEATURE_TRANSPARENT },
+		{ "Maya|opacity", SpatialMaterial::Feature::FEATURE_TRANSPARENT }
+	};
+
+	// TODO make this static?
+	const std::map<std::string, SpatialMaterial::TextureParam> fbx_texture_mapping_desc = {
 		/* Diffuse */
 		{ "DiffuseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|DiffuseTexture", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|baseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|baseColor|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "3dsMax|Parameters|base_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|TEX_color_map|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|TEX_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		/* Emission */
 		{ "EmissiveColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "EmissiveFactor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|emissionColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "Maya|emissionColor|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "3dsMax|Parameters|emission_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|TEX_emissive_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		{ "Maya|TEX_emissive_map|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
 		/* Metallic */
+		{ "Maya|metalness", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|metalness|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "3dsMax|Parameters|metalness_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|TEX_metallic_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|TEX_metallic_map|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "SpecularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|specularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|SpecularTexture", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|SpecularTexture|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		{ "ShininessExponent", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 		/* Roughness */
+		{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "3dsMax|Parameters|roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
+		{ "Maya|TEX_roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "Maya|TEX_roughness_map|file", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
+		{ "ReflectionFactor", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		/* Normal */
 		{ "NormalMap", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Bump", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "3dsMax|Parameters|bump_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|NormalTexture", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|normalCamera", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|normalCamera|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|TEX_normal_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		{ "Maya|TEX_normal_map|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
 		/* AO */
+		{ "Maya|TEX_ao_map", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 		{ "Maya|TEX_ao_map|file", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 		//	{"TransparentColor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA },
 		//	{"TransparencyFactor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA }
 	};
 
+	// TODO make this static?
+	enum PropertyDesc {
+		PROPERTY_DESC_NOT_FOUND,
+		PROPERTY_DESC_ALBEDO_COLOR,
+		PROPERTY_DESC_TRANSPARENT,
+		PROPERTY_DESC_METALLIC,
+		PROPERTY_DESC_ROUGHNESS,
+		PROPERTY_DESC_COAT,
+		PROPERTY_DESC_COAT_ROUGHNESS,
+		PROPERTY_DESC_EMISSIVE,
+		PROPERTY_DESC_EMISSIVE_COLOR,
+		PROPERTY_DESC_IGNORE
+	};
+
+	const std::map<std::string, PropertyDesc> fbx_properties_desc = {
+		/* Albedo */
+		{ "DiffuseColor", PROPERTY_DESC_ALBEDO_COLOR },
+		{ "Maya|baseColor", PROPERTY_DESC_ALBEDO_COLOR },
+
+		/* Transparent */
+		{ "Opacity", PROPERTY_DESC_TRANSPARENT },
+		{ "TransparencyFactor", PROPERTY_DESC_TRANSPARENT },
+		{ "Maya|opacity", PROPERTY_DESC_TRANSPARENT },
+
+		/* Metallic */
+		{ "Shininess", PROPERTY_DESC_METALLIC },
+		{ "Reflectivity", PROPERTY_DESC_METALLIC },
+		{ "Maya|metalness", PROPERTY_DESC_METALLIC },
+
+		/* Roughness */
+		{ "Maya|diffuseRoughness", PROPERTY_DESC_ROUGHNESS },
+
+		/* Coat */
+		{ "Maya|coat", PROPERTY_DESC_COAT },
+
+		/* Coat roughness */
+		{ "Maya|coatRoughness", PROPERTY_DESC_COAT_ROUGHNESS },
+
+		/* Emissive */
+		{ "Maya|emission", PROPERTY_DESC_EMISSIVE },
+
+		/* Emissive color */
+		{ "EmissiveColor", PROPERTY_DESC_EMISSIVE_COLOR },
+		{ "Maya|emissionColor", PROPERTY_DESC_EMISSIVE_COLOR },
+
+		/* Ignore */
+		{ "Maya", PROPERTY_DESC_IGNORE },
+		{ "Diffuse", PROPERTY_DESC_IGNORE },
+		{ "Maya|TypeId", PROPERTY_DESC_IGNORE },
+		{ "Ambient", PROPERTY_DESC_IGNORE },
+		{ "AmbientColor", PROPERTY_DESC_IGNORE },
+		{ "ShininessExponent", PROPERTY_DESC_IGNORE },
+		{ "Specular", PROPERTY_DESC_IGNORE },
+		{ "SpecularColor", PROPERTY_DESC_IGNORE },
+		{ "SpecularFactor", PROPERTY_DESC_IGNORE },
+		//{ "BumpFactor", PROPERTY_DESC_IGNORE },
+		{ "Maya|exitToBackground", PROPERTY_DESC_IGNORE },
+		{ "Maya|indirectDiffuse", PROPERTY_DESC_IGNORE },
+		{ "Maya|indirectSpecular", PROPERTY_DESC_IGNORE },
+		{ "Maya|internalReflections", PROPERTY_DESC_IGNORE },
+		{ "DiffuseFactor", PROPERTY_DESC_IGNORE },
+		{ "AmbientFactor", PROPERTY_DESC_IGNORE },
+		{ "ReflectionColor", PROPERTY_DESC_IGNORE },
+		{ "Emissive", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatColor", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatNormal", PROPERTY_DESC_IGNORE },
+		{ "Maya|coatIOR", PROPERTY_DESC_IGNORE },
+	};
+
 	struct TextureFileMapping : Reference {
 		SpatialMaterial::TextureParam map_mode = SpatialMaterial::TEXTURE_ALBEDO;
 		String name = String();
+		const Assimp::FBX::Texture *texture = nullptr;
 	};
 
 	/* storing the texture properties like color */
@@ -160,100 +209,22 @@ public:
 		const T property = T();
 	};
 
-	// used for texture files - so you can map albedo,diffuse,etc
-	Vector<Ref<TextureFileMapping> > extract_texture_mappings(const Assimp::FBX::Material *material) const {
-		Vector<Ref<TextureFileMapping> > mappings = Vector<Ref<TextureFileMapping> >();
+	static void add_search_string(String p_filename, String p_current_directory, String search_directory, Vector<String> &texture_search_paths);
 
-		for (std::pair<std::string, const Assimp::FBX::Texture *> texture : material->Textures()) {
-			String texture_name = ImportUtils::FBXNodeToName(texture.second->Name());
-			const std::string &fbx_mapping_name = texture.first;
+	static String find_texture_path_by_filename(const String p_filename, const String p_current_directory);
 
-			if (fbx_mapping_paths.count(fbx_mapping_name) > 0) {
-				const SpatialMaterial::TextureParam &mapping_mode = fbx_mapping_paths.at(fbx_mapping_name);
-				Ref<TextureFileMapping> file_mapping;
-				file_mapping.instance();
-				file_mapping->map_mode = mapping_mode;
-				file_mapping->name = texture_name;
-				mappings.push_back(file_mapping);
-			}
-		}
+	String get_material_name() const;
 
-		// does anyone use this?
-		for (std::pair<std::string, const Assimp::FBX::LayeredTexture *> layer_textures : material->LayeredTextures()) {
-			std::string texture_name = layer_textures.second->Name();
-			const std::string &fbx_mapping_name = layer_textures.first;
+	void set_imported_material(const Assimp::FBX::Material *p_material);
 
-			if (fbx_mapping_paths.count(fbx_mapping_name) > 0) {
-				const SpatialMaterial::TextureParam &mapping_mode = fbx_mapping_paths.at(fbx_mapping_name);
-				Ref<TextureFileMapping> file_mapping;
-				file_mapping.instance();
-				file_mapping->map_mode = mapping_mode;
-				file_mapping->name = String(texture_name.c_str());
-				mappings.push_back(file_mapping);
-			}
-		}
+	struct MaterialInfo {
+		Vector<Ref<TextureFileMapping> > textures;
+		Vector<SpatialMaterial::Feature> features;
+	};
+	/// Extracts the material information.
+	MaterialInfo extract_material_info(const Assimp::FBX::Material *material) const;
 
-		return mappings;
-	}
-
-	// used for single properties like metalic/specularintensity/energy/scale
-	Vector<TexturePropertyMapping<float> > extract_float_properties() const;
-
-	// used for vertex color mappings
-	Vector<TexturePropertyMapping<Color> > extract_color_properties() const;
-
-	Ref<SpatialMaterial> import_material(ImportState &state) {
-		const String p_fbx_current_directory = state.path;
-		ERR_FAIL_COND_V(material == nullptr, nullptr);
-		Ref<SpatialMaterial> spatial_material;
-		spatial_material.instance();
-
-		// read the material file
-		// is material two sided
-		// read material name
-		print_verbose("[material] material name: " + ImportUtils::FBXNodeToName(material->Name()));
-		material_name = ImportUtils::FBXNodeToName(material->Name());
-
-		// allocate texture mappings
-		const Vector<Ref<TextureFileMapping> > texture_mappings = extract_texture_mappings(material);
-
-		for (int x = 0; x < texture_mappings.size(); x++) {
-			Ref<TextureFileMapping> mapping = texture_mappings.get(x);
-			Ref<Texture> texture;
-			print_verbose("texture mapping name: " + mapping->name);
-
-			if (state.cached_image_searches.has(mapping->name)) {
-				texture = state.cached_image_searches[mapping->name];
-			} else {
-				print_verbose("material mapping name: " + mapping->name);
-				String path = find_texture_path_by_filename(mapping->name, p_fbx_current_directory);
-				if (!path.empty()) {
-					Ref<Image> image;
-					image.instance();
-					Ref<ImageTexture> image_texture;
-
-					if (ImageLoader::load_image(path, image) == OK) {
-						image_texture.instance();
-						image_texture->create_from_image(image);
-						texture = image_texture;
-						state.cached_image_searches[mapping->name] = texture;
-
-						int32_t flags = Texture::FLAGS_DEFAULT;
-						texture->set_flags(flags);
-
-						print_verbose("created texture for loaded image file");
-					} else {
-						ERR_CONTINUE_MSG(true, "unable to import image file not loaded yet TODO");
-					}
-				}
-			}
-			spatial_material->set_texture(mapping->map_mode, texture);
-		}
-
-		spatial_material->set_name(material_name);
-
-		return spatial_material;
-	}
+	Ref<SpatialMaterial> import_material(ImportState &state);
 };
 
 #endif // GODOT_FBX_MATERIAL_H
