@@ -228,6 +228,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			// expecting this before the st->add_vertex() call
 			add_vertex(
 					surface->surface_tool,
+					state.scale,
 					vertex,
 					mesh_geometry->get_vertices(),
 					normals,
@@ -270,6 +271,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 				const Vertex vertex = surface->data[vi];
 				add_vertex(
 						morph_st,
+						state.scale,
 						vertex,
 						mesh_geometry->get_vertices(),
 						normals,
@@ -317,6 +319,9 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 		in_mesh_surface_id += 1;
 	}
 
+	// TODO please add skinning.
+	//mesh_id = mesh_geometry->ID();
+
 	MeshInstance *godot_mesh = memnew(MeshInstance);
 	godot_mesh->set_mesh(mesh);
 	return godot_mesh;
@@ -324,6 +329,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 void FBXMeshData::add_vertex(
 		Ref<SurfaceTool> p_surface_tool,
+		real_t p_scale,
 		Vertex p_vertex,
 		const std::vector<Vector3> &p_vertices_position,
 		const HashMap<int, Vector3> &p_normals,
@@ -353,14 +359,13 @@ void FBXMeshData::add_vertex(
 		p_surface_tool->add_color(p_colors[p_vertex]);
 	}
 
-	// TODO what about tangends?
 	// TODO what about binormals?
 	// TODO there is other?
 
 	gen_weight_info(p_surface_tool, p_vertex);
 
 	// The surface tool want the vertex position as last thing.
-	p_surface_tool->add_vertex(p_vertices_position[p_vertex] + p_morph_value);
+	p_surface_tool->add_vertex((p_vertices_position[p_vertex] + p_morph_value) * p_scale);
 }
 
 void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {
