@@ -13,14 +13,14 @@ jobs:
       SCONS_CACHE_LIMIT: 2048  
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.scons_cache
+        key: ${{ runner.os }}-release_debug
     - name: Installation scons
       run: |
         python -m pip install scons pywin32
     - name: Compilation
-      uses: actions/cache@v2
-      with: 
-        path: ~/.scons_cache
-        key: ${{ runner.os }}-release_debug
       run: |
         scons -j2 warnings=all werror=yes platform=windows target=release_debug
     - name: publishing godot windows-editor
@@ -31,23 +31,21 @@ jobs:
   windows-release:
     runs-on: windows-2019
     name: Windows Release
-
     env:
      SCONS_CACHE: ~/.scons_cache/ 
      SCONS_CACHE_LIMIT: 2048
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.scons_cache
+        key: ${{ runner.os }}-release_debug
     - name: Installation scons
       run: |
         python -m pip install scons pywin32
     - name: Compilation
-      uses: actions/cache@v2
-      with: 
-          path: ~/.scons_cache
-          key: ${{ runner.os }}-release
       run: |
         scons -j2 platform=windows tools=no warnings=all werror=yes target=release
-
     - name: publishing godot windows-player
       uses: actions/upload-artifact@v1
       with:
