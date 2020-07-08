@@ -420,7 +420,7 @@ public:
 // Apply the transforms so the basis will have scale 1.
 Transform get_unscaled_transform(const Transform &p_initial, real_t p_scale);
 
-/// Uses the newels method to compute any polygon normal.
+/// Uses the Newell's method to compute any polygon normal.
 /// The polygon must be at least size of 3 or bigger.
 Vector3 get_poly_normal(const std::vector<Vector3> &p_vertices);
 
