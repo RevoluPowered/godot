@@ -48,20 +48,21 @@
  *
  * Only used keys and values are constructed. For free positions there's space
  * in the arrays for each, but that memory is kept uninitialized.
+ * 
+ * The assignment operator copy the pairs from one map to the other.
  */
 template <class TKey, class TValue,
 		class Hasher = HashMapHasherDefault,
 		class Comparator = HashMapComparatorDefault<TKey> >
 class OAHashMap {
-
 private:
-	TValue *values;
-	TKey *keys;
-	uint32_t *hashes;
+	TValue *values = nullptr;
+	TKey *keys = nullptr;
+	uint32_t *hashes = nullptr;
 
-	uint32_t capacity;
+	uint32_t capacity = 0;
 
-	uint32_t num_elements;
+	uint32_t num_elements = 0;
 
 	static const uint32_t EMPTY_HASH = 0;
 
@@ -93,7 +94,7 @@ private:
 		uint32_t pos = hash % capacity;
 		uint32_t distance = 0;
 
-		while (42) {
+		while (true) {
 			if (hashes[pos] == EMPTY_HASH) {
 				return false;
 			}
@@ -113,7 +114,6 @@ private:
 	}
 
 	void _insert_with_hash(uint32_t p_hash, const TKey &p_key, const TValue &p_value) {
-
 		uint32_t hash = p_hash;
 		uint32_t distance = 0;
 		uint32_t pos = hash % capacity;
@@ -121,7 +121,7 @@ private:
 		TKey key = p_key;
 		TValue value = p_value;
 
-		while (42) {
+		while (true) {
 			if (hashes[pos] == EMPTY_HASH) {
 				_construct(pos, hash, key, value);
 
@@ -143,9 +143,10 @@ private:
 	}
 
 	void _resize_and_rehash(uint32_t p_new_capacity) {
-
 		uint32_t old_capacity = capacity;
-		capacity = p_new_capacity;
+
+		// Capacity can't be 0.
+		capacity = MAX(1, p_new_capacity);
 
 		TKey *old_keys = keys;
 		TValue *old_values = values;
@@ -158,6 +159,11 @@ private:
 
 		for (uint32_t i = 0; i < capacity; i++) {
 			hashes[i] = 0;
+		}
+
+		if (old_capacity == 0) {
+			// Nothing to do.
+			return;
 		}
 
 		for (uint32_t i = 0; i < old_capacity; i++) {
@@ -189,9 +195,7 @@ public:
 	}
 
 	void clear() {
-
 		for (uint32_t i = 0; i < capacity; i++) {
-
 			if (hashes[i] == EMPTY_HASH) {
 				continue;
 			}
@@ -205,7 +209,6 @@ public:
 	}
 
 	void insert(const TKey &p_key, const TValue &p_value) {
-
 		if (num_elements + 1 > 0.9 * capacity) {
 			_resize_and_rehash();
 		}
@@ -229,7 +232,7 @@ public:
 	/**
 	 * returns true if the value was found, false otherwise.
 	 *
-	 * if r_data is not NULL then the value will be written to the object
+	 * if r_data is not nullptr  then the value will be written to the object
 	 * it points to.
 	 */
 	bool lookup(const TKey &p_key, TValue &r_data) const {
@@ -242,6 +245,22 @@ public:
 		}
 
 		return false;
+	}
+
+	/**
+	 * returns true if the value was found, false otherwise.
+	 *
+	 * if r_data is not nullptr  then the value will be written to the object
+	 * it points to.
+	 */
+	TValue *lookup_ptr(const TKey &p_key) const {
+		uint32_t pos = 0;
+		bool exists = _lookup_pos(p_key, pos);
+
+		if (exists) {
+			return &values[pos];
+		}
+		return nullptr;
 	}
 
 	_FORCE_INLINE_ bool has(const TKey &p_key) const {
@@ -305,7 +324,6 @@ public:
 	}
 
 	Iterator next_iter(const Iterator &p_iter) const {
-
 		if (!p_iter.valid) {
 			return p_iter;
 		}
@@ -313,8 +331,8 @@ public:
 		Iterator it;
 		it.valid = false;
 		it.pos = p_iter.pos;
-		it.key = NULL;
-		it.value = NULL;
+		it.key = nullptr;
+		it.value = nullptr;
 
 		for (uint32_t i = it.pos; i < capacity; i++) {
 			it.pos = i + 1;
@@ -332,27 +350,38 @@ public:
 		return it;
 	}
 
-	OAHashMap(const OAHashMap &) = delete; // Delete the copy constructor so we don't get unexpected copies and dangling pointers.
-	OAHashMap &operator=(const OAHashMap &) = delete; // Same for assignment operator.
+	OAHashMap(const OAHashMap &p_other) {
+		(*this) = p_other;
+	}
+
+	OAHashMap &operator=(const OAHashMap &p_other) {
+		if (capacity != 0) {
+			clear();
+		}
+
+		_resize_and_rehash(p_other.capacity);
+
+		for (Iterator it = p_other.iter(); it.valid; it = p_other.next_iter(it)) {
+			set(*it.key, *it.value);
+		}
+		return *this;
+	}
 
 	OAHashMap(uint32_t p_initial_capacity = 64) {
-
-		capacity = p_initial_capacity;
-		num_elements = 0;
+		// Capacity can't be 0.
+		capacity = MAX(1, p_initial_capacity);
 
 		keys = static_cast<TKey *>(Memory::alloc_static(sizeof(TKey) * capacity));
 		values = static_cast<TValue *>(Memory::alloc_static(sizeof(TValue) * capacity));
 		hashes = static_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * capacity));
 
-		for (uint32_t i = 0; i < p_initial_capacity; i++) {
+		for (uint32_t i = 0; i < capacity; i++) {
 			hashes[i] = EMPTY_HASH;
 		}
 	}
 
 	~OAHashMap() {
-
 		for (uint32_t i = 0; i < capacity; i++) {
-
 			if (hashes[i] == EMPTY_HASH) {
 				continue;
 			}
@@ -367,4 +396,4 @@ public:
 	}
 };
 
-#endif
+#endif // OA_HASH_MAP_H
