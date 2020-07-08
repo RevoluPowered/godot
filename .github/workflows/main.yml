@@ -17,6 +17,7 @@ jobs:
       with:
         path: ~/.scons_cache
         key: ${{ runner.os }}-release_debug
+        restore-keys: ${{ runner.os }}-release_debug
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
       with:
@@ -53,7 +54,8 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: ~/.scons_cache
-        key: ${{ runner.os }}-release_debug
+        key: ${{ runner.os }}-release
+        restore-keys: ${{ runner.os }}-release
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
       with:
