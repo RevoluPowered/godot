@@ -13,9 +13,11 @@ jobs:
       SCONS_CACHE_LIMIT: 2048  
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - name: configure .scons_cache and download cache
+      id: scons-cache
+      uses: actions/cache@v2
       with:
-        path: ~/.scons_cache
+        path: ~/.scons_cache/**
         key: ${{ runner.os }}-release_debug
         restore-keys: ${{ runner.os }}-release_debug
     - name: Set up Python 3.x
@@ -51,11 +53,13 @@ jobs:
      SCONS_CACHE_LIMIT: 2048
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - name: configure .scons_cache and download cache
+      id: scons-cache
+      uses: actions/cache@v2
       with:
-        path: ~/.scons_cache
-        key: ${{ runner.os }}-release
-        restore-keys: ${{ runner.os }}-release
+        path: ~/.scons_cache/**
+        key: ${{ runner.os }}-release_debug
+        restore-keys: ${{ runner.os }}-release_debug
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
       with:
