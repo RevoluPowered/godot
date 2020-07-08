@@ -32,6 +32,7 @@
 
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
+#include "thirdparty/misc/triangulator.h"
 #include <algorithm>
 
 void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights) {
@@ -76,7 +77,7 @@ typedef int DataIndex;
 struct SurfaceData {
 	Ref<SurfaceTool> surface_tool;
 	// Contains vertices, calling this data so it's the same name used in the FBX format.
-	Vector<Vertex> data;
+	Vector<Vertex> vertices_map;
 	Ref<SpatialMaterial> material;
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
 	Array morphs;
@@ -205,11 +206,11 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			const int vertex = get_vertex_from_polygon_vertex(mesh_geometry->get_polygon_indices(), polygon_vertex);
 
 			// The vertex position in the surface
-			int surface_polygon_vertex_index = surface_data->data.find(vertex);
+			int surface_polygon_vertex_index = surface_data->vertices_map.find(vertex);
 			if (surface_polygon_vertex_index < 0) {
 				// This is a new vertex, store it.
-				surface_polygon_vertex_index = surface_data->data.size();
-				surface_data->data.push_back(vertex);
+				surface_polygon_vertex_index = surface_data->vertices_map.size();
+				surface_data->vertices_map.push_back(vertex);
 			}
 
 			surface_data->surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
@@ -221,8 +222,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 		SurfaceData *surface = surfaces.getptr(*surface_id);
 
 		// Just add the vertices data.
-		for (int i = 0; i < surface->data.size(); i += 1) {
-			const Vertex vertex = surface->data[i];
+		for (int i = 0; i < surface->vertices_map.size(); i += 1) {
+			const Vertex vertex = surface->vertices_map[i];
 
 			// This must be done before add_vertex because the surface tool is
 			// expecting this before the st->add_vertex() call
@@ -241,7 +242,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 		for (const PolygonId *polygon_id = surface->surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface->surface_polygon_vertex.next(polygon_id)) {
 			const Vector<DataIndex> *polygon_indices = surface->surface_polygon_vertex.getptr(*polygon_id);
 
-			triangulate_polygon(surface->surface_tool, *polygon_indices);
+			triangulate_polygon(surface->surface_tool, *polygon_indices, surface->vertices_map, mesh_geometry->get_vertices());
 		}
 	}
 
@@ -267,8 +268,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			morph_st.instance();
 			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-			for (int vi = 0; vi < surface->data.size(); vi += 1) {
-				const Vertex vertex = surface->data[vi];
+			for (int vi = 0; vi < surface->vertices_map.size(); vi += 1) {
+				const Vertex vertex = surface->vertices_map[vi];
 				add_vertex(
 						morph_st,
 						state.scale,
@@ -368,23 +369,98 @@ void FBXMeshData::add_vertex(
 	p_surface_tool->add_vertex((p_vertices_position[p_vertex] + p_morph_value) * p_scale);
 }
 
-void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const {
+void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex, const Vector<Vertex> p_surface_vertex_map, const std::vector<Vector3> &p_vertices) const {
 	const int polygon_vertex_count = p_polygon_vertex.size();
 	if (polygon_vertex_count == 1) {
-		// Point triangulation
+		// Special case: Point triangulation.
 		st->add_index(p_polygon_vertex[0]);
 		st->add_index(p_polygon_vertex[0]);
 		st->add_index(p_polygon_vertex[0]);
 	} else if (polygon_vertex_count == 2) {
-		// Line triangulation
+		// Special case: Line triangulation.
 		st->add_index(p_polygon_vertex[1]);
 		st->add_index(p_polygon_vertex[1]);
 		st->add_index(p_polygon_vertex[0]);
 	} else {
-		for (int i = 0; i < (polygon_vertex_count - 2); i += 1) {
-			st->add_index(p_polygon_vertex[2 + i]);
-			st->add_index(p_polygon_vertex[1 + i]);
-			st->add_index(p_polygon_vertex[0]);
+		// Common case: 3 or more vertices.
+
+		std::vector<Vector3> poly_vertices(polygon_vertex_count);
+		for (int i = 0; i < polygon_vertex_count; i += 1) {
+			poly_vertices[i] = p_vertices[p_surface_vertex_map[p_polygon_vertex[i]]];
+		}
+
+		const Vector3 poly_norm = get_poly_normal(poly_vertices);
+		if (poly_norm.length_squared() <= CMP_EPSILON) {
+			ERR_FAIL_COND_MSG(poly_norm.length_squared() <= CMP_EPSILON, "The normal of this poly was not computed. Is this FBX file corrupted.");
+		}
+
+		// Select the plan coordinate.
+		int axis_1_coord = 0;
+		int axis_2_coord = 1;
+		{
+			real_t inv = poly_norm.z;
+
+			const real_t axis_x = ABS(poly_norm.x);
+			const real_t axis_y = ABS(poly_norm.y);
+			const real_t axis_z = ABS(poly_norm.z);
+
+			if (axis_x > axis_y) {
+				if (axis_x > axis_z) {
+					// For the most part the normal point toward X.
+					axis_1_coord = 1;
+					axis_2_coord = 2;
+					inv = poly_norm.x;
+				}
+			} else if (axis_y > axis_z) {
+				// For the most part the normal point toward Y.
+				axis_1_coord = 2;
+				axis_2_coord = 0;
+				inv = poly_norm.y;
+			}
+
+			// Swap projection axes to take the negated projection vector into account
+			if (inv < 0.0f) {
+				SWAP(axis_1_coord, axis_2_coord);
+			}
+		}
+
+		TriangulatorPoly triangulator_poly;
+		triangulator_poly.Init(polygon_vertex_count);
+		std::vector<Vector2> projected_vertices(polygon_vertex_count);
+		for (int i = 0; i < polygon_vertex_count; i += 1) {
+			const Vector2 pv(poly_vertices[i][axis_1_coord], poly_vertices[i][axis_2_coord]);
+			projected_vertices[i] = pv;
+			triangulator_poly.GetPoint(i) = pv;
+		}
+		triangulator_poly.SetOrientation(TRIANGULATOR_CCW);
+
+		List<TriangulatorPoly> out_poly;
+
+		TriangulatorPartition triangulator_partition;
+		if (triangulator_partition.Triangulate_OPT(&triangulator_poly, &out_poly) == 0) {
+			ERR_FAIL_MSG("The triangulation of this poly failed.");
+		}
+
+		std::vector<Vector2> tris(out_poly.size());
+		for (List<TriangulatorPoly>::Element *I = out_poly.front(); I; I = I->next()) {
+			TriangulatorPoly &tp = I->get();
+
+			ERR_FAIL_COND_MSG(tp.GetNumPoints() != 3, "The triangulator retuned more points, how this is possible?");
+			// Find Index
+			for (int i = 2; i >= 0; i -= 1) {
+				const Vector2 vertex = tp.GetPoint(i);
+				bool done = false;
+				// Find Index
+				for (int y = 0; y < polygon_vertex_count; y += 1) {
+					if ((projected_vertices[y] - vertex).length_squared() <= CMP_EPSILON) {
+						// This seems the right vertex
+						st->add_index(p_polygon_vertex[y]);
+						done = true;
+						break;
+					}
+				}
+				ERR_FAIL_COND(done == false);
+			}
 		}
 	}
 }
