@@ -253,7 +253,7 @@ private:
 			const Vector3 &p_morph_value = Vector3(),
 			const Vector3 &p_morph_normal = Vector3());
 
-	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex) const;
+	void triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon_vertex, Vector<int> p_surface_vertex_map, const std::vector<Vector3> &p_vertices) const;
 
 	/// This function is responsible to convert the FBX polygon vertex to
 	/// vertex index.
