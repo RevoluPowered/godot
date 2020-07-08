@@ -18,9 +18,9 @@ jobs:
         python -m pip install scons pywin32
     - name: Compilation
       uses: actions/cache@v2
-        with: 
-          path: ~/.scons_cache
-          key: ${{ runner.os }}-release_debug
+      with: 
+        path: ~/.scons_cache
+        key: ${{ runner.os }}-release_debug
       run: |
         scons -j2 warnings=all werror=yes platform=windows target=release_debug
     - name: publishing godot windows-editor
