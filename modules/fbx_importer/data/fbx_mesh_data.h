@@ -201,18 +201,14 @@ struct VertexMapping : Reference {
 	void GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights);
 };
 
+template <class T>
+struct VertexData {
+	int polygon_index;
+	T data;
+};
+
 // Caches mesh information and instantiates meshes for you using helper functions.
 struct FBXMeshData : Reference {
-	/// The FBX files usually have more data per single vertex (usually this
-	/// happens with the normals, that to generate the smooth groups the FBX
-	/// contains the vertex normals for each face).
-	/// With this enum is possible to control what to do, combine those or
-	/// take the average.
-	enum class CombinationMode {
-		TakeFirst,
-		Avg
-	};
-
 	struct MorphVertexData {
 		// TODO we have only these??
 		/// Each element is a vertex. Not supposed to be void.
@@ -221,9 +217,9 @@ struct FBXMeshData : Reference {
 		Vector<Vector3> normals;
 	};
 
-	// vertex id, Weight Info
-	// later: perf we can use array here
-	Map<size_t, Ref<VertexMapping> > vertex_weights;
+	/// vertex id, Weight Info
+	/// later: perf we can use array here
+	Map<int, Ref<VertexMapping> > vertex_weights;
 
 	// translate fbx mesh data from document context to FBX Mesh Geometry Context
 	bool valid_weight_indexes = false;
@@ -241,6 +237,22 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
+	/// Make sure to reorganize the vertices so that the correct UV is taken.
+	/// This step is needed because differently from the normal, that can be
+	/// combined, the UV may need its own triangle because sometimes they have
+	/// really different UV for the same vertex but different polygon.
+	/// This function make sure to add another vertex for those UVS.
+	void reorganize_vertices(
+			std::vector<int> &r_polygon_indices,
+			std::vector<Vector3> &r_vertices,
+			HashMap<int, Vector3> &r_normals,
+			HashMap<int, Vector2> &r_uv_1,
+			HashMap<int, Vector2> &r_uv_2,
+			HashMap<int, Color> &r_color,
+			HashMap<String, MorphVertexData> &r_morphs,
+			HashMap<int, HashMap<int, Vector2> > &r_uv_1_raw,
+			HashMap<int, HashMap<int, Vector2> > &r_uv_2_raw);
+
 	void add_vertex(
 			Ref<SurfaceTool> p_surface_tool,
 			real_t p_scale,
@@ -282,15 +294,14 @@ private:
 	/// Used to extract data from the `MappingData` alligned with vertex.
 	/// Useful to extract normal/uvs/colors/tangets/etc...
 	/// If the function fails somehow, it returns an hollow vector and print an error.
-	template <class T>
-	HashMap<int, T> extract_per_vertex_data(
+	template <class R, class T>
+	HashMap<int, R> extract_per_vertex_data(
 			int p_vertex_count,
 			const std::vector<Assimp::FBX::MeshGeometry::Edge> &p_edges,
 			const std::vector<int> &p_face_indices,
 			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
-			CombinationMode p_combination_mode,
-			void (*validate_function)(T &r_current, const T &p_fall_back),
-			T p_fallback_value) const;
+			R (*collector_function)(const Vector<VertexData<T> > *p_vertex_data, R p_fall_back),
+			R p_fall_back) const;
 
 	/// Used to extract data from the `MappingData` organized per polygon.
 	/// Useful to extract the materila
@@ -300,8 +311,6 @@ private:
 			int p_vertex_count,
 			const std::vector<int> &p_face_indices,
 			const Assimp::FBX::MeshGeometry::MappingData<T> &p_fbx_data,
-			CombinationMode p_combination_mode,
-			void (*validate_function)(T &r_current, const T &p_fall_back),
 			T p_fallback_value) const;
 
 	/// Extracts the morph data and organizes it per vertices.

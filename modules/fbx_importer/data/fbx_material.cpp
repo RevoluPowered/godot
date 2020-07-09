@@ -273,7 +273,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 		ERR_CONTINUE_MSG(desc == PROPERTY_DESC_NOT_FOUND, "The FBX material parameter: `" + String(name.c_str()) + "` was not recognized. Please open an issue so we can add the support to it.");
 
 		const Assimp::FBX::Property *prop = material->Props().Get(name);
-		ERR_CONTINUE_MSG(prop == nullptr, "This is most likely a bug, the property is not supposed to be null at this point.");
+		ERR_CONTINUE_MSG(prop == nullptr, "This file may be corrupted because is not possible to extract the material parameter: " + String(name.c_str()));
 
 		if (spatial_material.is_null()) {
 			// Done here so if no data no material is created.
@@ -292,11 +292,12 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 			} break;
 			case PROPERTY_DESC_TRANSPARENT: {
 				const real_t opacity = extract_from_prop(prop, 1.0f, name, "float");
-				if (opacity < 1.0 - CMP_EPSILON) {
+				if (opacity < (1.0 - CMP_EPSILON)) {
 					Color c = spatial_material->get_albedo();
 					c[3] = opacity;
 					spatial_material->set_albedo(c);
 					material_info.features.push_back(SpatialMaterial::Feature::FEATURE_TRANSPARENT);
+					spatial_material->set_depth_draw_mode(SpatialMaterial::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
 				}
 			} break;
 			case PROPERTY_DESC_METALLIC: {

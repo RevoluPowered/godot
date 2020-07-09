@@ -127,21 +127,23 @@ Transform get_unscaled_transform(const Transform &p_initial, real_t p_scale) {
 
 Vector3 get_poly_normal(const std::vector<Vector3> &p_vertices) {
 	ERR_FAIL_COND_V_MSG(p_vertices.size() < 3, Vector3(0, 0, 0), "At least 3 vertices are necesary");
-	double x = 0.0;
-	double y = 0.0;
-	double z = 0.0;
+	// Using long double to make sure that normal is computed foreven really tiny objects.
+	typedef long double ldouble;
+	ldouble x = 0.0;
+	ldouble y = 0.0;
+	ldouble z = 0.0;
 	for (size_t i = 0; i < p_vertices.size(); i += 1) {
 		const Vector3 current = p_vertices[i];
 		const Vector3 next = p_vertices[(i + 1) % p_vertices.size()];
-		x += (current.y - next.y) * (current.z + next.z);
-		y += (current.z - next.z) * (current.x + next.x);
-		z += (current.x - next.x) * (current.y + next.y);
+		x += (ldouble(current.y) - ldouble(next.y)) * (ldouble(current.z) + ldouble(next.z));
+		y += (ldouble(current.z) - ldouble(next.z)) * (ldouble(current.x) + ldouble(next.x));
+		z += (ldouble(current.x) - ldouble(next.x)) * (ldouble(current.y) + ldouble(next.y));
 	}
-	const double l2 = x * x + y * y + z * z;
+	const ldouble l2 = x * x + y * y + z * z;
 	if (l2 == 0.0) {
 		return (p_vertices[0] - p_vertices[1]).normalized().cross((p_vertices[0] - p_vertices[2]).normalized()).normalized();
 	} else {
-		const double l = Math::sqrt(l2);
+		const double l = Math::sqrt(double(l2));
 		return Vector3(x / l, y / l, z / l);
 	}
 }
