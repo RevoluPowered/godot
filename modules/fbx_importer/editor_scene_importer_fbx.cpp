@@ -148,6 +148,9 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 	// take the raw parse-tree and convert it to a FBX DOM
 	Assimp::FBX::Document doc(parser, settings);
 
+	// yeah so closing the file is a good idea (prevents readonly states)
+	f->close();
+
 	// safety for version handling
 	if (doc.IsSafeToImport()) {
 		return _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
