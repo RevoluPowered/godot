@@ -197,8 +197,9 @@ struct VertexMapping {
 	Vector<real_t> weights;
 	Vector<Ref<FBXBone> > bones;
 
-	/*** Will only add a vertex weight if it has been validated that it exists in godot **/
-	void GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights);
+	/// Will only add a vertex weight if it has been validated that it exists in
+	/// godot.
+	void get_validated_bone_weight_info(Vector<int> &out_bones, Vector<float> &out_weights, int p_max_bones) const;
 };
 
 template <class T>
@@ -226,7 +227,7 @@ struct FBXMeshData : Reference {
 
 	MeshInstance *create_fbx_mesh(const ImportState &state, const Assimp::FBX::MeshGeometry *mesh_geometry, const Assimp::FBX::Model *model);
 
-	void gen_weight_info(Ref<SurfaceTool> st, int vertex_id);
+	void gen_weight_info(Ref<SurfaceTool> st, int vertex_id) const;
 
 	/* mesh maximum weight count */
 	bool valid_weight_count = false;

@@ -35,24 +35,23 @@
 #include "thirdparty/misc/triangulator.h"
 #include <algorithm>
 
-void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<real_t> &out_weights) {
-	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] error unable to handle incorrect bone weight info");
-	ERR_FAIL_COND_MSG(out_bones.size() > 0 && out_weights.size() > 0, "[doc] error input must be empty before using this function, accidental re-use?");
-	for (int idx = 0; idx < weights.size(); idx++) {
-		Ref<FBXBone> bone = bones[idx];
-		real_t weight = weights[idx];
+void VertexMapping::get_validated_bone_weight_info(Vector<int> &out_bones, Vector<real_t> &out_weights, int max_bones) const {
+	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] Error unable to handle incorrect bone weight info.");
+	ERR_FAIL_COND_MSG(out_bones.size() > 0 && out_weights.size() > 0, "[doc] Error input must be empty before using this function, accidental re-use?");
+	for (int idx = 0; idx < max_bones; idx += 1) {
+		real_t weight = 0.0;
+		Ref<FBXBone> bone;
+		if (idx < bones.size()) {
+			weight = weights[idx];
+			bone = bones[idx];
+		}
 		if (bone.is_valid()) {
-			out_bones.push_back(bone->godot_bone_id);
 			out_weights.push_back(weight);
-			//print_verbose("[" + itos(idx) + "] valid bone weight: " + itos(bone->godot_bone_id) + " weight: " + rtos(weight));
+			out_bones.push_back(bone->godot_bone_id);
+			// print_verbose("[" + itos(idx) + "] valid bone weight: " + itos(bone->godot_bone_id) + " weight: " + rtos(weight));
 		} else {
+			out_weights.push_back(0.0);
 			out_bones.push_back(0);
-			out_weights.push_back(0);
-			if (bone.is_valid()) {
-				ERR_PRINT("skeleton misconfigured");
-			} else {
-				//print_verbose("[" + itos(idx) + "] fake weight: 0");
-			}
 		}
 	}
 }
@@ -712,36 +711,33 @@ void FBXMeshData::triangulate_polygon(Ref<SurfaceTool> st, Vector<int> p_polygon
 	}
 }
 
-void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) {
+void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 	if (vertex_weights.empty()) {
 		return;
 	}
 
-	ERR_FAIL_COND_MSG(!vertex_weights.has(vertex_id), "unable to resolve vertex supplied to weight information");
+	Vector<real_t> valid_weights;
+	Vector<int> valid_bone_ids;
 
-	VertexMapping* vm = vertex_weights.getptr(vertex_id);
-	int weight_size = vm->weights.size();
+	// Godot only supports 4.
+	const int max_bones = VS::ARRAY_WEIGHTS_SIZE;
 
-	if (weight_size > 0) {
-
-		// Weight normalisation to make bone weights in correct ordering
-		if (vm->weights.size() < max_weight_count) {
-			// missing weight count - how many do we not have?
-			int missing_count = max_weight_count - weight_size;
-			//print_verbose("adding missing count : " + itos(missing_count));
-			for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
-				vm->weights.push_back(0); // no weight
-				vm->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
-			}
+	if (vertex_weights.has(vertex_id)) {
+		// Let's extract the weight info.
+		const VertexMapping *vm = vertex_weights.getptr(vertex_id);
+		vm->get_validated_bone_weight_info(valid_bone_ids, valid_weights, max_bones);
+	} else {
+		// This vertex doesn't have any bone info, while the model is using the
+		// bones.
+		for (int i = 0; i < max_bones; i += 1) {
+			valid_weights.push_back(0.0f);
+			valid_bone_ids.push_back(0);
 		}
-
-		Vector<real_t> valid_weights;
-		Vector<int> valid_bone_ids;
-		vm->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
-		st->add_weights(valid_weights);
-		st->add_bones(valid_bone_ids);
-		print_verbose("[doc] triangle added weights to mesh for bones");
 	}
+
+	st->add_weights(valid_weights);
+	st->add_bones(valid_bone_ids);
+	print_verbose("[doc] Triangle added weights to mesh for bones");
 }
 
 const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_polygon_indices, int p_index) const {
