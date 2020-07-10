@@ -35,12 +35,12 @@
 #include "thirdparty/misc/triangulator.h"
 #include <algorithm>
 
-void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights) {
+void VertexMapping::GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<real_t> &out_weights) {
 	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] error unable to handle incorrect bone weight info");
 	ERR_FAIL_COND_MSG(out_bones.size() > 0 && out_weights.size() > 0, "[doc] error input must be empty before using this function, accidental re-use?");
 	for (int idx = 0; idx < weights.size(); idx++) {
 		Ref<FBXBone> bone = bones[idx];
-		float weight = weights[idx];
+		real_t weight = weights[idx];
 		if (bone.is_valid()) {
 			out_bones.push_back(bone->godot_bone_id);
 			out_weights.push_back(weight);
@@ -735,7 +735,7 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) {
 			}
 		}
 
-		Vector<float> valid_weights;
+		Vector<real_t> valid_weights;
 		Vector<int> valid_bone_ids;
 		vm->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
 		st->add_weights(valid_weights);

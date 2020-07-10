@@ -1369,7 +1369,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 						}
 
 						// Mesh vertex data retrieved now to stream this deformer
-						// idata into the nternal mesh storage.
+						// data into the nternal mesh storage.
 						if (mesh_vertex_data.is_valid()) {
 							// tell the mesh what Armature it should use
 							mesh_vertex_data->armature_id = bone_element->armature_id;

@@ -194,8 +194,7 @@ struct FBXSplitBySurfaceVertexMapping {
 };
 
 struct VertexMapping {
-	// TODO any reason why not using real_t?
-	Vector<float> weights;
+	Vector<real_t> weights;
 	Vector<Ref<FBXBone> > bones;
 
 	/*** Will only add a vertex weight if it has been validated that it exists in godot **/
