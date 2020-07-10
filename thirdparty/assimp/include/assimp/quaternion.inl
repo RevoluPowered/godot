@@ -53,7 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifdef __cplusplus
-#include <assimp/quaternion.h>
+#include <thirdparty/assimp/include/assimp/quaternion.h>
 
 #include <cmath>
 

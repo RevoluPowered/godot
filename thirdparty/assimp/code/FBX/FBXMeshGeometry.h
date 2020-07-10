@@ -40,14 +40,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ----------------------------------------------------------------------
 */
 
-/** @file  FBXImporter.h
-*  @brief Declaration of the FBX main importer class
-*/
 #ifndef INCLUDED_AI_FBX_MESHGEOMETRY_H
 #define INCLUDED_AI_FBX_MESHGEOMETRY_H
 
-#include "FBXParser.h"
+#include "core/color.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/vector.h"
+
 #include "FBXDocument.h"
+#include "FBXParser.h"
+
+#include <iostream>
+
+#define AI_MAX_NUMBER_OF_TEXTURECOORDS 4
+#define AI_MAX_NUMBER_OF_COLOR_SETS 8
 
 namespace Assimp {
 namespace FBX {
@@ -55,181 +62,169 @@ namespace FBX {
 /** 
  *  DOM base class for all kinds of FBX geometry 
  */
-class Geometry : public Object
-{
+class Geometry : public Object {
 public:
-    Geometry( uint64_t id, const Element& element, const std::string& name, const Document& doc );
-    virtual ~Geometry();
+	Geometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+	virtual ~Geometry();
 
-    /** Get the Skin attached to this geometry or NULL */
-    const Skin* DeformerSkin() const;
+	/** Get the Skin attached to this geometry or NULL */
+	const Skin *DeformerSkin() const;
 
-    /** Get the BlendShape attached to this geometry or NULL */
-    const std::vector<const BlendShape*>& GetBlendShapes() const;
+	const std::vector<const BlendShape *> &get_blend_shapes() const;
+
+	size_t get_blend_shape_count() const {
+		return blendShapes.size();
+	}
 
 private:
-    const Skin* skin;
-    std::vector<const BlendShape*> blendShapes;
-
+	const Skin *skin;
+	std::vector<const BlendShape *> blendShapes;
 };
 
 typedef std::vector<int> MatIndexArray;
 
-
-/** 
- *  DOM class for FBX geometry of type "Mesh"
- */
-class MeshGeometry : public Geometry
-{
+/// Map Geometry stores the FBX file information.
+///
+/// # FBX doc.
+/// ## Reference type declared:
+/// 	- Direct (directly related to the mapping information type)
+/// 	- IndexToDirect (Map with key value, meaning depends on the MappingInformationType)
+///
+/// ## Map Type:
+/// 	* None The mapping is undetermined.
+/// 	* ByVertex There will be one mapping coordinate for each surface control point/vertex (ControlPoint is a vertex).
+/// 		* If you have direct reference type verticies[x]
+/// 		* If you have IndexToDirect reference type the UV
+/// 	* ByPolygonVertex There will be one mapping coordinate for each vertex, for every polygon of which it is a part. This means that a vertex will have as many mapping coordinates as polygons of which it is a part. (Sorted by polygon, referencing vertex)
+/// 	* ByPolygon There can be only one mapping coordinate for the whole polygon.
+/// 		* One mapping per polygon polygon x has this normal x
+/// 		* For each vertex of the polygon then set the normal to x
+/// 	* ByEdge There will be one mapping coordinate for each unique edge in the mesh. This is meant to be used with smoothing layer elements. (Mapping is referencing the edge id)
+/// 	* AllSame There can be only one mapping coordinate for the whole surface.
+class MeshGeometry : public Geometry {
 public:
-    /** The class constructor */
-    MeshGeometry( uint64_t id, const Element& element, const std::string& name, const Document& doc );
-    
-    /** The class destructor */
-    virtual ~MeshGeometry();
+	enum class MapType {
+		none = 0, // No mapping type. Stored as "None".
+		vertex, // Maps per vertex. Stored as "ByVertice".
+		polygon_vertex, // Maps per polygon vertex. Stored as "ByPolygonVertex".
+		polygon, // Maps per polygon. Stored as "ByPolygon".
+		edge, // Maps per edge. Stored as "ByEdge".
+		all_the_same // Uaps to everything. Stored as "AllSame".
+	};
 
-    /** Get a list of all vertex points, non-unique*/
-    const std::vector<aiVector3D>& GetVertices() const;
+	enum class ReferenceType {
+		direct = 0,
+		index_to_direct = 1
+	};
 
-    /** Get a list of all vertex normals or an empty array if
-    *  no normals are specified. */
-    const std::vector<aiVector3D>& GetNormals() const;
+	template <class T>
+	struct MappingData {
+		MapType map_type = MapType::none;
+		ReferenceType ref_type = ReferenceType::direct;
+		std::vector<T> data;
+		/// The meaning of the indices depends from the `MapType`.
+		/// If `ref_type` is `direct` this map is hollow.
+		std::vector<int> index;
+	};
 
-    /** Get a list of all vertex tangents or an empty array
-    *  if no tangents are specified */
-    const std::vector<aiVector3D>& GetTangents() const;
+	struct Edge {
+		int vertex_0 = 0, vertex_1 = 0;
+		Edge(int v0, int v1) :
+				vertex_0(v0), vertex_1(v1) {}
+		Edge() {}
+	};
 
-    /** Get a list of all vertex bi-normals or an empty array
-    *  if no bi-normals are specified */
-    const std::vector<aiVector3D>& GetBinormals() const;
+public:
+	MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
 
-    /** Return list of faces - each entry denotes a face and specifies
-    *  how many vertices it has. Vertices are taken from the
-    *  vertex data arrays in sequential order. */
-    const std::vector<unsigned int>& GetFaceIndexCounts() const;
+	virtual ~MeshGeometry();
 
-    /** Get a UV coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-    const std::vector<aiVector2D>& GetTextureCoords( unsigned int index ) const;
+	const std::vector<Vector3> &get_vertices() const;
+	const std::vector<Edge> &get_edge_map() const;
+	const std::vector<int> &get_polygon_indices() const;
+	const std::vector<int> &get_edges() const;
+	const MappingData<Vector3> &get_normals() const;
+	const MappingData<Vector2> &get_uv_0() const;
+	const MappingData<Vector2> &get_uv_1() const;
+	const MappingData<Color> &get_colors() const;
+	const MappingData<int> &get_material_allocation_id() const;
 
-    /** Get a UV coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-    std::string GetTextureCoordChannelName( unsigned int index ) const;
-
-    /** Get a vertex color coordinate slot, returns an empty array if
-    *  the requested slot does not exist. */
-    const std::vector<aiColor4D>& GetVertexColors( unsigned int index ) const;
-
-    /** Get per-face-vertex material assignments */
-    const MatIndexArray& GetMaterialIndices() const;
-
-    /** Convert from a fbx file vertex index (for example from a #Cluster weight) or NULL
-    * if the vertex index is not valid. */
-    const unsigned int* ToOutputVertexIndex( unsigned int in_index, unsigned int& count ) const;
-
-    /** Determine the face to which a particular output vertex index belongs.
-    *  This mapping is always unique. */
-    unsigned int FaceForVertexIndex( unsigned int in_index ) const;
-private:
-    void ReadLayer( const Scope& layer );
-    void ReadLayerElement( const Scope& layerElement );
-    void ReadVertexData( const std::string& type, int index, const Scope& source );
-
-    void ReadVertexDataUV( std::vector<aiVector2D>& uv_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
-
-    void ReadVertexDataNormals( std::vector<aiVector3D>& normals_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
-
-    void ReadVertexDataColors( std::vector<aiColor4D>& colors_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
-
-    void ReadVertexDataTangents( std::vector<aiVector3D>& tangents_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
-
-    void ReadVertexDataBinormals( std::vector<aiVector3D>& binormals_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
-
-    void ReadVertexDataMaterials( MatIndexArray& materials_out, const Scope& source,
-        const std::string& MappingInformationType,
-        const std::string& ReferenceInformationType );
+	/// Returns -1 if the vertices doesn't form an edge. Vertex order, doesn't
+	// matter.
+	static int get_edge_id(const std::vector<Edge> &p_map, int p_vertex_a, int p_vertex_b);
+	// Retuns the edge point bu that ID, or the edge with -1 vertices if the
+	// id is not valid.
+	static Edge get_edge(const std::vector<Edge> &p_map, int p_id);
 
 private:
-    // cached data arrays
-    MatIndexArray m_materials;
-    std::vector<aiVector3D> m_vertices;
-    std::vector<unsigned int> m_faces;
-    mutable std::vector<unsigned int> m_facesVertexStartIndices;
-    std::vector<aiVector3D> m_tangents;
-    std::vector<aiVector3D> m_binormals;
-    std::vector<aiVector3D> m_normals;
+	// Read directly from the FBX file.
+	std::vector<Vector3> m_vertices;
+	std::vector<Edge> edge_map;
+	std::vector<int> m_face_indices;
+	std::vector<int> m_edges;
+	MappingData<Vector3> m_normals;
+	MappingData<Vector2> m_uv_0; // first uv coordinates
+	MappingData<Vector2> m_uv_1; // second uv coordinates
+	MappingData<Color> m_colors; // colors for the mesh
+	MappingData<int> m_material_allocation_ids; // slot of material used
 
-    std::string m_uvNames[ AI_MAX_NUMBER_OF_TEXTURECOORDS ];
-    std::vector<aiVector2D> m_uvs[ AI_MAX_NUMBER_OF_TEXTURECOORDS ];
-    std::vector<aiColor4D> m_colors[ AI_MAX_NUMBER_OF_COLOR_SETS ];
-
-    std::vector<unsigned int> m_mapping_counts;
-    std::vector<unsigned int> m_mapping_offsets;
-    std::vector<unsigned int> m_mappings;
+	template <class T>
+	MappingData<T> resolve_vertex_data_array(
+			const Scope &source,
+			const std::string &MappingInformationType,
+			const std::string &ReferenceInformationType,
+			const std::string &dataElementName);
 };
 
 /**
 *  DOM class for FBX geometry of type "Shape"
 */
-class ShapeGeometry : public Geometry
-{
+class ShapeGeometry : public Geometry {
 public:
-    /** The class constructor */
-    ShapeGeometry(uint64_t id, const Element& element, const std::string& name, const Document& doc);
+	/** The class constructor */
+	ShapeGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
 
-    /** The class destructor */
-    virtual ~ShapeGeometry();
+	/** The class destructor */
+	virtual ~ShapeGeometry();
 
-    /** Get a list of all vertex points, non-unique*/
-    const std::vector<aiVector3D>& GetVertices() const;
+	/** Get a list of all vertex points, non-unique*/
+	const std::vector<Vector3> &GetVertices() const;
 
-    /** Get a list of all vertex normals or an empty array if
+	/** Get a list of all vertex normals or an empty array if
     *  no normals are specified. */
-    const std::vector<aiVector3D>& GetNormals() const;
+	const std::vector<Vector3> &GetNormals() const;
 
-    /** Return list of vertex indices. */
-    const std::vector<unsigned int>& GetIndices() const;
+	/** Return list of vertex indices. */
+	const std::vector<unsigned int> &GetIndices() const;
 
 private:
-    std::vector<aiVector3D> m_vertices;
-    std::vector<aiVector3D> m_normals;
-    std::vector<unsigned int> m_indices;
+	std::vector<Vector3> m_vertices;
+	std::vector<Vector3> m_normals;
+	std::vector<unsigned int> m_indices;
 };
 /**
 *  DOM class for FBX geometry of type "Line"
 */
-class LineGeometry : public Geometry
-{
+class LineGeometry : public Geometry {
 public:
-    /** The class constructor */
-    LineGeometry(uint64_t id, const Element& element, const std::string& name, const Document& doc);
+	/** The class constructor */
+	LineGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
 
-    /** The class destructor */
-    virtual ~LineGeometry();
+	/** The class destructor */
+	virtual ~LineGeometry();
 
-    /** Get a list of all vertex points, non-unique*/
-    const std::vector<aiVector3D>& GetVertices() const;
+	/** Get a list of all vertex points, non-unique*/
+	const std::vector<Vector3> &GetVertices() const;
 
-    /** Return list of vertex indices. */
-    const std::vector<int>& GetIndices() const;
+	/** Return list of vertex indices. */
+	const std::vector<int> &GetIndices() const;
 
 private:
-    std::vector<aiVector3D> m_vertices;
-    std::vector<int> m_indices;
+	std::vector<Vector3> m_vertices;
+	std::vector<int> m_indices;
 };
 
-}
-}
+} // namespace FBX
+} // namespace Assimp
 
 #endif // INCLUDED_AI_FBX_MESHGEOMETRY_H
-

@@ -57,9 +57,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   pragma GCC system_header
 #endif
 
-#include <assimp/ai_assert.h>
-#include <assimp/defs.h>
-#include <assimp/StringComparison.h>
+#include <thirdparty/assimp/include/assimp/ai_assert.h>
+#include <thirdparty/assimp/include/assimp/defs.h>
+#include <thirdparty/assimp/include/assimp/StringComparison.h>
 
 #include <string.h>
 #include <stdint.h>

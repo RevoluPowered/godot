@@ -88,7 +88,6 @@ Ref<Animation> EditorSceneImporter::import_animation(const String &p_path, uint3
 //and you want to load the resulting file
 
 Node *EditorSceneImporter::import_scene_from_other_importer(const String &p_path, uint32_t p_flags, int p_bake_fps) {
-
 	return ResourceImporterScene::get_singleton()->import_scene_from_other_importer(this, p_path, p_flags, p_bake_fps);
 }
 
