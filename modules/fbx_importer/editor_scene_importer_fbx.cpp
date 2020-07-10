@@ -1368,8 +1368,8 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 							state.renderer_mesh_data.insert(mesh_target_id, mesh_vertex_data);
 						}
 
-						// mesh vertex data retrieved now to stream this deformer data into the
-						// internal mesh storage
+						// Mesh vertex data retrieved now to stream this deformer
+						// idata into the nternal mesh storage.
 						if (mesh_vertex_data.is_valid()) {
 							// tell the mesh what Armature it should use
 							mesh_vertex_data->armature_id = bone_element->armature_id;
@@ -1383,50 +1383,36 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 								size_t vertex_index = indexes[idx];
 								//print_verbose("vertex index: " + itos(vertex_index));
 
-								Ref<VertexMapping> vertex_weight;
-								if (mesh_vertex_data->vertex_weights.has(vertex_index)) {
-									vertex_weight = mesh_vertex_data->vertex_weights[vertex_index];
-									//print_verbose("grabbed pre-existing vertex index for " + itos(vertex_index));
-								} else {
-									vertex_weight.instance();
-									mesh_vertex_data->vertex_weights.insert(vertex_index, vertex_weight);
-									//print_verbose("created new vertex index for " + itos(vertex_index));
-								}
+								const real_t influence_weight = weights[idx];
 
-								float influence_weight = weights[idx];
-
-								vertex_weight->weights.push_back(influence_weight);
-								vertex_weight->bones.push_back(bone_element);
+								VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
+								vm.weights.push_back(influence_weight);
+								vm.bones.push_back(bone_element);
 								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
 							}
 
-							for (size_t idx = 0; idx < indexes.size(); idx++) {
-								size_t vertex_index = indexes[idx];
-								Ref<VertexMapping> vertex_weight;
-								// if we have a weight we must count and check if its larger than our 'maximum value'
-								if (mesh_vertex_data->vertex_weights.has(vertex_index)) {
-									vertex_weight = mesh_vertex_data->vertex_weights[vertex_index];
-									int influence_count = vertex_weight->weights.size();
-									if (influence_count > mesh_vertex_data->max_weight_count) {
-										mesh_vertex_data->max_weight_count = influence_count;
-										mesh_vertex_data->valid_weight_count = true;
-									}
-								} else {
-									continue;
+							for (
+									const int *vertex_index = mesh_vertex_data->vertex_weights.next(nullptr);
+									vertex_index != nullptr;
+									vertex_index = mesh_vertex_data->vertex_weights.next(vertex_index)) {
+								VertexMapping *vm = mesh_vertex_data->vertex_weights.getptr(*vertex_index);
+								const int influence_count = vm->weights.size();
+								if (influence_count > mesh_vertex_data->max_weight_count) {
+									mesh_vertex_data->max_weight_count = influence_count;
+									mesh_vertex_data->valid_weight_count = true;
 								}
 							}
 
-							if (mesh_vertex_data.is_valid()) {
+							if (mesh_vertex_data->max_weight_count > 4) {
 								if (mesh_vertex_data->max_weight_count > 8) {
-									print_error("[doc] serious: maximum bone influences is 8 in this branch");
+									ERR_PRINT("[doc] Serious: maximum bone influences is 8 in this branch.");
 								}
-								if (mesh_vertex_data->max_weight_count > 4) {
-									mesh_vertex_data->max_weight_count = 8; // clamp to 8 bone vertex influences
-									print_verbose("[doc] using 8 vertex bone influences configuration");
-								} else {
-									mesh_vertex_data->max_weight_count = 4;
-									print_verbose("[doc] using 4 vertex bone influences configuration");
-								}
+								// Clamp to 8 bone vertex influences.
+								mesh_vertex_data->max_weight_count = 8;
+								print_verbose("[doc] Using 8 vertex bone influences configuration.");
+							} else {
+								mesh_vertex_data->max_weight_count = 4;
+								print_verbose("[doc] Using 4 vertex bone influences configuration.");
 							}
 						}
 					} else {

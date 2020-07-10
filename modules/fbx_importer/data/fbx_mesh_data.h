@@ -193,9 +193,10 @@ struct FBXSplitBySurfaceVertexMapping {
 	}
 };
 
-struct VertexMapping : Reference {
-	Vector<float> weights = Vector<float>();
-	Vector<Ref<FBXBone> > bones = Vector<Ref<FBXBone> >();
+struct VertexMapping {
+	// TODO any reason why not using real_t?
+	Vector<float> weights;
+	Vector<Ref<FBXBone> > bones;
 
 	/*** Will only add a vertex weight if it has been validated that it exists in godot **/
 	void GetValidatedBoneWeightInfo(Vector<int> &out_bones, Vector<float> &out_weights);
@@ -219,7 +220,7 @@ struct FBXMeshData : Reference {
 
 	/// vertex id, Weight Info
 	/// later: perf we can use array here
-	Map<int, Ref<VertexMapping> > vertex_weights;
+	HashMap<int, VertexMapping> vertex_weights;
 
 	// translate fbx mesh data from document context to FBX Mesh Geometry Context
 	bool valid_weight_indexes = false;

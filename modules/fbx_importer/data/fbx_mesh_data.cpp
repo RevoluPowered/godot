@@ -510,7 +510,7 @@ void FBXMeshData::reorganize_vertices(
 			}
 
 			if (vertex_weights.has(old_index)) {
-				vertex_weights.insert(new_index, vertex_weights[old_index]);
+				vertex_weights.set(new_index, vertex_weights[old_index]);
 			}
 
 			duplicated_vertices[old_index].push_back(new_index);
@@ -719,24 +719,25 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) {
 
 	ERR_FAIL_COND_MSG(!vertex_weights.has(vertex_id), "unable to resolve vertex supplied to weight information");
 
-	Ref<VertexMapping> VertexWeights = vertex_weights[vertex_id];
-	int weight_size = VertexWeights->weights.size();
+	VertexMapping* vm = vertex_weights.getptr(vertex_id);
+	int weight_size = vm->weights.size();
 
 	if (weight_size > 0) {
+
 		// Weight normalisation to make bone weights in correct ordering
-		if (VertexWeights->weights.size() < max_weight_count) {
+		if (vm->weights.size() < max_weight_count) {
 			// missing weight count - how many do we not have?
 			int missing_count = max_weight_count - weight_size;
 			//print_verbose("adding missing count : " + itos(missing_count));
 			for (int empty_weight_id = 0; empty_weight_id < missing_count; empty_weight_id++) {
-				VertexWeights->weights.push_back(0); // no weight
-				VertexWeights->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
+				vm->weights.push_back(0); // no weight
+				vm->bones.push_back(Ref<FBXBone>()); // invalid entry on purpose
 			}
 		}
 
 		Vector<float> valid_weights;
 		Vector<int> valid_bone_ids;
-		VertexWeights->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
+		vm->GetValidatedBoneWeightInfo(valid_bone_ids, valid_weights);
 		st->add_weights(valid_weights);
 		st->add_bones(valid_bone_ids);
 		print_verbose("[doc] triangle added weights to mesh for bones");
