@@ -4,9 +4,9 @@ on:
     pull_request:
     push:
       branches: [ master, 3.2, 3.1, 3.0 ]
-    env:
-      SCONS_CACHE_MSVC_CONFIG: true
-      SCONS_CACHE_LIMIT: 2048
+env:
+  SCONS_CACHE_MSVC_CONFIG: true
+  SCONS_CACHE_LIMIT: 2048
 jobs:
   windows-editor:
     runs-on: "windows-latest"
