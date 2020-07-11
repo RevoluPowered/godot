@@ -41,7 +41,7 @@ jobs:
         scons --version
     - name: Compilation
       run: |
-        scons -j2 warnings=all werror=yes platform=windows target=release_debug
+        scons -j2 verbose=yes warnings=all werror=yes platform=windows target=release_debug
     - name: publishing godot windows-editor
       uses: actions/upload-artifact@v1
       with:
@@ -83,7 +83,7 @@ jobs:
         scons --version
     - name: Compilation
       run: |
-        scons -j2 warnings=all werror=yes platform=windows target=release tools=no
+        scons -j2 verbose=yes warnings=all werror=yes platform=windows target=release tools=no
     - name: publishing godot windows-editor
       uses: actions/upload-artifact@v1
       with:
