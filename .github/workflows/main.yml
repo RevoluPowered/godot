@@ -19,8 +19,8 @@ jobs:
       uses: RevoluPowered/cache@v2.1
       with:
         path: ${{env.SCONS_CACHE}}
-        key: ${{ runner.os }}-release_debug-editor
-        restore-keys: ${{ runner.os }}-release_debug-editor
+        key: ${{ runner.os }}-godot-release_debug-editor
+        restore-keys: ${{ runner.os }}-godot-release_debug-editor
     # use python 3.x release (works cross platform)
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
@@ -61,8 +61,8 @@ jobs:
       uses: RevoluPowered/cache@v2.1
       with:
         path: ${{env.SCONS_CACHE}}
-        key: ${{ runner.os }}-release_runtime
-        restore-keys: ${{ runner.os }}-release_runtime
+        key: ${{ runner.os }}-godot-release_runtime
+        restore-keys: ${{ runner.os }}-godot-release_runtime
     # use python 3.x release (works cross platform)
     - name: Set up Python 3.x
       uses: actions/setup-python@v2
