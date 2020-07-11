@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v2 
     # cache must be put in the github workspace directory on windows to be persisted correctly
     - name: "force cache path to be correct"
-      run: echo "::set-output name=SCONS_CACHE::${{env.GITHUB_WORKSPACE}}/.scons_cache/"
+      run: echo "::set-env name=SCONS_CACHE::${{env.GITHUB_WORKSPACE}}/.scons_cache/"
     # upload cache on completion and check it out now
     - name: configure .scons_cache and download cache
       id: scons-cache
