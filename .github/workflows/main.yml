@@ -6,7 +6,7 @@ on:
       branches: [ master, 3.2, 3.1, 3.0 ]
 jobs:
   windows-editor:
-    runs-on: windows-latest
+    runs-on: [self-hosted, windows]
     name: Windows Editor (release_debug)
     steps:
     - uses: actions/checkout@v2 
@@ -41,7 +41,7 @@ jobs:
         scons --version
     - name: Compilation
       run: |
-        scons -j2 warnings=all werror=yes platform=windows target=release_debug
+        scons -j16 warnings=all werror=yes platform=windows target=release_debug
     - name: publishing godot windows-editor
       uses: actions/upload-artifact@v1
       with:
