@@ -50,6 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXDocumentUtil.h"
 #include "FBXImportSettings.h"
 #include "FBXParser.h"
+#include "FBXParseTools.h"
 #include "FBXProperties.h"
 
 #include "FBXUtil.h"
@@ -164,12 +165,12 @@ Texture::Texture(uint64_t id, const Element &element, const Document &doc, const
 	}
 
 	if (ModelUVTranslation) {
-		uvTrans = aiVector2D(ParseTokenAsFloat(GetRequiredToken(*ModelUVTranslation, 0)),
+		uvTrans = Vector2(ParseTokenAsFloat(GetRequiredToken(*ModelUVTranslation, 0)),
 				ParseTokenAsFloat(GetRequiredToken(*ModelUVTranslation, 1)));
 	}
 
 	if (ModelUVScaling) {
-		uvScaling = aiVector2D(ParseTokenAsFloat(GetRequiredToken(*ModelUVScaling, 0)),
+		uvScaling = Vector2(ParseTokenAsFloat(GetRequiredToken(*ModelUVScaling, 0)),
 				ParseTokenAsFloat(GetRequiredToken(*ModelUVScaling, 1)));
 	}
 
@@ -192,13 +193,13 @@ Texture::Texture(uint64_t id, const Element &element, const Document &doc, const
 
 	// 3DS Max and FBX SDK use "Scaling" and "Translation" instead of "ModelUVScaling" and "ModelUVTranslation". Use these properties if available.
 	bool ok;
-	const aiVector3D &scaling = PropertyGet<aiVector3D>(*props, "Scaling", ok);
+	const Vector3 &scaling = PropertyGet<Vector3>(*props, "Scaling", ok);
 	if (ok) {
 		uvScaling.x = scaling.x;
 		uvScaling.y = scaling.y;
 	}
 
-	const aiVector3D &trans = PropertyGet<aiVector3D>(*props, "Translation", ok);
+	const Vector3 &trans = PropertyGet<Vector3>(*props, "Translation", ok);
 	if (ok) {
 		uvTrans.x = trans.x;
 		uvTrans.y = trans.y;
@@ -329,7 +330,7 @@ Video::Video(uint64_t id, const Element &element, const Document &doc, const std
 				// read number of elements
 				uint32_t len = 0;
 				::memcpy(&len, data + 1, sizeof(len));
-				AI_SWAP4(len);
+				//AI_SWAP4((void*)&len);
 
 				contentLength = len;
 

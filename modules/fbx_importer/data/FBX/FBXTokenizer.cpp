@@ -49,10 +49,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // tab width for logging columns
 #define ASSIMP_FBX_TAB_WIDTH 4
 
-#include <assimp/ParsingUtils.h>
-
 #include "FBXTokenizer.h"
 #include <core/print_string.h>
+#include "FBXParseTools.h"
 
 namespace Assimp {
 namespace FBX {

@@ -52,13 +52,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../contrib/zlib/zlib.h"
 #endif
 
+#include "FBXParseTools.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
 #include "FBXUtil.h"
 #include "core/print_string.h"
 #include "core/math/transform.h"
 #include "core/math/vector3.h"
-
+#include "core/math/math_defs.h"
 using namespace Assimp;
 using namespace Assimp::FBX;
 
@@ -233,8 +234,8 @@ uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
 			return 0L;
 		}
 
-		BE_NCONST uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
-		AI_SWAP8(id);
+		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
+		//AI_SWAP8((void*) &id);
 		return id;
 	}
 
@@ -242,8 +243,8 @@ uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
 	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
 	//ai_assert(length > 0);
 
-	const char *out = nullptr;
-	const uint64_t id = strtoul10_64(t.begin(), &out, &length);
+	char *out = nullptr;
+	const uint64_t id = strtoul(t.begin(), &out, length);
 	if (out > t.end()) {
 		err_out = "failed to parse ID (text)";
 		return 0L;
@@ -269,8 +270,8 @@ size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
 			return 0;
 		}
 
-		BE_NCONST uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
-		AI_SWAP8(id);
+		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
+		//AI_SWAP8((void*) &id);
 		return static_cast<size_t>(id);
 	}
 
@@ -286,8 +287,8 @@ size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
 		return 0;
 	}
 
-	const char *out = nullptr;
-	const size_t id = static_cast<size_t>(strtoul10_64(t.begin() + 1, &out, &length));
+	char *out = nullptr;
+	const size_t id = static_cast<size_t>(strtoul(t.begin() + 1, &out, length));
 	if (out > t.end()) {
 		err_out = "failed to parse ID";
 		return 0;
@@ -328,7 +329,7 @@ float ParseTokenAsFloat(const Token &t, const char *&err_out) {
 	std::copy(t.begin(), t.end(), temp);
 	temp[std::min(static_cast<size_t>(MAX_FLOAT_LENGTH), length)] = '\0';
 
-	return fast_atof(temp);
+	return atof(temp);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -347,16 +348,23 @@ int ParseTokenAsInt(const Token &t, const char *&err_out) {
 			return 0;
 		}
 
-		BE_NCONST int32_t ival = SafeParse<int32_t>(data + 1, t.end());
-		AI_SWAP4(ival);
+		int32_t ival = SafeParse<int32_t>(data + 1, t.end());
+		//AI_SWAP4((void*) &ival);
 		return static_cast<int>(ival);
 	}
 
 	//ai_assert(static_cast<size_t>(t.end() - t.begin()) > 0);
 
-	const char *out;
-	const int intval = strtol10(t.begin(), &out);
-	if (out != t.end()) {
+	// XXX: should use size_t here
+	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
+	if (length == 0) {
+		err_out = "expected valid integer number after asterisk";
+		return 0;
+	}
+
+	char *out = nullptr;
+	const int intval = strtol(t.begin(), &out, length);
+	if (out == nullptr || out != t.end()) {
 		err_out = "failed to parse ID";
 		return 0;
 	}
@@ -380,8 +388,8 @@ int64_t ParseTokenAsInt64(const Token &t, const char *&err_out) {
 			return 0L;
 		}
 
-		BE_NCONST int64_t id = SafeParse<int64_t>(data + 1, t.end());
-		AI_SWAP8(id);
+		int64_t id = SafeParse<int64_t>(data + 1, t.end());
+		//AI_SWAP8((void*)&id);
 		return id;
 	}
 
@@ -389,8 +397,8 @@ int64_t ParseTokenAsInt64(const Token &t, const char *&err_out) {
 	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
 	//ai_assert(length > 0);
 
-	const char *out = nullptr;
-	const int64_t id = strtol10_64(t.begin(), &out, &length);
+	char *out = nullptr;
+	const int64_t id = strtol(t.begin(), &out, length);
 	if (out > t.end()) {
 		err_out = "failed to parse Int64 (text)";
 		return 0L;
@@ -416,8 +424,8 @@ std::string ParseTokenAsString(const Token &t, const char *&err_out) {
 		}
 
 		// read string length
-		BE_NCONST int32_t len = SafeParse<int32_t>(data + 1, t.end());
-		AI_SWAP4(len);
+		int32_t len = SafeParse<int32_t>(data + 1, t.end());
+		//AI_SWAP4((void*) &len);
 
 		//ai_assert(t.end() - data == 5 + len);
 		return std::string(data + 5, len);
@@ -452,8 +460,8 @@ void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uin
 	type = *data;
 
 	// read number of elements
-	BE_NCONST uint32_t len = SafeParse<uint32_t>(data + 1, end);
-	AI_SWAP4(len);
+	uint32_t len = SafeParse<uint32_t>(data + 1, end);
+	//AI_SWAP4((void*)&len);
 
 	count = len;
 	data += 5;
@@ -464,13 +472,13 @@ void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uin
 void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const char *end,
 		std::vector<char> &buff,
 		const Element & /*el*/) {
-	BE_NCONST uint32_t encmode = SafeParse<uint32_t>(data, end);
-	AI_SWAP4(encmode);
+	uint32_t encmode = SafeParse<uint32_t>(data, end);
+	//AI_SWAP4((void*)&encmode);
 	data += 4;
 
 	// next comes the compressed length
-	BE_NCONST uint32_t comp_len = SafeParse<uint32_t>(data, end);
-	AI_SWAP4(comp_len);
+	uint32_t comp_len = SafeParse<uint32_t>(data, end);
+	//AI_SWAP4((void*)&comp_len);
 	data += 4;
 
 	//ai_assert(data + comp_len == end);
@@ -487,10 +495,7 @@ void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const cha
 		case 'l':
 			stride = 8;
 			break;
-
-		default:
-			//ai_assert(false);
-	};
+	}
 
 	const uint32_t full_length = stride * count;
 	buff.resize(full_length);
@@ -583,9 +588,9 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element &el) {
 		if (type == 'd') {
 			const double *d = reinterpret_cast<const double *>(&buff[0]);
 			for (unsigned int i = 0; i < count3; ++i, d += 3) {
-				out.push_back(Vector3(static_cast<ai_real>(d[0]),
-						static_cast<ai_real>(d[1]),
-						static_cast<ai_real>(d[2])));
+				out.push_back(Vector3(static_cast<real_t>(d[0]),
+						static_cast<real_t>(d[1]),
+						static_cast<real_t>(d[2])));
 			}
 			// for debugging
 			/*for ( size_t i = 0; i < out.size(); i++ ) {
@@ -810,8 +815,8 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 
 		const int32_t *ip = reinterpret_cast<const int32_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
-			BE_NCONST int32_t val = *ip;
-			AI_SWAP4(val);
+			int32_t val = *ip;
+			//AI_SWAP4((void*)&val);
 			out.push_back(val);
 		}
 
@@ -925,12 +930,12 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 
 		const int32_t *ip = reinterpret_cast<const int32_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
-			BE_NCONST int32_t val = *ip;
+			int32_t val = *ip;
 			if (val < 0) {
 				print_error("encountered negative integer index (binary)");
 			}
 
-			AI_SWAP4(val);
+			//AI_SWAP4((void*)&val);
 			out.push_back(val);
 		}
 
@@ -988,8 +993,8 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 
 		const uint64_t *ip = reinterpret_cast<const uint64_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
-			BE_NCONST uint64_t val = *ip;
-			AI_SWAP8(val);
+			uint64_t val = *ip;
+			//AI_SWAP8((void*)&val);
 			out.push_back(val);
 		}
 
@@ -1045,8 +1050,8 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el) {
 
 		const int64_t *ip = reinterpret_cast<const int64_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
-			BE_NCONST int64_t val = *ip;
-			AI_SWAP8(val);
+			int64_t val = *ip;
+			//AI_SWAP8((void*)&val);
 			out.push_back(val);
 		}
 

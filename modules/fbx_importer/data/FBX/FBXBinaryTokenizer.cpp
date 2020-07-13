@@ -47,6 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
 
+#include "FBXParseTools.h"
 #include "FBXTokenizer.h"
 #include "FBXUtil.h"
 #include <core/print_string.h>
@@ -136,7 +137,7 @@ uint32_t ReadWord(const char *input, const char *&cursor, const char *end) {
 
 	uint32_t word;
 	::memcpy(&word, cursor, 4);
-	AI_SWAP4(word);
+	//AI_SWAP4((void*) &word);
 
 	cursor += k_to_read;
 
@@ -152,7 +153,7 @@ uint64_t ReadDoubleWord(const char *input, const char *&cursor, const char *end)
 
 	uint64_t dword /*= *reinterpret_cast<const uint64_t*>(cursor)*/;
 	::memcpy(&dword, cursor, sizeof(uint64_t));
-	AI_SWAP8(dword);
+	//AI_SWAP8((void*) &dword);
 
 	cursor += k_to_read;
 
@@ -264,7 +265,6 @@ void ReadData(const char *&sbegin_out, const char *&send_out, const char *input,
 		case 'c': {
 			const uint32_t length = ReadWord(input, cursor, end);
 			const uint32_t encoding = ReadWord(input, cursor, end);
-
 			const uint32_t comp_len = ReadWord(input, cursor, end);
 
 			// compute length based on type and check against the stored value
@@ -275,20 +275,15 @@ void ReadData(const char *&sbegin_out, const char *&send_out, const char *input,
 					case 'i':
 						stride = 4;
 						break;
-
 					case 'd':
 					case 'l':
 						stride = 8;
 						break;
-
 					case 'c':
 						stride = 1;
 						break;
+				}
 
-					default:
-						//ai_assert(false);
-				};
-				//ai_assert(stride > 0);
 				if (length * stride != comp_len) {
 					TokenizeError("cannot ReadData, calculated data stride differs from what the file claims", input, cursor);
 				}

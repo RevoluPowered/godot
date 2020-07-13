@@ -54,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXProperties.h"
 #include "FBXUtil.h"
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -420,8 +421,8 @@ void Document::ReadPropertyTemplates() {
 	const ElementCollection otypes = sdefs.GetCollection("ObjectType");
 	for (ElementMap::const_iterator it = otypes.first; it != otypes.second; ++it) {
 		const Element &el = *(*it).second;
-		const Scope *sc = el.Compound();
-		if (!sc) {
+		const Scope *sc_2 = el.Compound();
+		if (!sc_2) {
 			DOMWarning("expected nested scope in ObjectType, ignoring", &el);
 			continue;
 		}
@@ -434,24 +435,24 @@ void Document::ReadPropertyTemplates() {
 
 		const std::string &oname = ParseTokenAsString(*tok[0]);
 
-		const ElementCollection templs = sc->GetCollection("PropertyTemplate");
-		for (ElementMap::const_iterator it = templs.first; it != templs.second; ++it) {
-			const Element &el = *(*it).second;
-			const Scope *sc = el.Compound();
-			if (!sc) {
+		const ElementCollection templs = sc_2->GetCollection("PropertyTemplate");
+		for (ElementMap::const_iterator iter = templs.first; iter != templs.second; ++iter) {
+			const Element &el_2 = *(*iter).second;
+			const Scope *sc_3 = el_2.Compound();
+			if (!sc_3) {
 				DOMWarning("expected nested scope in PropertyTemplate, ignoring", &el);
 				continue;
 			}
 
-			const TokenList &tok = el.Tokens();
-			if (tok.empty()) {
+			const TokenList &tok_2 = el_2.Tokens();
+			if (tok_2.empty()) {
 				DOMWarning("expected name for PropertyTemplate element, ignoring", &el);
 				continue;
 			}
 
-			const std::string &pname = ParseTokenAsString(*tok[0]);
+			const std::string &pname = ParseTokenAsString(*tok_2[0]);
 
-			const Element *Properties70 = (*sc)["Properties70"];
+			const Element *Properties70 = (*sc_3)["Properties70"];
 			if (Properties70) {
 				std::shared_ptr<const PropertyTable> props = std::make_shared<const PropertyTable>(
 						*Properties70, std::shared_ptr<const PropertyTable>(static_cast<const PropertyTable *>(NULL)));
