@@ -35,27 +35,6 @@
 #include "thirdparty/misc/triangulator.h"
 #include <algorithm>
 
-void VertexMapping::get_validated_bone_weight_info(Vector<int> &out_bones, Vector<real_t> &out_weights, int max_bones) const {
-	ERR_FAIL_COND_MSG(bones.size() != weights.size(), "[doc] Error unable to handle incorrect bone weight info.");
-	ERR_FAIL_COND_MSG(out_bones.size() > 0 && out_weights.size() > 0, "[doc] Error input must be empty before using this function, accidental re-use?");
-	for (int idx = 0; idx < max_bones; idx += 1) {
-		real_t weight = 0.0;
-		Ref<FBXBone> bone;
-		if (idx < bones.size()) {
-			weight = weights[idx];
-			bone = bones[idx];
-		}
-		if (bone.is_valid()) {
-			out_weights.push_back(weight);
-			out_bones.push_back(bone->godot_bone_id);
-			// print_verbose("[" + itos(idx) + "] valid bone weight: " + itos(bone->godot_bone_id) + " weight: " + rtos(weight));
-		} else {
-			out_weights.push_back(0.0);
-			out_bones.push_back(0);
-		}
-	}
-}
-
 template <class T>
 T collect_first(const Vector<VertexData<T> > *p_data, T p_fall_back) {
 	if (p_data->empty()) {
@@ -165,6 +144,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 
 	// TODO please add skinning.
 	//mesh_id = mesh_geometry->ID();
+
+	sanitize_vertex_weights();
 
 	// Re organize polygon vertices to to correctly take into account strange
 	// UVs.
@@ -362,6 +343,70 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	MeshInstance *godot_mesh = memnew(MeshInstance);
 	godot_mesh->set_mesh(mesh);
 	return godot_mesh;
+}
+
+void FBXMeshData::sanitize_vertex_weights() {
+	const int max_bones = VS::ARRAY_WEIGHTS_SIZE;
+
+	for (const Vertex *v = vertex_weights.next(nullptr); v != nullptr; v = vertex_weights.next(v)) {
+		VertexMapping *vm = vertex_weights.getptr(*v);
+		ERR_CONTINUE(vm->bones.size() != vm->weights.size()); // No message, already checked.
+		ERR_CONTINUE(vm->bones_ref.size() != vm->weights.size()); // No message, already checked.
+
+		const int initial_size = vm->weights.size();
+
+		{
+			// Init bone id
+			int *bones_ptr = vm->bones.ptrw();
+			Ref<FBXBone> *bones_ref_ptr = vm->bones_ref.ptrw();
+
+			for (int i = 0; i < vm->weights.size(); i += 1) {
+				// At this point this is not possible because the skeleton is already initialized.
+				CRASH_COND(bones_ref_ptr[i]->godot_bone_id == -2);
+				bones_ptr[i] = bones_ref_ptr[i]->godot_bone_id;
+			}
+
+			// From this point on the data is no more valid.
+			vm->bones_ref.clear();
+		}
+
+		{
+			// Sort
+			real_t *weights_ptr = vm->weights.ptrw();
+			int *bones_ptr = vm->bones.ptrw();
+			for (int i = 0; i < vm->weights.size(); i += 1) {
+				for (int x = i + 1; x < vm->weights.size(); x += 1) {
+					if (weights_ptr[i] < weights_ptr[x]) {
+						SWAP(weights_ptr[i], weights_ptr[x]);
+						SWAP(bones_ptr[i], bones_ptr[x]);
+					}
+				}
+			}
+		}
+
+		{
+			// Resize
+			vm->weights.resize(max_bones);
+			vm->bones.resize(max_bones);
+			real_t *weights_ptr = vm->weights.ptrw();
+			int *bones_ptr = vm->bones.ptrw();
+			for (int i = initial_size; i < max_bones; i += 1) {
+				weights_ptr[i] = 0.0;
+				bones_ptr[i] = 0;
+			}
+
+			// Normalize
+			real_t sum = 0.0;
+			for (int i = 0; i < max_bones; i += 1) {
+				sum += weights_ptr[i];
+			}
+			if (sum > 0.0) {
+				for (int i = 0; i < vm->weights.size(); i += 1) {
+					weights_ptr[i] = weights_ptr[i] / sum;
+				}
+			}
+		}
+	}
 }
 
 void FBXMeshData::reorganize_vertices(
@@ -716,27 +761,25 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 		return;
 	}
 
-	Vector<real_t> valid_weights;
-	Vector<int> valid_bone_ids;
-
-	// Godot only supports 4.
-	const int max_bones = VS::ARRAY_WEIGHTS_SIZE;
-
 	if (vertex_weights.has(vertex_id)) {
 		// Let's extract the weight info.
 		const VertexMapping *vm = vertex_weights.getptr(vertex_id);
-		vm->get_validated_bone_weight_info(valid_bone_ids, valid_weights, max_bones);
+		st->add_weights(vm->weights);
+		st->add_bones(vm->bones);
 	} else {
 		// This vertex doesn't have any bone info, while the model is using the
 		// bones.
+		const int max_bones = VS::ARRAY_WEIGHTS_SIZE;
+		Vector<real_t> valid_weights;
+		Vector<int> valid_bone_ids;
 		for (int i = 0; i < max_bones; i += 1) {
 			valid_weights.push_back(0.0f);
 			valid_bone_ids.push_back(0);
 		}
+		st->add_weights(valid_weights);
+		st->add_bones(valid_bone_ids);
 	}
 
-	st->add_weights(valid_weights);
-	st->add_bones(valid_bone_ids);
 	print_verbose("[doc] Triangle added weights to mesh for bones");
 }
 
