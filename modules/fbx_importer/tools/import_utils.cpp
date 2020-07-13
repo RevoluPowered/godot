@@ -127,7 +127,7 @@ Transform get_unscaled_transform(const Transform &p_initial, real_t p_scale) {
 
 Vector3 get_poly_normal(const std::vector<Vector3> &p_vertices) {
 	ERR_FAIL_COND_V_MSG(p_vertices.size() < 3, Vector3(0, 0, 0), "At least 3 vertices are necesary");
-	// Using long double to make sure that normal is computed foreven really tiny objects.
+	// Using long double to make sure that normal is computed for even really tiny objects.
 	typedef long double ldouble;
 	ldouble x = 0.0;
 	ldouble y = 0.0;
