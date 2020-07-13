@@ -740,7 +740,7 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 	print_verbose("[doc] Triangle added weights to mesh for bones");
 }
 
-const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_polygon_indices, int p_index) const {
+int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_polygon_indices, int p_index) const {
 	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return -1;
 	}
@@ -755,7 +755,7 @@ const int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_
 	}
 }
 
-const bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
+bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
 	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return false;
 	}
@@ -766,7 +766,7 @@ const bool FBXMeshData::is_end_of_polygon(const std::vector<int> &p_polygon_indi
 	return vertex < 0;
 }
 
-const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
+bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_polygon_indices, int p_index) const {
 	if (p_index < 0 || p_index >= (int)p_polygon_indices.size()) {
 		return false;
 	}
@@ -779,7 +779,7 @@ const bool FBXMeshData::is_start_of_polygon(const std::vector<int> &p_polygon_in
 	return p_polygon_indices[p_index - 1] < 0;
 }
 
-const int FBXMeshData::count_polygons(const std::vector<int> &p_polygon_indices) const {
+int FBXMeshData::count_polygons(const std::vector<int> &p_polygon_indices) const {
 	// The negative numbers define the end of the polygon. Counting the amount of
 	// negatives the numbers of polygons are obtained.
 	int count = 0;
