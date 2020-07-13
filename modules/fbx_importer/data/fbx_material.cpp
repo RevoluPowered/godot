@@ -34,7 +34,6 @@
 #include "modules/jpg/image_loader_jpegd.h"
 #include "scene/resources/material.h"
 #include "scene/resources/texture.h"
-#include "thirdparty/assimp/include/assimp/material.h"
 #include <typeinfo>
 
 String FBXMaterial::get_material_name() const {

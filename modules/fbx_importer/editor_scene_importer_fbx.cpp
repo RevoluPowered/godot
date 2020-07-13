@@ -47,12 +47,12 @@
 #include "scene/resources/surface_tool.h"
 #include "tools/import_utils.h"
 
-#include <code/FBX/FBXDocument.h>
-#include <code/FBX/FBXImportSettings.h>
-#include <code/FBX/FBXParser.h>
-#include <code/FBX/FBXProperties.h>
-#include <code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
+#include "data/FBX/FBXDocument.h"
+#include "data/FBX/FBXImportSettings.h"
+#include "data/FBX/FBXParser.h"
+#include "data/FBX/FBXProperties.h"
+#include "data/FBX/FBXTokenizer.h"
+#include "data/FBX/FBXMeshGeometry.h"
 #include <string>
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {
@@ -1369,7 +1369,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 						}
 
 						// Mesh vertex data retrieved now to stream this deformer
-						// data into the nternal mesh storage.
+						// data into the internal mesh storage.
 						if (mesh_vertex_data.is_valid()) {
 							// tell the mesh what Armature it should use
 							mesh_vertex_data->armature_id = bone_element->armature_id;

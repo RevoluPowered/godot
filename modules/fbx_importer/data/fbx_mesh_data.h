@@ -31,11 +31,14 @@
 #ifndef EDITOR_SCENE_FBX_MESH_DATA_H
 #define EDITOR_SCENE_FBX_MESH_DATA_H
 
+
+#include "modules/fbx_importer/tools/import_utils.h"
+#include "scene/3d/mesh_instance.h"
+#include "scene/resources/surface_tool.h"
 #include "core/hash_map.h"
 #include "fbx_bone.h"
-#include "modules/fbx_importer/data/import_state.h"
-#include "modules/fbx_importer/tools/import_utils.h"
-#include "thirdparty/assimp/code/FBX/FBXMeshGeometry.h"
+#include "import_state.h"
+#include "FBX/FBXMeshGeometry.h"
 
 struct FBXMeshData;
 struct FBXBone;

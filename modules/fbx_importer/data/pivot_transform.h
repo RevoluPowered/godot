@@ -34,7 +34,7 @@
 #include "core/reference.h"
 #include "model_abstraction.h"
 #include "modules/fbx_importer/tools/import_utils.h"
-#include "thirdparty/assimp/code/FBX/FBXDocument.h"
+#include "FBX/FBXDocument.h"
 
 enum TransformationComp {
 	TransformationComp_Translation,

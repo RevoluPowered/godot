@@ -81,13 +81,6 @@ elif env["platform"] == "osx":
     env_assimp.Append(CPPDEFINES=["PLATFORM_DARWIN"])
     env_assimp.Append(CPPDEFINES=[("PLATFORM", "DARWIN")])
 
-env_thirdparty = env_assimp.Clone()
-env_thirdparty.disable_warnings()
-env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/Common/*.cpp"))
-env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/Material/*.cpp"))
-env_thirdparty.add_source_files(env.modules_sources, Glob("#thirdparty/assimp/code/FBX/*.cpp"))
 
 # Godot's own source files
-env_assimp.add_source_files(env.modules_sources, "*.cpp")
-env_assimp.add_source_files(env.modules_sources, "data/*.cpp")
-env_assimp.add_source_files(env.modules_sources, "tools/*.cpp")
+env_assimp.add_source_files(env.modules_sources, "**/**.cpp")

@@ -45,16 +45,12 @@
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
 
-#include <thirdparty/assimp/include/assimp/types.h>
-#include <thirdparty/assimp/include/assimp/Importer.hpp>
-// thirdparty/assimp/include/assimp/
-#include <modules/fbx_importer/data/import_state.h>
-#include <modules/fbx_importer/tools/import_utils.h>
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
-#include <thirdparty/assimp/code/FBX/FBXImportSettings.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
-#include <thirdparty/assimp/code/FBX/FBXUtil.h>
-#include <map>
+#include "data/import_state.h"
+#include "tools/import_utils.h"
+#include "data/FBX/FBXDocument.h"
+#include "data/FBX/FBXImportSettings.h"
+#include "data/FBX/FBXMeshGeometry.h"
+#include "data/FBX/FBXUtil.h"
 
 #define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000LL
 
@@ -144,8 +140,6 @@ public:
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
-	Ref<Image> load_image(ImportState &state, const aiScene *p_scene, String p_path);
-
 	void
 	GenFBXWeightInfo(Ref<FBXMeshData> &renderer_mesh_data, const Assimp::FBX::MeshGeometry *mesh_geometry,
 			Ref<SurfaceTool> st, size_t vertex_id) const;

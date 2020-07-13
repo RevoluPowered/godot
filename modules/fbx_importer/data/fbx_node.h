@@ -34,7 +34,7 @@
 #include "fbx_skeleton.h"
 #include "model_abstraction.h"
 #include "pivot_transform.h"
-#include "thirdparty/assimp/code/FBX/FBXDocument.h"
+#include "FBX/FBXDocument.h"
 
 class Spatial;
 struct PivotTransform;
