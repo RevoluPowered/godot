@@ -55,9 +55,29 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 			}
 		} else {
 			memfree(skeleton);
+			skeleton = nullptr;
 			print_error("[doc] skeleton has no valid node to parent nodes to - erasing");
 			skeleton_bones.clear();
 			return;
+		}
+	}
+
+	// Make the bone name uniques.
+	for (int x = 0; x < skeleton_bone_count; x++) {
+		Ref<FBXBone> bone = skeleton_bones[x];
+		if (bone.is_valid()) {
+			// Make sure the bone name is unique.
+			const String bone_name = bone->bone_name;
+			int same_name_count = 0;
+			for (int y = x; y < skeleton_bone_count; y++) {
+				Ref<FBXBone> other_bone = skeleton_bones[y];
+				if (other_bone.is_valid()) {
+					if (other_bone->bone_name == bone_name) {
+						same_name_count += 1;
+						other_bone->bone_name += "_" + itos(same_name_count);
+					}
+				}
+			}
 		}
 	}
 
@@ -75,6 +95,8 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 			bone_count++;
 		}
 	}
+
+	ERR_FAIL_COND_MSG(skeleton->get_bone_count() != bone_count, "Not all bones got added, is the file corrupted?");
 
 	for (Map<int, Ref<FBXBone> >::Element *bone_element = bone_map.front(); bone_element; bone_element = bone_element->next()) {
 		Ref<FBXBone> bone = bone_element->value();
