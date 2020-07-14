@@ -31,15 +31,15 @@
 #ifndef IMPORT_UTILS_FBX_IMPORTER_H
 #define IMPORT_UTILS_FBX_IMPORTER_H
 
-#include <core/io/image_loader.h>
-#include <modules/fbx_importer/data/import_state.h>
+#include "modules/fbx_importer/data/FBX/FBXDocument.h"
+
+#include "core/io/image_loader.h"
+#include "modules/fbx_importer/data/import_state.h"
 
 #include <string>
 
-#include <thirdparty/assimp/code/FBX/FBXDocument.h>
-#include <thirdparty/assimp/code/FBX/FBXParser.h>
-#include <thirdparty/assimp/code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXUtil.h>
+
+#define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000LL
 
 #define AI_PROPERTIES aiTextureType_UNKNOWN, 0
 #define AI_NULL 0, 0

@@ -161,7 +161,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 			uvs_1_raw);
 
 	// Make sure that from this moment on the mesh_geometry is no used anymore.
-	// This is a safety step, becuase the mesh_geometry data are no more valid
+	// This is a safety step, because the mesh_geometry data are no more valid
 	// at this point.
 	mesh_geometry = nullptr;
 
@@ -462,7 +462,7 @@ void FBXMeshData::reorganize_vertices(
 				} else if (uvs->size() > 0) {
 					// No uv, this is strange, just take the first and duplicate.
 					(*this_vert_poly_uv) = *uvs->getptr(*uvs->next(nullptr));
-					WARN_PRINT("No UVs for this polygon, while there is no default and some other polygons has it. This FBX file may be corrupted.");
+					WARN_PRINT("No UVs for this polygon, while there is no default and some other polygons have it. This FBX file may be corrupted.");
 				}
 			}
 			uv_raw = &r_uv_2_raw;
@@ -902,8 +902,8 @@ HashMap<int, R> FBXMeshData::extract_per_vertex_data(
 					}
 					const int vertex_index = get_vertex_from_polygon_vertex(p_polygon_indices, polygon_vertex_index);
 					ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, R>()), "FBX file corrupted: #ERR8");
-					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, R>()), "FBX fileseems  corrupted: #ERR9.")
-					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, R>()), "FBX fileseems  corrupted: #ERR10.")
+					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, R>()), "FBX file seems  corrupted: #ERR9.")
+					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] < 0, (HashMap<int, R>()), "FBX file seems  corrupted: #ERR10.")
 					ERR_FAIL_COND_V_MSG(p_fbx_data.index[polygon_vertex_index] >= (int)p_fbx_data.data.size(), (HashMap<int, R>()), "FBX file seems corrupted: #ERR11.")
 					aggregate_vertex_data[vertex_index].push_back({ polygon_id, p_fbx_data.data[p_fbx_data.index[polygon_vertex_index]] });
 				}

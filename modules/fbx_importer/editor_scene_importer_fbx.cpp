@@ -47,12 +47,12 @@
 #include "scene/resources/surface_tool.h"
 #include "tools/import_utils.h"
 
-#include <code/FBX/FBXDocument.h>
-#include <code/FBX/FBXImportSettings.h>
-#include <code/FBX/FBXParser.h>
-#include <code/FBX/FBXProperties.h>
-#include <code/FBX/FBXTokenizer.h>
-#include <thirdparty/assimp/code/FBX/FBXMeshGeometry.h>
+#include "data/FBX/FBXDocument.h"
+#include "data/FBX/FBXImportSettings.h"
+#include "data/FBX/FBXParser.h"
+#include "data/FBX/FBXProperties.h"
+#include "data/FBX/FBXTokenizer.h"
+#include "data/FBX/FBXMeshGeometry.h"
 #include <string>
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {
@@ -102,6 +102,7 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 	}
 	Error err;
 	FileAccess *f = FileAccess::open(p_path, FileAccess::READ, &err);
+
 	ERR_FAIL_COND_V(!f, NULL);
 
 	PoolByteArray data;
@@ -129,6 +130,7 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 	// safer to check this way as there can be different formatted headers
 	if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
+		f->set_endian_swap(true); // endian swap required for binary files
 		is_binary = true;
 		print_verbose("[doc] is binary");
 		Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());
@@ -1369,7 +1371,7 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 						}
 
 						// Mesh vertex data retrieved now to stream this deformer
-						// data into the nternal mesh storage.
+						// data into the internal mesh storage.
 						if (mesh_vertex_data.is_valid()) {
 							// tell the mesh what Armature it should use
 							mesh_vertex_data->armature_id = bone_element->armature_id;

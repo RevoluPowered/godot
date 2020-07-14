@@ -33,7 +33,7 @@
 
 #include "fbx_node.h"
 #include "import_state.h"
-#include "thirdparty/assimp/code/FBX/FBXDocument.h"
+#include "FBX/FBXDocument.h"
 
 struct PivotTransform;
 
