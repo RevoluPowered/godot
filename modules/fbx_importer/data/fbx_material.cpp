@@ -114,6 +114,7 @@ String FBXMaterial::find_texture_path_by_filename(const String p_filename, const
 	// since the keyword `asset` is into the directory name the textures will be
 	// searched there too.
 
+	dir.open("res://");
 	dir.list_dir_begin();
 	String n = dir.get_next();
 	while (n != String()) {

@@ -1109,7 +1109,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						}
 
 						const Vector3 def_pos = translation_keys.has_default ? (translation_keys.default_value * state.scale) : bone_rest.origin;
-						const Quat def_rot = rotation_keys.has_default ? ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_keys.default_value)) : bone_rest.basis.get_quat();
+						const Quat def_rot = rotation_keys.has_default ? ImportUtils::EulerToQuaternion(quat_rotation_order, ImportUtils::deg2rad(rotation_keys.default_value)) : bone_rest.basis.get_rotation_quat();
 						const Vector3 def_scale = scale_keys.has_default ? scale_keys.default_value : bone_rest.basis.get_scale();
 						print_verbose("track defaults: p(" + def_pos + ") s(" + def_scale + ") r(" + def_rot + ")");
 
