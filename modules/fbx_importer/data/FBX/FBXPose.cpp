@@ -44,17 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::NodeAttribute (and subclasses) implementation
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "FBXDocument.h"
-#include "FBXDocumentUtil.h"
 #include "FBXParser.h"
 #include <iostream>
 
 namespace Assimp {
 namespace FBX {
-
-using namespace Util;
 
 class FbxPoseNode;
 // ------------------------------------------------------------------------------------------------
@@ -62,29 +57,15 @@ FbxPose::FbxPose(uint64_t id, const Element &element, const Document &doc, const
 		Object(id, element, name) {
 	const Scope &sc = GetRequiredScope(element);
 	const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
-	std::cout << "pose name: " << name << std::endl;
-
-	for (auto element : sc.Elements()) {
-		std::cout << "pose element: " << element.first << std::endl;
-	}
 
 	const ElementCollection &PoseNodes = sc.GetCollection("PoseNode");
-
 	for( ElementMap::const_iterator it = PoseNodes.first; it != PoseNodes.second; ++it)
     {
-        const TokenList &tokens = (*it).second->Tokens();
-
-        const Scope &pose_node_entry = GetRequiredScope(*(*it).second);
-
-        std::string entry_name = (*it).first;
-        Element *element = (*it).second;
-
-        std::cout << "name: " + name << std::endl;
-        std::shared_ptr<FbxPoseNode> pose_node(new FbxPoseNode(*element, doc, entry_name));
+		std::string entry_name = (*it).first;
+        Element *some_element = (*it).second;
+        std::shared_ptr<FbxPoseNode> pose_node(new FbxPoseNode(*some_element, doc, entry_name));
         pose_nodes.push_back(pose_node);
-
-
-    }
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -95,5 +76,3 @@ FbxPose::~FbxPose() {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

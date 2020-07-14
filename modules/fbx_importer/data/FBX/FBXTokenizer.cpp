@@ -44,13 +44,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX broadphase lexer
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 // tab width for logging columns
 #define ASSIMP_FBX_TAB_WIDTH 4
 
 #include "FBXTokenizer.h"
-#include <core/print_string.h>
+#include "core/print_string.h"
 #include "FBXParseTools.h"
 
 namespace Assimp {
@@ -224,5 +222,3 @@ void Tokenize(TokenList &output_tokens, const char *input) {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

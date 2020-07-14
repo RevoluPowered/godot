@@ -45,7 +45,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *         Assimp::FBX::AnimationLayer, Assimp::FBX::AnimationStack
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
 
 #include "FBXCommon.h"
 #include "FBXDocument.h"
@@ -297,5 +296,3 @@ AnimationStack::~AnimationStack() {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif // ASSIMP_BUILD_NO_FBX_IMPORTER

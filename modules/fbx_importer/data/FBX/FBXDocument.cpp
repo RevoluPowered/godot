@@ -44,8 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX DOM classes
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
 #include "FBXImportSettings.h"
@@ -685,5 +683,3 @@ const Object *Connection::DestinationObject() const {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

@@ -44,8 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX DOM utility functions declared in FBXDocumentUtil.h
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "core/print_string.h"
 #include "FBXDocumentUtil.h"
 #include "FBXDocument.h"
@@ -119,5 +117,3 @@ std::shared_ptr<const PropertyTable> GetPropertyTable(const Document &doc,
 } // namespace Util
 } // namespace FBX
 } // namespace Assimp
-
-#endif

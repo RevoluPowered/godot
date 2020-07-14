@@ -44,10 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX dynamic properties system
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "FBXProperties.h"
-#include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
@@ -217,5 +214,3 @@ DirectPropertyMap PropertyTable::GetUnparsedProperties() const {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

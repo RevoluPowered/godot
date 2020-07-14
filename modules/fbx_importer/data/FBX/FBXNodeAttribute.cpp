@@ -44,8 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::NodeAttribute (and subclasses) implementation
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
 #include "FBXParser.h"
@@ -159,5 +157,3 @@ LimbNode::~LimbNode() {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

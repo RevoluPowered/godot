@@ -44,8 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::MeshGeometry implementation
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include <functional>
 
 #include "FBXDocument.h"
@@ -419,4 +417,3 @@ const std::vector<int> &LineGeometry::GetIndices() const {
 }
 } // namespace FBX
 } // namespace Assimp
-#endif

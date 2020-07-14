@@ -44,18 +44,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX parser and the rudimentary DOM that we use
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
-#ifdef ASSIMP_BUILD_NO_OWN_ZLIB
-#include <zlib.h>
-#else
-#include "../contrib/zlib/zlib.h"
-#endif
+#include "thirdparty/zlib/zlib.h"
 
 #include "FBXParseTools.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
-#include "FBXUtil.h"
 #include "core/print_string.h"
 #include "core/math/transform.h"
 #include "core/math/vector3.h"
@@ -235,7 +228,6 @@ uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
 		}
 
 		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
-		//AI_SWAP8((void*) &id);
 		return id;
 	}
 
@@ -935,7 +927,6 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 				print_error("encountered negative integer index (binary)");
 			}
 
-			//AI_SWAP4((void*)&val);
 			out.push_back(val);
 		}
 
@@ -1226,5 +1217,3 @@ int64_t ParseTokenAsInt64(const Token &t) {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

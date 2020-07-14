@@ -45,8 +45,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *    for binary files.
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
-
 #include "FBXParseTools.h"
 #include "FBXTokenizer.h"
 #include "FBXUtil.h"
@@ -137,7 +135,6 @@ uint32_t ReadWord(const char *input, const char *&cursor, const char *end) {
 
 	uint32_t word;
 	::memcpy(&word, cursor, 4);
-	//AI_SWAP4((void*) &word);
 
 	cursor += k_to_read;
 
@@ -436,5 +433,3 @@ void TokenizeBinary(TokenList &output_tokens, const char *input, size_t length) 
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

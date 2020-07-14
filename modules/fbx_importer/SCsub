@@ -3,27 +3,10 @@
 Import("env")
 Import("env_modules")
 
-env_assimp = env_modules.Clone()
-env_assimp.Prepend(CPPPATH=["#thirdparty/zlib/"])
-
-env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_BOOST_WORKAROUND"])
-env_assimp.Append(CPPDEFINES=["OPENDDLPARSER_BUILD"])
-env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_NO_OWN_ZLIB"])
-env_assimp.Append(CPPDEFINES=["ASSIMP_BUILD_SINGLETHREADED"])
-
-if env["platform"] == "windows":
-    env_assimp.Append(CPPDEFINES=["PLATFORM_WINDOWS"])
-    env_assimp.Append(CPPDEFINES=[("PLATFORM", "WINDOWS")])
-elif env["platform"] == "x11":
-    env_assimp.Append(CPPDEFINES=["PLATFORM_LINUX"])
-    env_assimp.Append(CPPDEFINES=[("PLATFORM", "LINUX")])
-elif env["platform"] == "osx":
-    env_assimp.Append(CPPDEFINES=["PLATFORM_DARWIN"])
-    env_assimp.Append(CPPDEFINES=[("PLATFORM", "DARWIN")])
-
+env_fbx_importer = env_modules.Clone()
 
 # Godot's own source files
-env_assimp.add_source_files(env.modules_sources, "tools/**.cpp")
-env_assimp.add_source_files(env.modules_sources, "data/**.cpp")
-env_assimp.add_source_files(env.modules_sources, "data/FBX/**.cpp")
-env_assimp.add_source_files(env.modules_sources, "**.cpp")
+env_fbx_importer.add_source_files(env.modules_sources, "tools/**.cpp")
+env_fbx_importer.add_source_files(env.modules_sources, "data/**.cpp")
+env_fbx_importer.add_source_files(env.modules_sources, "data/FBX/**.cpp")
+env_fbx_importer.add_source_files(env.modules_sources, "**.cpp")

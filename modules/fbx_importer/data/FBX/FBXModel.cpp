@@ -44,7 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::Model implementation
  */
 
-#ifndef ASSIMP_BUILD_NO_FBX_IMPORTER
 
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
@@ -149,5 +148,3 @@ bool Model::IsNull() const {
 
 } // namespace FBX
 } // namespace Assimp
-
-#endif

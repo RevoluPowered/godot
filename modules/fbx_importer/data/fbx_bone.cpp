@@ -1,9 +1,7 @@
 #include "fbx_bone.h"
 
 #include "fbx_node.h"
-#include "fbx_skeleton.h"
 #include "import_state.h"
-#include "pivot_transform.h"
 
 Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
 	print_verbose("bone name: " + bone_name);

@@ -45,8 +45,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef AI_FBXCOMMON_H_INC
 #define AI_FBXCOMMON_H_INC
 
-#ifndef ASSIMP_BUILD_NO_FBX_EXPORTER
-
 #include <string>
 
 namespace Assimp {
@@ -80,6 +78,5 @@ enum TransformInheritance {
 };
 } // namespace FBX
 } // namespace Assimp
-#endif // ASSIMP_BUILD_NO_FBX_EXPORTER
 
 #endif // AI_FBXCOMMON_H_INC
