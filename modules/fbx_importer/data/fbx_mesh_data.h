@@ -193,13 +193,13 @@ struct FBXSplitBySurfaceVertexMapping {
 	}
 };
 
+// TODO reneme to VertexWeightMapping
 struct VertexMapping {
 	Vector<real_t> weights;
-	Vector<Ref<FBXBone> > bones;
-
-	/// Will only add a vertex weight if it has been validated that it exists in
-	/// godot.
-	void get_validated_bone_weight_info(Vector<int> &out_bones, Vector<float> &out_weights, int p_max_bones) const;
+	Vector<int> bones;
+	// This extra vector is used because the bone id is computed in a second step.
+	// TODO Get rid of this extra step is a good idea.
+	Vector<Ref<FBXBone> > bones_ref;
 };
 
 template <class T>
@@ -238,6 +238,8 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
+	void sanitize_vertex_weights();
+
 	/// Make sure to reorganize the vertices so that the correct UV is taken.
 	/// This step is needed because differently from the normal, that can be
 	/// combined, the UV may need its own triangle because sometimes they have

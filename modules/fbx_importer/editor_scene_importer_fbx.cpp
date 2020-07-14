@@ -1380,14 +1380,15 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 
 							for (size_t idx = 0; idx < indexes.size(); idx++) {
 
-								size_t vertex_index = indexes[idx];
+								const size_t vertex_index = indexes[idx];
 								//print_verbose("vertex index: " + itos(vertex_index));
 
 								const real_t influence_weight = weights[idx];
 
 								VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
 								vm.weights.push_back(influence_weight);
-								vm.bones.push_back(bone_element);
+								vm.bones.push_back(0);
+								vm.bones_ref.push_back(bone_element);
 								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
 							}
 
