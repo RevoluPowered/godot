@@ -263,7 +263,7 @@ size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
 		}
 
 		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
-		//AI_SWAP8((void*) &id);
+		AI_SWAP8(id);
 		return static_cast<size_t>(id);
 	}
 
@@ -341,7 +341,7 @@ int ParseTokenAsInt(const Token &t, const char *&err_out) {
 		}
 
 		int32_t ival = SafeParse<int32_t>(data + 1, t.end());
-		//AI_SWAP4((void*) &ival);
+		AI_SWAP4(ival);
 		return static_cast<int>(ival);
 	}
 
@@ -381,7 +381,7 @@ int64_t ParseTokenAsInt64(const Token &t, const char *&err_out) {
 		}
 
 		int64_t id = SafeParse<int64_t>(data + 1, t.end());
-		//AI_SWAP8((void*)&id);
+		AI_SWAP8(id);
 		return id;
 	}
 
@@ -417,7 +417,7 @@ std::string ParseTokenAsString(const Token &t, const char *&err_out) {
 
 		// read string length
 		int32_t len = SafeParse<int32_t>(data + 1, t.end());
-		//AI_SWAP4((void*) &len);
+		AI_SWAP4(len);
 
 		//ai_assert(t.end() - data == 5 + len);
 		return std::string(data + 5, len);
@@ -453,7 +453,7 @@ void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uin
 
 	// read number of elements
 	uint32_t len = SafeParse<uint32_t>(data + 1, end);
-	//AI_SWAP4((void*)&len);
+	AI_SWAP4(len);
 
 	count = len;
 	data += 5;
@@ -465,12 +465,12 @@ void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const cha
 		std::vector<char> &buff,
 		const Element & /*el*/) {
 	uint32_t encmode = SafeParse<uint32_t>(data, end);
-	//AI_SWAP4((void*)&encmode);
+	AI_SWAP4(encmode);
 	data += 4;
 
 	// next comes the compressed length
 	uint32_t comp_len = SafeParse<uint32_t>(data, end);
-	//AI_SWAP4((void*)&comp_len);
+	AI_SWAP4(comp_len);
 	data += 4;
 
 	//ai_assert(data + comp_len == end);
@@ -808,7 +808,7 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 		const int32_t *ip = reinterpret_cast<const int32_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
 			int32_t val = *ip;
-			//AI_SWAP4((void*)&val);
+			AI_SWAP4(val);
 			out.push_back(val);
 		}
 
@@ -985,7 +985,7 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 		const uint64_t *ip = reinterpret_cast<const uint64_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
 			uint64_t val = *ip;
-			//AI_SWAP8((void*)&val);
+			AI_SWAP8(val);
 			out.push_back(val);
 		}
 
@@ -1042,7 +1042,7 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el) {
 		const int64_t *ip = reinterpret_cast<const int64_t *>(&buff[0]);
 		for (unsigned int i = 0; i < count; ++i, ++ip) {
 			int64_t val = *ip;
-			//AI_SWAP8((void*)&val);
+			AI_SWAP8(val);
 			out.push_back(val);
 		}
 

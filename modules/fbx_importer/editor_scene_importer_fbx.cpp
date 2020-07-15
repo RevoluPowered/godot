@@ -43,8 +43,6 @@
 #include "scene/3d/mesh_instance.h"
 #include "scene/main/node.h"
 #include "scene/resources/material.h"
-#include "scene/resources/mesh.h"
-#include "scene/resources/surface_tool.h"
 #include "tools/import_utils.h"
 
 #include "data/FBX/FBXDocument.h"
@@ -101,7 +99,7 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 		log->clear();
 	}
 	Error err;
-	FileAccess *f = FileAccess::open(p_path, FileAccess::READ, &err);
+	FileAccessRef f = FileAccess::open(p_path, FileAccess::READ, &err);
 
 	ERR_FAIL_COND_V(!f, NULL);
 
@@ -130,7 +128,6 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 	// safer to check this way as there can be different formatted headers
 	if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
-		f->set_endian_swap(true); // endian swap required for binary files
 		is_binary = true;
 		print_verbose("[doc] is binary");
 		Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());

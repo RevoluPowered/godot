@@ -150,7 +150,7 @@ uint64_t ReadDoubleWord(const char *input, const char *&cursor, const char *end)
 
 	uint64_t dword /*= *reinterpret_cast<const uint64_t*>(cursor)*/;
 	::memcpy(&dword, cursor, sizeof(uint64_t));
-	//AI_SWAP8((void*) &dword);
+	AI_SWAP8(dword);
 
 	cursor += k_to_read;
 

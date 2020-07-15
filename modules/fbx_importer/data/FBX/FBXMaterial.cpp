@@ -328,7 +328,7 @@ Video::Video(uint64_t id, const Element &element, const Document &doc, const std
 				// read number of elements
 				uint32_t len = 0;
 				::memcpy(&len, data + 1, sizeof(len));
-				//AI_SWAP4((void*)&len);
+				AI_SWAP4(len);
 
 				contentLength = len;
 
