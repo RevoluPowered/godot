@@ -30,6 +30,7 @@
 
 #include "fbx_material.h"
 
+#include "modules/dds/texture_loader_dds.h"
 #include "drivers/png/png_driver_common.h"
 #include "modules/jpg/image_loader_jpegd.h"
 #include "scene/resources/material.h"
@@ -361,11 +362,9 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 		} else {
 			String path = find_texture_path_by_filename(mapping->name, p_fbx_current_directory);
 			if (!path.empty()) {
-				Ref<Image> image;
-				image.instance();
-				Ref<ImageTexture> image_texture;
+				Error err;
+				Ref<ImageTexture> image_texture = ResourceLoader::load(path, "ImageTexture", false, &err);
 
-				Error err = ImageLoader::load_image(path, image);
 				if(err != OK)
 				{
 					// print verbose
@@ -373,8 +372,6 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				}
 				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
 
-				image_texture.instance();
-				image_texture->create_from_image(image);
 				int32_t flags = Texture::FLAGS_DEFAULT;
 				image_texture->set_flags(flags);
 
