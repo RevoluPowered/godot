@@ -211,7 +211,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const Assim
 	{
 		PolygonId polygon_index = -1;
 		SurfaceId surface_id = -1;
-		SurfaceData *surface_data;
+		SurfaceData *surface_data = nullptr;
 
 		for (size_t polygon_vertex = 0; polygon_vertex < polygon_indices.size(); polygon_vertex += 1) {
 			if (is_start_of_polygon(polygon_indices, polygon_vertex)) {
