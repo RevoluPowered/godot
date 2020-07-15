@@ -365,7 +365,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				image.instance();
 				Ref<ImageTexture> image_texture;
 
-				Error err = Texture(path, image);
+				Error err = ImageLoader::load_image(path, image);
 				if(err != OK)
 				{
 					// print verbose
