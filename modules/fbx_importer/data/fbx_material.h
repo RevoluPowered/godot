@@ -196,7 +196,7 @@ struct FBXMaterial : public Reference {
 		{ "Maya|coatIOR", PROPERTY_DESC_IGNORE },
 	};
 
-	struct TextureFileMapping : Reference {
+	struct TextureFileMapping {
 		SpatialMaterial::TextureParam map_mode = SpatialMaterial::TEXTURE_ALBEDO;
 		String name = String();
 		const Assimp::FBX::Texture *texture = nullptr;
@@ -218,7 +218,7 @@ struct FBXMaterial : public Reference {
 	void set_imported_material(const Assimp::FBX::Material *p_material);
 
 	struct MaterialInfo {
-		Vector<Ref<TextureFileMapping> > textures;
+		Vector<TextureFileMapping> textures;
 		Vector<SpatialMaterial::Feature> features;
 	};
 	/// Extracts the material information.

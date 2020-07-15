@@ -46,6 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "thirdparty/zlib/zlib.h"
 
+#include "ByteSwapper.h"
 #include "FBXParseTools.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
@@ -235,8 +236,8 @@ uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
 	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
 	//ai_assert(length > 0);
 
-	char *out = nullptr;
-	const uint64_t id = strtoul(t.begin(), &out, length);
+	const char *out = nullptr;
+	const uint64_t id = strtoul10_64(t.begin(), &out, &length);
 	if (out > t.end()) {
 		err_out = "failed to parse ID (text)";
 		return 0L;
@@ -279,8 +280,8 @@ size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
 		return 0;
 	}
 
-	char *out = nullptr;
-	const size_t id = static_cast<size_t>(strtoul(t.begin() + 1, &out, length));
+	const char *out = nullptr;
+	const size_t id = static_cast<size_t>(strtoul10_64(t.begin() + 1, &out, &length));
 	if (out > t.end()) {
 		err_out = "failed to parse ID";
 		return 0;

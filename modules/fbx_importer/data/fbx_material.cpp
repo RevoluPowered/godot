@@ -183,11 +183,10 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 		const String texture_name = absoulte_fbx_file_path.get_file();
 		const SpatialMaterial::TextureParam mapping_mode = fbx_texture_mapping_desc.at(fbx_mapping_name);
 
-		Ref<TextureFileMapping> file_mapping;
-		file_mapping.instance();
-		file_mapping->map_mode = mapping_mode;
-		file_mapping->name = texture_name;
-		file_mapping->texture = texture.second;
+		TextureFileMapping file_mapping;
+		file_mapping.map_mode = mapping_mode;
+		file_mapping.name = texture_name;
+		file_mapping.texture = texture.second;
 		mat_info.textures.push_back(file_mapping);
 
 		// Make sure to active the various features.
@@ -353,63 +352,60 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 
 	// Set the textures.
 	for (int x = 0; x < material_info.textures.size(); x++) {
-		Ref<TextureFileMapping> mapping = material_info.textures.get(x);
+		TextureFileMapping mapping = material_info.textures[x];
 		Ref<ImageTexture> texture;
-		print_verbose("texture mapping name: " + mapping->name);
+		print_verbose("texture mapping name: " + mapping.name);
 
-		if (state.cached_image_searches.has(mapping->name)) {
-			texture = state.cached_image_searches[mapping->name];
-		} else {
-			String path = find_texture_path_by_filename(mapping->name, p_fbx_current_directory);
+		if (state.cached_image_searches.has(mapping.name)) {
+			texture = state.cached_image_searches[mapping.name];
+		}
+		else {
+			String path = find_texture_path_by_filename(mapping.name, p_fbx_current_directory);
 			if (!path.empty()) {
 				Error err;
-				Ref<ImageTexture> image_texture = ResourceLoader::load(path, "ImageTexture", false, &err);
+				Ref<Texture> image_texture = ResourceLoader::load(path, "Texture", false, &err);
 
-
-				ERR_CONTINUE_MSG(err != OK || image_texture.is_null(), "unable to import image file not loaded yet: " + path);
-
-				int32_t flags = Texture::FLAGS_DEFAULT;
-				image_texture->set_flags(flags);
+				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
+				ERR_CONTINUE(image_texture == NULL || image_texture.is_null());
 
 				texture = image_texture;
-				state.cached_image_searches[mapping->name] = texture;
+				state.cached_image_searches.insert(mapping.name, texture);
 				print_verbose("Created texture from loaded image file.");
 
-			} else if (mapping->texture != nullptr && mapping->texture->Media() != nullptr && mapping->texture->Media()->ContentLength() > 0) {
+			} else if (mapping.texture != nullptr && mapping.texture->Media() != nullptr) {
 				// This is an embedded texture. Extract it.
-
 				Ref<Image> image;
 				image.instance();
 
 				if (
-						mapping->name.get_extension() == "png" ||
-						mapping->name.get_extension() == "PNG") {
+						mapping.name.get_extension() == "png" ||
+						mapping.name.get_extension() == "PNG") {
 
 					// The stored file is a PNG.
 
 					const Error err = PNGDriverCommon::png_to_image(
-							mapping->texture->Media()->Content(),
-							mapping->texture->Media()->ContentLength(),
+							mapping.texture->Media()->Content(),
+							mapping.texture->Media()->ContentLength(),
 							false,
 							image);
 					ERR_CONTINUE_MSG(err != OK, "FBX Embedded png image load fail.");
 
 				} else if (
-						mapping->name.get_extension() == "jpg" ||
-						mapping->name.get_extension() == "jpeg" ||
-						mapping->name.get_extension() == "JPEG" ||
-						mapping->name.get_extension() == "JPG") {
+						mapping.name.get_extension() == "jpg" ||
+						mapping.name.get_extension() == "jpeg" ||
+						mapping.name.get_extension() == "JPEG" ||
+						mapping.name.get_extension() == "JPG") {
 
 					// The stored file is a JPEG.
 
 					const Error err = ImageLoaderJPG::jpeg_load_image_from_buffer(
 							image.ptr(),
-							mapping->texture->Media()->Content(),
-							mapping->texture->Media()->ContentLength());
+							mapping.texture->Media()->Content(),
+							mapping.texture->Media()->ContentLength());
 					ERR_CONTINUE_MSG(err != OK, "FBX Embedded jpeg image load fail.");
 
 				} else {
-					ERR_CONTINUE_MSG(true, "The embedded image with extension: " + mapping->name.get_extension() + " is not yet supported. Open an issue please.");
+					ERR_CONTINUE_MSG(true, "The embedded image with extension: " + mapping.name.get_extension() + " is not yet supported. Open an issue please.");
 				}
 
 				Ref<ImageTexture> image_texture;
@@ -420,10 +416,10 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				image_texture->set_flags(flags);
 
 				texture = image_texture;
-				state.cached_image_searches[mapping->name] = texture;
+				state.cached_image_searches[mapping.name] = texture;
 				print_verbose("Created texture from embedded image.");
 			} else {
-				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping->name + "`, is not found into the project nor is stored as embedded file. Make sure to insert the texture as embedded file or into the project, then reimport.");
+				ERR_CONTINUE_MSG(true, "The FBX texture, with name: `" + mapping.name + "`, is not found into the project nor is stored as embedded file. Make sure to insert the texture as embedded file or into the project, then reimport.");
 			}
 		}
 		if (spatial_material.is_null()) {
@@ -431,7 +427,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 			spatial_material.instance();
 		}
 
-		switch (mapping->map_mode) {
+		switch (mapping.map_mode) {
 			case SpatialMaterial::TextureParam::TEXTURE_METALLIC:
 				// Use grayscale as default.
 				spatial_material->set_metallic_texture_channel(SpatialMaterial::TextureChannel::TEXTURE_CHANNEL_GRAYSCALE);
@@ -453,7 +449,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				break;
 		}
 
-		spatial_material->set_texture(mapping->map_mode, texture);
+		spatial_material->set_texture(mapping.map_mode, texture);
 	}
 
 	if (spatial_material.is_valid()) {
