@@ -354,7 +354,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	// Set the textures.
 	for (int x = 0; x < material_info.textures.size(); x++) {
 		Ref<TextureFileMapping> mapping = material_info.textures.get(x);
-		Ref<Texture> texture;
+		Ref<ImageTexture> texture;
 		print_verbose("texture mapping name: " + mapping->name);
 
 		if (state.cached_image_searches.has(mapping->name)) {
@@ -365,7 +365,8 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				Error err;
 				Ref<ImageTexture> image_texture = ResourceLoader::load(path, "ImageTexture", false, &err);
 
-				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
+
+				ERR_CONTINUE_MSG(err != OK || image_texture.is_null(), "unable to import image file not loaded yet: " + path);
 
 				int32_t flags = Texture::FLAGS_DEFAULT;
 				image_texture->set_flags(flags);

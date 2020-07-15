@@ -522,7 +522,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						// mesh node, mesh id
 						mesh_node = mesh_data_precached->create_fbx_mesh(state, mesh_geometry, fbx_node->fbx_model);
 						if (!state.MeshNodes.has(mesh_id)) {
-							print_verbose("caching skin creation call for later");
 							state.MeshNodes.insert(mesh_id, fbx_node);
 						}
 					}
