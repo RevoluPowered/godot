@@ -47,10 +47,10 @@
 
 #include "data/FBX/FBXDocument.h"
 #include "data/FBX/FBXImportSettings.h"
+#include "data/FBX/FBXMeshGeometry.h"
 #include "data/FBX/FBXParser.h"
 #include "data/FBX/FBXProperties.h"
 #include "data/FBX/FBXTokenizer.h"
-#include "data/FBX/FBXMeshGeometry.h"
 #include <string>
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {

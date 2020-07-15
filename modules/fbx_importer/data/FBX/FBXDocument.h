@@ -50,8 +50,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXParser.h"
 #include "FBXProperties.h"
 #include "core/math/transform.h"
-#include "core/math/vector3.h"
 #include "core/math/vector2.h"
+#include "core/math/vector3.h"
 #include "core/print_string.h"
 #include <stdint.h>
 #include <numeric>
@@ -163,7 +163,6 @@ protected:
 	const uint64_t id;
 };
 
-
 /** DOM class for generic FBX NoteAttribute blocks. NoteAttribute's just hold a property table,
  *  fixed members are added by deriving classes. */
 class NodeAttribute : public Object {
@@ -214,68 +213,61 @@ private:
 	}
 
 // XXX improve logging
-#define fbx_simple_enum_property(name, type, default_value)                                                             \
-	type name() const {                                                                                                 \
-		const int ival = PropertyGet<int>(Props(), fbx_stringize(name), static_cast<int>(default_value));               \
-		if (ival < 0 || ival >= AI_CONCAT(type, _MAX)) {                                                                \
-			return static_cast<type>(default_value);                                                                    \
-		}                                                                                                               \
-		return static_cast<type>(ival);                                                                                 \
+#define fbx_simple_enum_property(name, type, default_value)                                               \
+	type name() const {                                                                                   \
+		const int ival = PropertyGet<int>(Props(), fbx_stringize(name), static_cast<int>(default_value)); \
+		if (ival < 0 || ival >= AI_CONCAT(type, _MAX)) {                                                  \
+			return static_cast<type>(default_value);                                                      \
+		}                                                                                                 \
+		return static_cast<type>(ival);                                                                   \
 	}
-
 
 class FbxPoseNode;
 class FbxPose : public Object {
 public:
-    FbxPose(uint64_t id, const Element &element, const Document &doc, const std::string &name);
+	FbxPose(uint64_t id, const Element &element, const Document &doc, const std::string &name);
 
-    const std::vector<std::shared_ptr<FbxPoseNode>> &GetBindPoses() const
-    {
-        return pose_nodes;
-    }
+	const std::vector<std::shared_ptr<FbxPoseNode> > &GetBindPoses() const {
+		return pose_nodes;
+	}
 
-    virtual ~FbxPose();
+	virtual ~FbxPose();
+
 private:
-    std::vector<std::shared_ptr<FbxPoseNode>> pose_nodes;
+	std::vector<std::shared_ptr<FbxPoseNode> > pose_nodes;
 };
 
 class FbxPoseNode {
 public:
-    FbxPoseNode( const Element &element, const Document &doc, const std::string &name )
-    {
-        const Scope &sc = GetRequiredScope(element);
+	FbxPoseNode(const Element &element, const Document &doc, const std::string &name) {
+		const Scope &sc = GetRequiredScope(element);
 
-        // get pose node transform
-        const Element &Transform = GetRequiredElement(sc, "Matrix", &element);
-        transform = ReadMatrix(Transform);
+		// get pose node transform
+		const Element &Transform = GetRequiredElement(sc, "Matrix", &element);
+		transform = ReadMatrix(Transform);
 
-        // get node id this pose node is for
-        const Element * const NodeId = sc["Node"];
-        if(NodeId)
-        {
-            target_id = ParseTokenAsInt64(GetRequiredToken(*NodeId, 0));
-        }
+		// get node id this pose node is for
+		const Element *const NodeId = sc["Node"];
+		if (NodeId) {
+			target_id = ParseTokenAsInt64(GetRequiredToken(*NodeId, 0));
+		}
 
-        print_verbose("added posenode " + itos(target_id) + " transform: " + transform);
-    }
-    virtual ~FbxPoseNode()
-    {
+		print_verbose("added posenode " + itos(target_id) + " transform: " + transform);
+	}
+	virtual ~FbxPoseNode() {
+	}
 
-    }
+	uint64_t GetNodeID() const {
+		return target_id;
+	}
 
-	uint64_t GetNodeID() const
-    {
-        return target_id;
-    }
-
-	Transform GetBindPose() const
-    {
-        return transform;
-    }
+	Transform GetBindPose() const {
+		return transform;
+	}
 
 private:
-    uint64_t target_id;
-    Transform transform;
+	uint64_t target_id;
+	Transform transform;
 };
 
 /** DOM base class for FBX cameras attached to a node */
@@ -1002,8 +994,7 @@ public:
 		SkinLinkMode_Additive = 1
 	};
 
-	SkinLinkMode GetLinkMode()
-	{
+	SkinLinkMode GetLinkMode() {
 		return link_mode;
 	}
 
@@ -1041,8 +1032,7 @@ public:
 		Skin_Blend
 	};
 
-	const SkinType & GetSkinType() const
-	{
+	const SkinType &GetSkinType() const {
 		return skinType;
 	}
 
@@ -1050,7 +1040,6 @@ private:
 	float accuracy;
 	SkinType skinType;
 	std::vector<const Cluster *> clusters;
-
 };
 
 /** Represents a link between two FBX objects. */
@@ -1262,7 +1251,7 @@ public:
 	}
 
 	const std::vector<uint64_t> &GetBindPoseIDs() const {
-        return bind_poses;
+		return bind_poses;
 	};
 
 	const std::vector<uint64_t> &GetMaterialIDs() const {

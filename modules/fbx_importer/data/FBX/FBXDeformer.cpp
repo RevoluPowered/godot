@@ -44,12 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::NodeAttribute (and subclasses) implementation
  */
 
-#include "core/math/math_funcs.h"
-#include "core/math/transform.h"
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
 #include "FBXMeshGeometry.h"
 #include "FBXParser.h"
+#include "core/math/math_funcs.h"
+#include "core/math/transform.h"
 
 #include <iostream>
 
@@ -84,7 +84,7 @@ Constraint::~Constraint() {
 
 // ------------------------------------------------------------------------------------------------
 Cluster::Cluster(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
-		Deformer(id, element, doc, name), valid_transformAssociateModel(false){
+		Deformer(id, element, doc, name), valid_transformAssociateModel(false) {
 	const Scope &sc = GetRequiredScope(element);
 	//    for( auto element : sc.Elements())
 	//    {
@@ -103,14 +103,11 @@ Cluster::Cluster(uint64_t id, const Element &element, const Document &doc, const
 	const Element *const Weights = sc["Weights"];
 
 	const Element *const TransformAssociateModel = sc["TransformAssociateModel"];
-	if(TransformAssociateModel != nullptr)
-	{
+	if (TransformAssociateModel != nullptr) {
 		//Transform t = ReadMatrix(*TransformAssociateModel);
 		link_mode = SkinLinkMode_Additive;
-        valid_transformAssociateModel = true;
-	}
-	else
-	{
+		valid_transformAssociateModel = true;
+	} else {
 		link_mode = SkinLinkMode_Normalized;
 		valid_transformAssociateModel = false;
 	}
@@ -175,28 +172,18 @@ Skin::Skin(uint64_t id, const Element &element, const Document &doc, const std::
 
 	const Element *const SkinType = sc["SkinningType"];
 
-	if(SkinType)
-	{
+	if (SkinType) {
 		std::string skin_type = ParseTokenAsString(GetRequiredToken(*SkinType, 0));
 
-		if(skin_type == "Linear")
-		{
+		if (skin_type == "Linear") {
 			skinType = Skin_Linear;
-		}
-		else if(skin_type == "Rigid")
-		{
+		} else if (skin_type == "Rigid") {
 			skinType = Skin_Rigid;
-		}
-		else if(skin_type == "DualQuaternion")
-		{
+		} else if (skin_type == "DualQuaternion") {
 			skinType = Skin_DualQuaternion;
-		}
-		else if(skin_type == "Blend")
-		{
+		} else if (skin_type == "Blend") {
 			skinType = Skin_Blend;
-		}
-		else
-		{
+		} else {
 			print_error("[doc:skin] could not find valid skin type: " + String(skin_type.c_str()));
 		}
 	}

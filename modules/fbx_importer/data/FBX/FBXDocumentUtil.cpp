@@ -44,12 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Implementation of the FBX DOM utility functions declared in FBXDocumentUtil.h
  */
 
-#include "core/print_string.h"
 #include "FBXDocumentUtil.h"
 #include "FBXDocument.h"
 #include "FBXParser.h"
 #include "FBXProperties.h"
 #include "FBXUtil.h"
+#include "core/print_string.h"
 
 namespace Assimp {
 namespace FBX {

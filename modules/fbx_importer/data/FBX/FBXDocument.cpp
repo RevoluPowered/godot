@@ -127,9 +127,9 @@ const Object *LazyObject::Get(bool dieOnError) {
 
 		// For debugging
 		//dumpObjectClassInfo( objtype, classtag )
-		 if (!strncmp(obtype, "Pose", length)) {
-		     object.reset(new FbxPose(id, element, doc, name));
-		 } else if (!strncmp(obtype, "Geometry", length)) {
+		if (!strncmp(obtype, "Pose", length)) {
+			object.reset(new FbxPose(id, element, doc, name));
+		} else if (!strncmp(obtype, "Geometry", length)) {
 			if (!strcmp(classtag.c_str(), "Mesh")) {
 				object.reset(new MeshGeometry(id, element, name, doc));
 			}
@@ -307,8 +307,8 @@ bool Document::ReadHeader() {
 		return false;
 	}
 	if (fbxVersion > UpperSupportedVersion) {
-			DOMWarning("unsupported, newer format version, supported are only FBX 2011, up to FBX 2020"
-					   " trying to read it nevertheless");
+		DOMWarning("unsupported, newer format version, supported are only FBX 2011, up to FBX 2020"
+				   " trying to read it nevertheless");
 	}
 
 	const Element *const ecreator = shead["Creator"];
@@ -399,7 +399,7 @@ void Document::ReadObjects() {
 			constraints.push_back(id);
 		} else if (!strcmp(el.first.c_str(), "Pose")) {
 			bind_poses.push_back(id);
-		} else if (!strcmp(el.first.c_str(), "Material")){
+		} else if (!strcmp(el.first.c_str(), "Material")) {
 			materials.push_back(id);
 		}
 	}

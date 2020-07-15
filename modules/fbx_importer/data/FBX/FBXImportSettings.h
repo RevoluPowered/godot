@@ -50,73 +50,57 @@ namespace Assimp {
 namespace FBX {
 
 /** FBX import settings, parts of which are publicly accessible via their corresponding AI_CONFIG constants */
-struct ImportSettings
-{
-    ImportSettings()
-    : strictMode(true)
-    , readAllLayers(true)
-    , readAllMaterials(false)
-    , readMaterials(true)
-    , readTextures(true)
-    , readCameras(true)
-    , readLights(true)
-    , readAnimations(true)
-    , readWeights(true)
-    , preservePivots(true)
-    , optimizeEmptyAnimationCurves(true)
-    , useLegacyEmbeddedTextureNaming(false)
-    , removeEmptyBones( true )
-    , convertToMeters( false ) {
-        // empty
-    }
+struct ImportSettings {
+	ImportSettings() :
+			strictMode(true), readAllLayers(true), readAllMaterials(false), readMaterials(true), readTextures(true), readCameras(true), readLights(true), readAnimations(true), readWeights(true), preservePivots(true), optimizeEmptyAnimationCurves(true), useLegacyEmbeddedTextureNaming(false), removeEmptyBones(true), convertToMeters(false) {
+		// empty
+	}
 
-
-    /** enable strict mode:
+	/** enable strict mode:
      *   - only accept fbx 2012, 2013 files
      *   - on the slightest error, give up.
      *
      *  Basically, strict mode means that the fbx file will actually
      *  be validated. Strict mode is off by default. */
-    bool strictMode;
+	bool strictMode;
 
-    /** specifies whether all geometry layers are read and scanned for
+	/** specifies whether all geometry layers are read and scanned for
       * usable data channels. The FBX spec indicates that many readers
       * will only read the first channel and that this is in some way
       * the recommended way- in reality, however, it happens a lot that
       * vertex data is spread among multiple layers. The default
       * value for this option is true.*/
-    bool readAllLayers;
+	bool readAllLayers;
 
-    /** specifies whether all materials are read, or only those that
+	/** specifies whether all materials are read, or only those that
      *  are referenced by at least one mesh. Reading all materials
      *  may make FBX reading a lot slower since all objects
      *  need to be processed .
      *  This bit is ignored unless readMaterials=true*/
-    bool readAllMaterials;
+	bool readAllMaterials;
 
-
-    /** import materials (true) or skip them and assign a default
+	/** import materials (true) or skip them and assign a default
      *  material. The default value is true.*/
-    bool readMaterials;
+	bool readMaterials;
 
-    /** import embedded textures? Default value is true.*/
-    bool readTextures;
+	/** import embedded textures? Default value is true.*/
+	bool readTextures;
 
-    /** import cameras? Default value is true.*/
-    bool readCameras;
+	/** import cameras? Default value is true.*/
+	bool readCameras;
 
-    /** import light sources? Default value is true.*/
-    bool readLights;
+	/** import light sources? Default value is true.*/
+	bool readLights;
 
-    /** import animations (i.e. animation curves, the node
+	/** import animations (i.e. animation curves, the node
      *  skeleton is always imported). Default value is true. */
-    bool readAnimations;
+	bool readAnimations;
 
-    /** read bones (vertex weights and deform info).
+	/** read bones (vertex weights and deform info).
      *  Default value is true. */
-    bool readWeights;
+	bool readWeights;
 
-    /** preserve transformation pivots and offsets. Since these can
+	/** preserve transformation pivots and offsets. Since these can
      *  not directly be represented in assimp, additional dummy
      *  nodes will be generated. Note that settings this to false
      *  can make animation import a lot slower. The default value
@@ -136,29 +120,27 @@ struct ImportSettings
      *    Scaling
      *    Rotation
      **/
-    bool preservePivots;
+	bool preservePivots;
 
-    /** do not import animation curves that specify a constant
+	/** do not import animation curves that specify a constant
      *  values matching the corresponding node transformation.
      *  The default value is true. */
-    bool optimizeEmptyAnimationCurves;
+	bool optimizeEmptyAnimationCurves;
 
-    /** use legacy naming for embedded textures eg: (*0, *1, *2)
+	/** use legacy naming for embedded textures eg: (*0, *1, *2)
     */
-    bool useLegacyEmbeddedTextureNaming;
+	bool useLegacyEmbeddedTextureNaming;
 
-    /** Empty bones shall be removed
+	/** Empty bones shall be removed
     */
-    bool removeEmptyBones;
+	bool removeEmptyBones;
 
-    /** Set to true to perform a conversion from cm to meter after the import
+	/** Set to true to perform a conversion from cm to meter after the import
     */
-    bool convertToMeters;
+	bool convertToMeters;
 };
 
-
-} // !FBX
-} // !Assimp
+} // namespace FBX
+} // namespace Assimp
 
 #endif
-

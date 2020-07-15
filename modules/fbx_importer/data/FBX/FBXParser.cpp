@@ -50,10 +50,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXParseTools.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
-#include "core/print_string.h"
+#include "core/math/math_defs.h"
 #include "core/math/transform.h"
 #include "core/math/vector3.h"
-#include "core/math/math_defs.h"
+#include "core/print_string.h"
 
 using namespace Assimp;
 using namespace Assimp::FBX;
@@ -1076,8 +1076,7 @@ Transform ReadMatrix(const Element &element) {
 	}
 
 	// clean values to prevent any IBM damage on inverse() / affine_inverse()
-	for( float& value : values)
-	{
+	for (float &value : values) {
 		if (::Math::is_equal_approx(0, value)) {
 			value = 0;
 		}

@@ -195,7 +195,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 	// Compose the edge of the mesh.
 	// You can see how the edges are stored into the FBX here: https://gist.github.com/AndreaCatania/da81840f5aa3b2feedf189e26c5a87e6
 	for (size_t i = 0; i < m_edges.size(); i += 1) {
-		ERR_FAIL_INDEX_MSG((size_t) m_edges[i], m_face_indices.size(), "The edge is pointing to a weird location in the face indices. The FBX is corrupted.");
+		ERR_FAIL_INDEX_MSG((size_t)m_edges[i], m_face_indices.size(), "The edge is pointing to a weird location in the face indices. The FBX is corrupted.");
 		int polygon_vertex_0 = m_face_indices[m_edges[i]];
 		int polygon_vertex_1;
 		if (polygon_vertex_0 < 0) {
@@ -297,7 +297,7 @@ int MeshGeometry::get_edge_id(const std::vector<Edge> &p_map, int p_vertex_a, in
 }
 
 MeshGeometry::Edge MeshGeometry::get_edge(const std::vector<Edge> &p_map, int p_id) {
-	ERR_FAIL_INDEX_V_MSG((size_t) p_id, p_map.size(), Edge({ -1, -1 }), "ID not found.");
+	ERR_FAIL_INDEX_V_MSG((size_t)p_id, p_map.size(), Edge({ -1, -1 }), "ID not found.");
 	return p_map[p_id];
 }
 

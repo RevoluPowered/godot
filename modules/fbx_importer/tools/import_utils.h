@@ -38,7 +38,6 @@
 
 #include <string>
 
-
 #define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000LL
 
 #define AI_PROPERTIES aiTextureType_UNKNOWN, 0

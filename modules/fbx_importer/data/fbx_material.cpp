@@ -357,8 +357,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 
 		if (state.cached_image_searches.has(mapping.name)) {
 			texture = state.cached_image_searches[mapping.name];
-		}
-		else {
+		} else {
 			String path = find_texture_path_by_filename(mapping.name, p_fbx_current_directory);
 			if (!path.empty()) {
 				Error err;

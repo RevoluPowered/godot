@@ -31,22 +31,21 @@
 #ifndef EDITOR_SCENE_IMPORT_STATE_H
 #define EDITOR_SCENE_IMPORT_STATE_H
 
-
-#include "modules/fbx_importer/tools/import_utils.h"
 #include "fbx_mesh_data.h"
+#include "modules/fbx_importer/tools/import_utils.h"
 #include "pivot_transform.h"
 
+#include "core/bind/core_bind.h"
+#include "core/io/resource_importer.h"
+#include "core/vector.h"
+#include "editor/import/resource_importer_scene.h"
+#include "editor/project_settings_editor.h"
 #include "scene/3d/mesh_instance.h"
 #include "scene/3d/skeleton.h"
 #include "scene/3d/spatial.h"
 #include "scene/animation/animation_player.h"
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
-#include "core/bind/core_bind.h"
-#include "core/io/resource_importer.h"
-#include "core/vector.h"
-#include "editor/import/resource_importer_scene.h"
-#include "editor/project_settings_editor.h"
 
 #include "FBX/FBXDocument.h"
 #include "FBX/FBXImportSettings.h"

@@ -31,10 +31,10 @@
 #ifndef MODEL_ABSTRACTION_PIVOT_TRANSFORM_H
 #define MODEL_ABSTRACTION_PIVOT_TRANSFORM_H
 
+#include "FBX/FBXDocument.h"
 #include "core/reference.h"
 #include "model_abstraction.h"
 #include "modules/fbx_importer/tools/import_utils.h"
-#include "FBX/FBXDocument.h"
 
 enum TransformationComp {
 	TransformationComp_Translation,

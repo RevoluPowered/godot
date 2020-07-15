@@ -59,18 +59,17 @@ FbxPose::FbxPose(uint64_t id, const Element &element, const Document &doc, const
 	//const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
 
 	const ElementCollection &PoseNodes = sc.GetCollection("PoseNode");
-	for( ElementMap::const_iterator it = PoseNodes.first; it != PoseNodes.second; ++it)
-    {
+	for (ElementMap::const_iterator it = PoseNodes.first; it != PoseNodes.second; ++it) {
 		std::string entry_name = (*it).first;
-        Element *some_element = (*it).second;
-        std::shared_ptr<FbxPoseNode> pose_node(new FbxPoseNode(*some_element, doc, entry_name));
-        pose_nodes.push_back(pose_node);
+		Element *some_element = (*it).second;
+		std::shared_ptr<FbxPoseNode> pose_node(new FbxPoseNode(*some_element, doc, entry_name));
+		pose_nodes.push_back(pose_node);
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 FbxPose::~FbxPose() {
-    pose_nodes.clear();
+	pose_nodes.clear();
 	// empty
 }
 

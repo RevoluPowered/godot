@@ -44,7 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Assimp::FBX::Model implementation
  */
 
-
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
 #include "FBXMeshGeometry.h"

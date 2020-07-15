@@ -51,10 +51,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <unordered_map>
 
-#include "core/math/transform.h"
-#include "core/math/vector3.h"
-#include "core/math/vector2.h"
 #include "core/color.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
 
 #include "FBXTokenizer.h"
 
@@ -131,8 +131,7 @@ public:
 
 	const Element *FindElementCaseInsensitive(const std::string &elementName) const {
 		for (auto element = elements.begin(); element != elements.end(); ++element) {
-			if(element->first.compare(elementName))
-			{
+			if (element->first.compare(elementName)) {
 				return element->second;
 			}
 		}

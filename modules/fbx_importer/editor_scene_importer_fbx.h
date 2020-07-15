@@ -45,12 +45,12 @@
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
 
-#include "data/import_state.h"
-#include "tools/import_utils.h"
 #include "data/FBX/FBXDocument.h"
 #include "data/FBX/FBXImportSettings.h"
 #include "data/FBX/FBXMeshGeometry.h"
 #include "data/FBX/FBXUtil.h"
+#include "data/import_state.h"
+#include "tools/import_utils.h"
 
 #define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000LL
 
