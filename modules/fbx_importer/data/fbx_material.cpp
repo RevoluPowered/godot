@@ -365,11 +365,6 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				Error err;
 				Ref<ImageTexture> image_texture = ResourceLoader::load(path, "ImageTexture", false, &err);
 
-				if(err != OK)
-				{
-					// print verbose
-					print_verbose("hello...");
-				}
 				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
 
 				int32_t flags = Texture::FLAGS_DEFAULT;
