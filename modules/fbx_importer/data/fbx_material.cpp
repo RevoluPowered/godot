@@ -88,6 +88,7 @@ String FBXMaterial::find_texture_path_by_filename(const String p_filename, const
 	add_search_string(p_filename, p_current_directory, "", paths);
 	add_search_string(p_filename, p_current_directory, "texture", paths);
 	add_search_string(p_filename, p_current_directory, "textures", paths);
+	add_search_string(p_filename, p_current_directory, "Textures", paths);
 	add_search_string(p_filename, p_current_directory, "materials", paths);
 	add_search_string(p_filename, p_current_directory, "mats", paths);
 	add_search_string(p_filename, p_current_directory, "pictures", paths);
@@ -165,15 +166,18 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 		ERR_CONTINUE_MSG(fbx_texture_mapping_desc.count(fbx_mapping_name) <= 0, "This FBX has a material with mapping name: " + String(fbx_mapping_name.c_str()) + " which is not yet supported by this importer. Consider open an issue so we can support it.");
 
 		const String absoulte_fbx_file_path = texture.second->FileName().c_str();
-		const String file_extension = absoulte_fbx_file_path.get_extension();
+		const String file_extension = absoulte_fbx_file_path.get_extension().to_upper();
+
+		const String file_extension_uppercase = file_extension.to_upper();
+
+		// TODO: we don't support EMBED for DDS and TGA.
 		ERR_CONTINUE_MSG(
-				file_extension != "png" &&
-						file_extension != "PNG" &&
-						file_extension != "jpg" &&
-						file_extension != "jpeg" &&
-						file_extension != "JPEG" &&
-						file_extension != "JPG",
-				"The FBX file contains a texture with an unrecognized extension: " + file_extension);
+				file_extension_uppercase != "PNG" &&
+						file_extension_uppercase != "JPEG" &&
+						file_extension_uppercase != "JPG" &&
+						file_extension_uppercase != "TGA" &&
+						file_extension_uppercase != "DDS",
+				"The FBX file contains a texture with an unrecognized extension: " + file_extension_uppercase);
 
 		const String texture_name = absoulte_fbx_file_path.get_file();
 		const SpatialMaterial::TextureParam mapping_mode = fbx_texture_mapping_desc.at(fbx_mapping_name);
@@ -361,7 +365,13 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				image.instance();
 				Ref<ImageTexture> image_texture;
 
-				ERR_CONTINUE_MSG(ImageLoader::load_image(path, image) != OK, "unable to import image file not loaded yet TODO");
+				Error err = Texture(path, image);
+				if(err != OK)
+				{
+					// print verbose
+					print_verbose("hello...");
+				}
+				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
 
 				image_texture.instance();
 				image_texture->create_from_image(image);
