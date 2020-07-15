@@ -48,8 +48,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "FBXParseTools.h"
 #include "ByteSwapper.h"
 #include "FBXTokenizer.h"
-#include "FBXUtil.h"
-#include <core/print_string.h>
+#include "core/print_string.h"
+
 #include <stdint.h>
 
 namespace Assimp {

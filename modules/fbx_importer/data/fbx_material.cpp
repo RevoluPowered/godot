@@ -30,7 +30,6 @@
 
 #include "fbx_material.h"
 
-#include "modules/dds/texture_loader_dds.h"
 #include "drivers/png/png_driver_common.h"
 #include "modules/jpg/image_loader_jpegd.h"
 #include "scene/resources/material.h"

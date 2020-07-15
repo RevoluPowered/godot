@@ -35,7 +35,7 @@
 #include "fbx_node.h"
 #include "model_abstraction.h"
 #include "scene/3d/skeleton.h"
-#include <core/reference.h>
+#include "core/reference.h"
 
 struct FBXNode;
 struct ImportState;
