@@ -766,18 +766,11 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 		const VertexMapping *vm = vertex_weights.getptr(vertex_id);
 		st->add_weights(vm->weights);
 		st->add_bones(vm->bones);
+		print_verbose("[doc] Triangle added weights to mesh for bones");
 	} else {
 		// This vertex doesn't have any bone info, while the model is using the
 		// bones.
-		const int max_bones = VS::ARRAY_WEIGHTS_SIZE;
-		Vector<real_t> valid_weights;
-		Vector<int> valid_bone_ids;
-		for (int i = 0; i < max_bones; i += 1) {
-			valid_weights.push_back(0.0f);
-			valid_bone_ids.push_back(0);
-		}
-		st->add_weights(valid_weights);
-		st->add_bones(valid_bone_ids);
+		// So nothing more to do.
 	}
 
 	print_verbose("[doc] Triangle added weights to mesh for bones");
