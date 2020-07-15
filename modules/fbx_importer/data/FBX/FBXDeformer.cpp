@@ -84,7 +84,7 @@ Constraint::~Constraint() {
 
 // ------------------------------------------------------------------------------------------------
 Cluster::Cluster(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
-		Deformer(id, element, doc, name), node(), valid_transformAssociateModel(false){
+		Deformer(id, element, doc, name), valid_transformAssociateModel(false){
 	const Scope &sc = GetRequiredScope(element);
 	//    for( auto element : sc.Elements())
 	//    {
@@ -105,7 +105,7 @@ Cluster::Cluster(uint64_t id, const Element &element, const Document &doc, const
 	const Element *const TransformAssociateModel = sc["TransformAssociateModel"];
 	if(TransformAssociateModel != nullptr)
 	{
-		Transform t = ReadMatrix(*TransformAssociateModel);
+		//Transform t = ReadMatrix(*TransformAssociateModel);
 		link_mode = SkinLinkMode_Additive;
         valid_transformAssociateModel = true;
 	}
@@ -150,6 +150,7 @@ Cluster::Cluster(uint64_t id, const Element &element, const Document &doc, const
 
 	if (!node) {
 		DOMError("failed to read target Node for Cluster", &element);
+		node = nullptr;
 	}
 }
 

@@ -1016,7 +1016,7 @@ private:
 	Transform transformAssociateModel;
 	SkinLinkMode link_mode;
 	bool valid_transformAssociateModel;
-	const Model *node;
+	const Model *node = nullptr;
 };
 
 /** DOM class for skin deformers */

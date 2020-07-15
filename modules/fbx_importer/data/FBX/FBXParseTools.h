@@ -9,9 +9,15 @@ bool IsNewLine( char_t c )
 }
 
 template<class char_t>
+bool IsSpace( char_t c )
+{
+    return (c == (char_t)' ' || c == (char_t)'\t');
+}
+
+template<class char_t>
 bool IsSpaceOrNewLine( char_t c )
 {
-	return IsNewLine(c) || isspace(c);
+	return IsNewLine(c) || IsSpace(c);
 }
 
 template<class char_t>

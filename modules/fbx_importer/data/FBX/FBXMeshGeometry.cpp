@@ -129,14 +129,14 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 
 	// now read the sub mesh information from the geometry (normals, uvs, etc)
 	for (ElementMap::const_iterator it = Layer.first; it != Layer.second; ++it) {
-		const TokenList &tokens = (*it).second->Tokens();
+		//const TokenList &tokens = (*it).second->Tokens();
 		const Scope &layer = GetRequiredScope(*(*it).second);
 		const ElementCollection &LayerElement = layer.GetCollection("LayerElement");
 		for (ElementMap::const_iterator eit = LayerElement.first; eit != LayerElement.second; ++eit) {
-			std::string name = (*eit).first;
+			std::string layer_name = (*eit).first;
 			Element *element_layer = (*eit).second;
 			const Scope &layer_element = GetRequiredScope(*element_layer);
-			std::cout << "[read layer] " << name << std::endl;
+			std::cout << "[read layer] " << layer_name << std::endl;
 			const Element &Type = GetRequiredElement(layer_element, "Type");
 			const Element &TypedIndex = GetRequiredElement(layer_element, "TypedIndex");
 			const std::string &type = ParseTokenAsString(GetRequiredToken(Type, 0));
@@ -195,7 +195,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 	// Compose the edge of the mesh.
 	// You can see how the edges are stored into the FBX here: https://gist.github.com/AndreaCatania/da81840f5aa3b2feedf189e26c5a87e6
 	for (size_t i = 0; i < m_edges.size(); i += 1) {
-		ERR_FAIL_INDEX_MSG(m_edges[i], m_face_indices.size(), "The edge is pointing to a weird location in the face indices. The FBX is corrupted.");
+		ERR_FAIL_INDEX_MSG((size_t) m_edges[i], m_face_indices.size(), "The edge is pointing to a weird location in the face indices. The FBX is corrupted.");
 		int polygon_vertex_0 = m_face_indices[m_edges[i]];
 		int polygon_vertex_1;
 		if (polygon_vertex_0 < 0) {
@@ -229,7 +229,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::strin
 			ERR_FAIL_COND_MSG(found_it == false, "Was not possible to find the first vertex of this polygon. FBX file is corrupted.");
 
 		} else {
-			ERR_FAIL_INDEX_MSG(m_edges[i] + 1, m_face_indices.size(), "FBX The other FBX edge seems to point to an invalid vertices. This FBX file is corrupted.");
+			ERR_FAIL_INDEX_MSG((size_t)(m_edges[i] + 1), m_face_indices.size(), "FBX The other FBX edge seems to point to an invalid vertices. This FBX file is corrupted.");
 			// Take the next vertex
 			polygon_vertex_1 = m_face_indices[m_edges[i] + 1];
 		}
@@ -297,7 +297,7 @@ int MeshGeometry::get_edge_id(const std::vector<Edge> &p_map, int p_vertex_a, in
 }
 
 MeshGeometry::Edge MeshGeometry::get_edge(const std::vector<Edge> &p_map, int p_id) {
-	ERR_FAIL_INDEX_V_MSG(p_id, p_map.size(), Edge({ -1, -1 }), "ID not found.");
+	ERR_FAIL_INDEX_V_MSG((size_t) p_id, p_map.size(), Edge({ -1, -1 }), "ID not found.");
 	return p_map[p_id];
 }
 

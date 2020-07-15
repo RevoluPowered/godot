@@ -133,9 +133,9 @@ Null::~Null() {
 LimbNode::LimbNode(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 	//std::cout << "limb node: " << name << std::endl;
-	const Scope &sc = GetRequiredScope(element);
+	//const Scope &sc = GetRequiredScope(element);
 
-	const Element *const TypeFlag = sc["TypeFlags"];
+	//const Element *const TypeFlag = sc["TypeFlags"];
 
 	// keep this it can dump new properties for you
 	// for( auto element : sc.Elements())
@@ -147,8 +147,6 @@ LimbNode::LimbNode(uint64_t id, const Element &element, const Document &doc, con
 	// {
 	// //    std::cout << "type flag: " << GetRequiredToken(*TypeFlag, 0).StringContents() << std::endl;
 	// }
-
-	return;
 }
 
 // ------------------------------------------------------------------------------------------------
