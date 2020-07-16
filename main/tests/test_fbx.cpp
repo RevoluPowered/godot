@@ -233,16 +233,50 @@ bool test_1() {
 		}
 	}
 
-	OS::get_singleton()->print("Tests passed: %i\n", passed);
-	OS::get_singleton()->print("Tests failed: %i\n", failed);
+	OS::get_singleton()->print("[test_1] Tests passed: %i\n", passed);
+	OS::get_singleton()->print("[test_1] Tests failed: %i\n", failed);
 
 	return failed == 0;
+}
+
+bool test_2()
+{
+    Ref<PivotTransform> pivot_transform;
+    pivot_transform.instance();
+    Vector3 zero(0,0,0);
+
+    // populate is used for unit testing
+    pivot_transform->PopulatePivotTransform
+    (
+            Assimp::FBX::Model::RotOrder_EulerXYZ,Assimp::FBX::TransformInheritance::Transform_RSrs,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero
+    );
+
+    // Unit Test passes if nothing happens
+    if(pivot_transform->GlobalTransform == Transform())
+    {
+        return true;
+    }
+
+    return false;
 }
 
 typedef bool (*TestFunc)(void);
 
 TestFunc test_funcs[] = {
 	test_1,
+	test_2,
 	// End
 	0
 };
