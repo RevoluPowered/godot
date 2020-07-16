@@ -62,8 +62,9 @@ struct PivotTransform : Reference, ModelAbstraction {
 	Quat geometric_rotation = Quat();
 	Vector3 rotation_pivot = Vector3();
 	Vector3 rotation_offset = Vector3();
-	Vector3 scaling_offset = Vector3(1.0, 1.0, 1.0);
-	Vector3 scaling_pivot = Vector3(1.0, 1.0, 1.0);
+	// note: these aren't SCALE values they're a translation space in the pivot so do not need defaults
+	Vector3 scaling_offset = Vector3();
+	Vector3 scaling_pivot = Vector3();
 	Vector3 translation = Vector3();
 	Vector3 scaling = Vector3(1.0, 1.0, 1.0);
 	Vector3 geometric_scaling = Vector3(1.0, 1.0, 1.0);
@@ -75,6 +76,22 @@ struct PivotTransform : Reference, ModelAbstraction {
 
 	/* Read pivots from the document */
 	void ReadTransformChain();
+	/* Used for testing */
+	void PopulatePivotTransform(
+	        Assimp::FBX::Model::RotOrder rotOrder,
+	        Assimp::FBX::TransformInheritance inheritType,
+	        Vector3 pre_rotation,
+	        Vector3 post_rotation,
+	        Vector3 rotation_pivot,
+	        Vector3 rotation_offset,
+	        Vector3 scaling_offset,
+	        Vector3 scaling_pivot,
+	        Vector3 translation,
+	        Vector3 rotation,
+	        Vector3 scaling,
+	        Vector3 geometric_scaling,
+	        Vector3 geometric_rotation,
+	        Vector3 geometric_translation);
 
 	void debug_pivot_xform(String p_name) {
 		print_verbose("debugging node name: " + p_name);
@@ -82,7 +99,6 @@ struct PivotTransform : Reference, ModelAbstraction {
 		print_verbose("raw pre_rotation " + raw_pre_rotation * (180 / Math_PI));
 		print_verbose("raw post_rotation " + raw_post_rotation * (180 / Math_PI));
 	}
-	Transform ComputeGlobalTransform(Vector3 p_translation, Quat p_rotation, Vector3 p_scaling) const;
 	Transform ComputeLocalTransform(Vector3 p_translation, Quat p_rotation, Vector3 p_scaling) const;
 
 	/* Extract into xforms and calculate once */

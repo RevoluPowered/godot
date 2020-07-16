@@ -91,6 +91,41 @@ void PivotTransform::ReadTransformChain() {
 	}
 }
 
+void PivotTransform::PopulatePivotTransform(
+        Assimp::FBX::Model::RotOrder rotOrder,
+        Assimp::FBX::TransformInheritance inheritType,
+        Vector3 p_euler_pre_rotation,
+        Vector3 p_euler_post_rotation,
+        Vector3 p_rotation_pivot,
+        Vector3 p_rotation_offset,
+        Vector3 p_scaling_offset,
+        Vector3 p_scaling_pivot,
+        Vector3 p_translation,
+        Vector3 p_euler_rotation,
+        Vector3 p_scaling,
+        Vector3 p_geometric_scaling,
+        Vector3 p_geometric_rotation,
+        Vector3 p_geometric_translation
+)
+{
+    pre_rotation = ImportUtils::EulerToQuaternion(rotOrder, p_euler_pre_rotation);
+    post_rotation = ImportUtils::EulerToQuaternion(rotOrder, p_euler_post_rotation);
+    rotation_pivot = p_rotation_pivot;
+    rotation_offset = p_rotation_offset;
+    scaling_offset = p_scaling_offset;
+    scaling_pivot = p_scaling_pivot;
+    translation = p_translation;
+    rotation = ImportUtils::EulerToQuaternion(rotOrder, p_euler_rotation);
+    scaling = p_scaling;
+    geometric_scaling = p_geometric_scaling;
+    geometric_rotation = ImportUtils::EulerToQuaternion(rotOrder, p_geometric_rotation);
+    geometric_translation = p_geometric_translation;
+
+    ComputePivotTransform();
+    ImportUtils::debug_xform("global xform: ", GlobalTransform);
+    computed_global_xform = true;
+}
+
 Transform PivotTransform::ComputeLocalTransform(Vector3 p_translation, Quat p_rotation, Vector3 p_scaling) const {
 	Transform T, Roff, Rp, Soff, Sp, S;
 
@@ -114,65 +149,6 @@ Transform PivotTransform::ComputeLocalTransform(Vector3 p_translation, Quat p_ro
 	return T * Roff * Rp * Rpre * R * Rpost.affine_inverse() * Rp.affine_inverse() * Soff * Sp * S * Sp.affine_inverse();
 }
 
-Transform PivotTransform::ComputeGlobalTransform(Vector3 p_translation, Quat p_rotation, Vector3 p_scaling) const {
-	Transform T, Roff, Rp, Soff, Sp, S;
-
-	// Here I assume this is the operation which needs done.
-	// Its WorldTransform * V
-
-	// Origin pivots
-	T.set_origin(p_translation);
-	Roff.set_origin(rotation_offset);
-	Rp.set_origin(rotation_pivot);
-	Soff.set_origin(scaling_offset);
-	Sp.set_origin(scaling_pivot);
-
-	// Scaling node
-	S.scale(p_scaling);
-
-	// Rotation pivots
-	Transform Rpre = Transform(pre_rotation);
-	Transform R = Transform(p_rotation);
-	Transform Rpost = Transform(post_rotation);
-
-	Transform parent_global_xform;
-	Transform parent_local_scaling_m;
-
-	if (parent_transform.is_valid()) {
-		parent_global_xform = parent_transform->GlobalTransform;
-		parent_local_scaling_m = parent_transform->Local_Scaling_Matrix;
-	}
-
-	Transform local_rotation_m, parent_global_rotation_m;
-	Quat parent_global_rotation = parent_global_xform.basis.get_rotation_quat();
-	parent_global_rotation_m.basis.set_quat(parent_global_rotation);
-	local_rotation_m = Rpre * R * Rpost;
-
-	//Basis parent_global_rotation = Basis(parent_global_xform.get_basis().get_rotation_quat().normalized());
-
-	Transform local_shear_scaling, parent_shear_scaling, parent_shear_rotation, parent_shear_translation;
-	Vector3 parent_translation = parent_global_xform.get_origin();
-	parent_shear_translation.origin = parent_translation;
-	parent_shear_rotation = parent_shear_translation.affine_inverse() * parent_global_xform;
-	parent_shear_scaling = parent_global_rotation_m.affine_inverse() * parent_shear_rotation;
-	local_shear_scaling = S;
-
-	// Inherit type handler - we don't care about T here, just reordering RSrs etc.
-	Transform global_rotation_scale;
-	if (inherit_type == Assimp::FBX::Transform_RrSs) {
-		global_rotation_scale = parent_global_rotation_m * local_rotation_m * parent_shear_scaling * local_shear_scaling;
-	} else if (inherit_type == Assimp::FBX::Transform_RSrs) {
-		global_rotation_scale = parent_global_rotation_m * parent_shear_scaling * local_rotation_m * local_shear_scaling;
-	} else if (inherit_type == Assimp::FBX::Transform_Rrs) {
-		Transform parent_global_shear_m_noLocal = parent_shear_scaling * parent_local_scaling_m.affine_inverse();
-		global_rotation_scale = parent_global_rotation_m * local_rotation_m * parent_global_shear_m_noLocal * local_shear_scaling;
-	}
-	Transform local_transform = T * Roff * Rp * Rpre * R * Rpost.affine_inverse() * Rp.affine_inverse() * Soff * Sp * S * Sp.affine_inverse();
-	//Transform local_translation_pivoted = Transform(Basis(), LocalTransform.origin);
-
-	// manual hack to force SSC not to be compensated for - until we can handle it properly with tests
-	return parent_global_xform * local_transform;
-}
 
 void PivotTransform::ComputePivotTransform() {
 	Transform T, Roff, Rp, Soff, Sp, S;
