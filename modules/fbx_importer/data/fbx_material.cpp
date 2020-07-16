@@ -30,8 +30,6 @@
 
 #include "fbx_material.h"
 
-#include "drivers/png/png_driver_common.h"
-#include "modules/jpg/image_loader_jpegd.h"
 #include "scene/resources/material.h"
 #include "scene/resources/texture.h"
 #include <typeinfo>
@@ -176,6 +174,7 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 						file_extension_uppercase != "JPEG" &&
 						file_extension_uppercase != "JPG" &&
 						file_extension_uppercase != "TGA" &&
+						file_extension_uppercase != "WEBP" &&
 						file_extension_uppercase != "DDS",
 				"The FBX file contains a texture with an unrecognized extension: " + file_extension_uppercase);
 
@@ -375,35 +374,38 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				Ref<Image> image;
 				image.instance();
 
-				if (
-						mapping.name.get_extension() == "png" ||
-						mapping.name.get_extension() == "PNG") {
+				const String extension = mapping.name.get_extension().to_upper();
+				if (extension == "PNG") {
 
 					// The stored file is a PNG.
-
-					const Error err = PNGDriverCommon::png_to_image(
-							mapping.texture->Media()->Content(),
-							mapping.texture->Media()->ContentLength(),
-							false,
-							image);
-					ERR_CONTINUE_MSG(err != OK, "FBX Embedded png image load fail.");
+					image = Image::_png_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
+					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded PNG image load fail.");
 
 				} else if (
-						mapping.name.get_extension() == "jpg" ||
-						mapping.name.get_extension() == "jpeg" ||
-						mapping.name.get_extension() == "JPEG" ||
-						mapping.name.get_extension() == "JPG") {
+						extension == "JPEG" ||
+						extension == "JPG") {
 
 					// The stored file is a JPEG.
+					image = Image::_jpg_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
+					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded JPEG image load fail.");
 
-					const Error err = ImageLoaderJPG::jpeg_load_image_from_buffer(
-							image.ptr(),
-							mapping.texture->Media()->Content(),
-							mapping.texture->Media()->ContentLength());
-					ERR_CONTINUE_MSG(err != OK, "FBX Embedded jpeg image load fail.");
+				} else if (extension == "TGA") {
 
+					// The stored file is a TGA.
+					image = Image::_tga_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
+					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded TGA image load fail.");
+
+				} else if (extension == "WEBP") {
+
+					// The stored file is a WEBP.
+					image = Image::_webp_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
+					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded WEBP image load fail.");
+
+					// } else if (extension == "DDS") {
+					// 	// In this moment is not possible to extract a DDS from a buffer, TODO consider add it to godot. See `textureloader_dds.cpp::load().
+					// 	// The stored file is a DDS.
 				} else {
-					ERR_CONTINUE_MSG(true, "The embedded image with extension: " + mapping.name.get_extension() + " is not yet supported. Open an issue please.");
+					ERR_CONTINUE_MSG(true, "The embedded image with extension: " + extension + " is not yet supported. Open an issue please.");
 				}
 
 				Ref<ImageTexture> image_texture;

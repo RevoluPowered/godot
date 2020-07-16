@@ -770,7 +770,7 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 	} else {
 		// This vertex doesn't have any bone info, while the model is using the
 		// bones.
-		// So nothing more to do.
+		// So noInvestigating navigation issuething more to do.
 	}
 
 	print_verbose("[doc] Triangle added weights to mesh for bones");
