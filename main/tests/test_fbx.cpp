@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  test_basis.cpp                                                       */
+/*  test_fbx.cpp                                                         */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,114 +28,19 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "test_basis.h"
-
 #include "core/math/random_number_generator.h"
 #include "core/os/os.h"
 #include "core/ustring.h"
+#include <stdio.h>
+#include <wchar.h>
 
-namespace TestBasis {
+#include "test_fbx.h"
 
-enum RotOrder {
-	EulerXYZ,
-	EulerXZY,
-	EulerYZX,
-	EulerYXZ,
-	EulerZXY,
-	EulerZYX
-};
+#include <modules/fbx_importer/editor_scene_importer_fbx.h>
 
-Vector3 deg2rad(const Vector3 &p_rotation) {
-	return p_rotation / 180.0 * Math_PI;
-}
+namespace TestFBX {
 
-Vector3 rad2deg(const Vector3 &p_rotation) {
-	return p_rotation / Math_PI * 180.0;
-}
-
-Basis EulerToBasis(RotOrder mode, const Vector3 &p_rotation) {
-	Basis ret;
-	switch (mode) {
-		case EulerXYZ:
-			ret.set_euler_xyz(p_rotation);
-			break;
-
-		case EulerXZY:
-			ret.set_euler_xzy(p_rotation);
-			break;
-
-		case EulerYZX:
-			ret.set_euler_yzx(p_rotation);
-			break;
-
-		case EulerYXZ:
-			ret.set_euler_yxz(p_rotation);
-			break;
-
-		case EulerZXY:
-			ret.set_euler_zxy(p_rotation);
-			break;
-
-		case EulerZYX:
-			ret.set_euler_zyx(p_rotation);
-			break;
-
-		default:
-			// If you land here, Please integrate all rotation orders.
-			CRASH_NOW_MSG("This is not unreachable.");
-	}
-
-	return ret;
-}
-
-Vector3 BasisToEuler(RotOrder mode, const Basis &p_rotation) {
-
-	switch (mode) {
-		case EulerXYZ:
-			return p_rotation.get_euler_xyz();
-
-		case EulerXZY:
-			return p_rotation.get_euler_xzy();
-
-		case EulerYZX:
-			return p_rotation.get_euler_yzx();
-
-		case EulerYXZ:
-			return p_rotation.get_euler_yxz();
-
-		case EulerZXY:
-			return p_rotation.get_euler_zxy();
-
-		case EulerZYX:
-			return p_rotation.get_euler_zyx();
-
-		default:
-			// If you land here, Please integrate all rotation orders.
-			CRASH_NOW_MSG("This is not unreachable.");
-			return Vector3();
-	}
-}
-
-String get_rot_order_name(RotOrder ro) {
-	switch (ro) {
-		case EulerXYZ:
-			return "XYZ";
-		case EulerXZY:
-			return "XZY";
-		case EulerYZX:
-			return "YZX";
-		case EulerYXZ:
-			return "YXZ";
-		case EulerZXY:
-			return "ZXY";
-		case EulerZYX:
-			return "ZYX";
-		default:
-			return "[Not supported]";
-	}
-}
-
-bool test_rotation(Vector3 deg_original_euler, RotOrder rot_order) {
+bool test_rotation(Vector3 deg_original_euler, Assimp::FBX::Model::RotOrder rot_order) {
 
 	// This test:
 	// 1. Converts the rotation vector from deg to rad.
@@ -157,12 +62,12 @@ bool test_rotation(Vector3 deg_original_euler, RotOrder rot_order) {
 	bool pass = true;
 
 	// Euler to rotation
-	const Vector3 original_euler = deg2rad(deg_original_euler);
-	const Basis to_rotation = EulerToBasis(rot_order, original_euler);
+	const Vector3 original_euler = ImportUtils::deg2rad(deg_original_euler);
+	const Basis to_rotation = ImportUtils::EulerToBasis(rot_order, original_euler);
 
 	// Euler from rotation
-	const Vector3 euler_from_rotation = BasisToEuler(rot_order, to_rotation);
-	const Basis rotation_from_computed_euler = EulerToBasis(rot_order, euler_from_rotation);
+	const Vector3 euler_from_rotation = ImportUtils::BasisToEuler(rot_order, to_rotation);
+	const Basis rotation_from_computed_euler = ImportUtils::EulerToBasis(rot_order, euler_from_rotation);
 
 	Basis res = to_rotation.inverse() * rotation_from_computed_euler;
 
@@ -180,7 +85,7 @@ bool test_rotation(Vector3 deg_original_euler, RotOrder rot_order) {
 	}
 
 	if (pass) {
-		// Double check `to_rotation` decomposing with XYZ rotation order.
+		// Double check that is pass even with another rotation order.
 		const Vector3 euler_xyz_from_rotation = to_rotation.get_euler_xyz();
 		Basis rotation_from_xyz_computed_euler;
 		rotation_from_xyz_computed_euler.set_euler_xyz(euler_xyz_from_rotation);
@@ -204,22 +109,48 @@ bool test_rotation(Vector3 deg_original_euler, RotOrder rot_order) {
 	if (pass == false) {
 		// Print phase only if not pass.
 		OS *os = OS::get_singleton();
-		os->print("Rotation order: %ls\n.", get_rot_order_name(rot_order).c_str());
+		switch (rot_order) {
+			case Assimp::FBX::Model::RotOrder_EulerXYZ:
+				os->print("Rotation order XYZ.");
+				break;
+			case Assimp::FBX::Model::RotOrder_EulerXZY:
+				os->print("Rotation order XZY.");
+				break;
+			case Assimp::FBX::Model::RotOrder_EulerYZX:
+				os->print("Rotation order YZX.");
+				break;
+			case Assimp::FBX::Model::RotOrder_EulerYXZ:
+				os->print("Rotation order YXZ.");
+				break;
+			case Assimp::FBX::Model::RotOrder_EulerZXY:
+				os->print("Rotation order ZXY.");
+				break;
+			case Assimp::FBX::Model::RotOrder_EulerZYX:
+				os->print("Rotation order ZYX.");
+				break;
+			case Assimp::FBX::Model::RotOrder_SphericXYZ:
+				os->print("Rotation order SphericXYZ.");
+				break;
+			default:
+				os->print("Rotation order not supported!");
+				return false;
+		}
+		os->print("\n");
 		os->print("Original Rotation: %ls\n", String(deg_original_euler).c_str());
-		os->print("Quaternion to rotation order: %ls\n", String(rad2deg(euler_from_rotation)).c_str());
+		os->print("Quaternion to rotation order: %ls\n", String(ImportUtils::rad2deg(euler_from_rotation)).c_str());
 	}
-
 	return pass;
 }
 
-void test_euler_conversion() {
-	Vector<RotOrder> rotorder_to_test;
-	rotorder_to_test.push_back(EulerXYZ);
-	rotorder_to_test.push_back(EulerXZY);
-	rotorder_to_test.push_back(EulerYZX);
-	rotorder_to_test.push_back(EulerYXZ);
-	rotorder_to_test.push_back(EulerZXY);
-	rotorder_to_test.push_back(EulerZYX);
+bool test_1() {
+	Vector<Assimp::FBX::Model::RotOrder> rotorder_to_test;
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerXYZ);
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerXZY);
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerYZX);
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerYXZ);
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerZXY);
+	rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_EulerZYX);
+	//rotorder_to_test.push_back(Assimp::FBX::Model::RotOrder_SphericXYZ);
 
 	Vector<Vector3> vectors_to_test;
 
@@ -286,10 +217,9 @@ void test_euler_conversion() {
 				rng.randf_range(-1800, 1800)));
 	}
 
-	bool success = true;
+	int passed = 0;
+	int failed = 0;
 	for (int h = 0; h < rotorder_to_test.size(); h += 1) {
-		int passed = 0;
-		int failed = 0;
 		for (int i = 0; i < vectors_to_test.size(); i += 1) {
 			if (test_rotation(vectors_to_test[i], rotorder_to_test[h])) {
 				//OS::get_singleton()->print("Success. \n\n");
@@ -299,29 +229,53 @@ void test_euler_conversion() {
 				OS::get_singleton()->print("------------>\n");
 				OS::get_singleton()->print("------------>\n");
 				failed += 1;
-				success = false;
 			}
 		}
-
-		if (failed == 0) {
-			OS::get_singleton()->print("%i passed tests for rotation order: %ls.\n", passed, get_rot_order_name(rotorder_to_test[h]).c_str());
-		} else {
-			OS::get_singleton()->print("%i FAILED tests for rotation order: %ls.\n", failed, get_rot_order_name(rotorder_to_test[h]).c_str());
-		}
 	}
 
-	if (success) {
-		OS::get_singleton()->print("Euler conversion checks passed.\n");
-	} else {
-		OS::get_singleton()->print("Euler conversion checks FAILED.\n");
-	}
+	OS::get_singleton()->print("Tests passed: %i\n", passed);
+	OS::get_singleton()->print("Tests failed: %i\n", failed);
+
+	return failed == 0;
 }
 
+typedef bool (*TestFunc)(void);
+
+TestFunc test_funcs[] = {
+	test_1,
+	// End
+	0
+};
+
 MainLoop *test() {
-	OS::get_singleton()->print("Start euler conversion check.\n");
-	test_euler_conversion();
+
+	/** A character length != wchar_t may be forced, so the tests won't work */
+
+	ERR_FAIL_COND_V(sizeof(CharType) != sizeof(wchar_t), NULL);
+
+	int count = 0;
+	int passed = 0;
+
+	while (true) {
+		if (!test_funcs[count])
+			break;
+
+		OS::get_singleton()->print("\n---------------------------------------------\n");
+		OS::get_singleton()->print("[fbx] running test: %d\n", count + 1);
+		bool pass = test_funcs[count]();
+		if (pass)
+			passed++;
+		OS::get_singleton()->print("\t%s\n", pass ? "PASS" : "FAILED");
+		count++;
+	}
+
+	OS::get_singleton()->print("\n\n\n");
+	OS::get_singleton()->print("*************\n");
+	OS::get_singleton()->print("***TOTALS!***\n");
+	OS::get_singleton()->print("*************\n");
+
+	OS::get_singleton()->print("Passed %i of %i tests\n", passed, count);
 
 	return NULL;
 }
-
-} // namespace TestBasis
+} // namespace TestFBX
