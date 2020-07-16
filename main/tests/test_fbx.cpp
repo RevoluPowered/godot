@@ -239,12 +239,20 @@ bool test_1() {
 	return failed == 0;
 }
 
+/**
+ * Implements zero tests for the FBX Importer with all inherit types
+ * @return test pass status
+ */
 bool test_2()
 {
-    Ref<PivotTransform> pivot_transform;
+    Ref<PivotTransform> pivot_transform, child_one, child_two;
+    child_one.instance();
+    child_two.instance();
     pivot_transform.instance();
     Vector3 zero(0,0,0);
 
+    child_one->set_parent(pivot_transform);
+    child_two->set_parent(child_one);
     // populate is used for unit testing
     pivot_transform->PopulatePivotTransform
     (
@@ -263,13 +271,64 @@ bool test_2()
             zero
     );
 
-    // Unit Test passes if nothing happens
-    if(pivot_transform->GlobalTransform == Transform())
-    {
-        return true;
-    }
+    // populate is used for unit testing
+    child_one->PopulatePivotTransform
+    (
+            Assimp::FBX::Model::RotOrder_EulerXYZ,Assimp::FBX::TransformInheritance::Transform_RrSs,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero
+    );
 
-    return false;
+    // populate is used for unit testing
+    child_two->PopulatePivotTransform
+    (
+            Assimp::FBX::Model::RotOrder_EulerXYZ,Assimp::FBX::TransformInheritance::Transform_Rrs,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero
+    );
+
+    // populate is used for unit testing
+    child_two->PopulatePivotTransform
+    (
+            Assimp::FBX::Model::RotOrder_EulerXYZ,Assimp::FBX::TransformInheritance::Transform_Rrs,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero,
+            zero
+    );
+
+
+
+    // Unit Test passes if nothing happens
+    return (pivot_transform->GlobalTransform == Transform() && child_one->GlobalTransform == Transform() && child_two->GlobalTransform == Transform());
 }
 
 typedef bool (*TestFunc)(void);
