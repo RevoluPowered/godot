@@ -36,7 +36,6 @@
 #include "thirdparty/doctest/doctest.h"
 
 TEST_CASE("Validate Test will always pass") {
-	OS::get_singleton()->print("this test will pass always\n");
 	CHECK(true);
 }
 

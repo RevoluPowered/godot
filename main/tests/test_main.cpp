@@ -34,21 +34,23 @@
 
 #ifdef DEBUG_ENABLED
 
+// eew
 #include "test_astar.h"
-#include "test_basis.h"
 #include "test_class_db.h"
 #include "test_gdscript.h"
 #include "test_gui.h"
-#include "test_math.h"
-#include "test_oa_hash_map.h"
-#include "test_ordered_hash_map.h"
 #include "test_physics_2d.h"
 #include "test_physics_3d.h"
 #include "test_render.h"
 #include "test_shader_lang.h"
+
+#include "test_math.h"
+#include "test_oa_hash_map.h"
+#include "test_ordered_hash_map.h"
 #include "test_string.h"
+#include "test_basis.h"
 #include "test_validate_testing.h"
-#include <thirdparty/doctest/doctest.h>
+#include "thirdparty/doctest/doctest.h"
 
 const char **tests_get_names() {
 	static const char *test_names[] = {
@@ -75,16 +77,15 @@ const char **tests_get_names() {
 	return test_names;
 }
 
-int test_main(const List<String> &p_args) {
+int test_main(int argc, char *argv[]) {
 	// doctest runner for when legacy unit tests are not found
 	doctest::Context test_context;
 	List<String> valid_arguments;
 
 	// clean arguments of --test from the args
-	for (int x = 0; x < p_args.size(); x++) {
-		if (p_args[x] != "--test") {
-			valid_arguments.push_back(p_args[x]);
-			print_verbose("[test handler] added argument: " + p_args[x]);
+	for (int x = 0; x < argc; x++) {
+		if (strncmp(argv[x], "--test", 6)) {
+			valid_arguments.push_back(argv[x]);
 		}
 	}
 
@@ -95,15 +96,13 @@ int test_main(const List<String> &p_args) {
 		args[x] = str;
 	}
 
-	test_context.applyCommandLine(p_args.size(), args);
+	test_context.applyCommandLine(valid_arguments.size(), args);
 	delete[] args;
 
 	test_context.setOption("order-by", "name");
 	test_context.setOption("abort-after", 5);
 	test_context.setOption("no-breaks", true);
-	int test_return_code = test_context.run();
-	OS::get_singleton()->set_exit_code(test_return_code);
-	return test_return_code;
+	return test_context.run();
 }
 
 #else
@@ -116,7 +115,7 @@ const char **tests_get_names() {
 	return test_names;
 }
 
-int test_main(const List<String> &p_args) {
+int test_main(int argc, char *argv[]) {
 	return 0;
 }
 

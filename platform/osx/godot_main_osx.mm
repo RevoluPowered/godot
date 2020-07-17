@@ -36,6 +36,13 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
+	// execute the unit tests for the engine if they're required and instantly return.
+	bool run_test = false;
+	int return_code = Main::test_entrypoint(argc, argv, run_test);
+	if (run_test) {
+		return return_code;
+	}
+
 #if defined(VULKAN_ENABLED)
 	//MoltenVK - enable full component swizzling support
 	setenv("MVK_CONFIG_FULL_IMAGE_VIEW_SWIZZLE", "1", 1);

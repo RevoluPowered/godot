@@ -394,6 +394,19 @@ void Main::print_help(const char *p_binary) {
 #endif
 }
 
+int Main::test_entrypoint( int argc, char *argv[], bool& tests_need_run ) {
+	for(int x = 0; x < argc; x++) {
+		if(strncmp(argv[x], "--test", 6))
+		{
+			tests_need_run = true;
+			return test_main(argc, argv);
+		}
+	}
+
+	return 0;
+}
+
+
 /* Engine initialization
  *
  * Consists of several methods that are called by each platform's specific main(argc, argv).
@@ -1652,8 +1665,8 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 // everything the main loop needs to know about frame timings
 static MainTimerSync main_timer_sync;
 
-Error Main::start() {
-	ERR_FAIL_COND_V(!_start_success, FAILED);
+bool Main::start() {
+	ERR_FAIL_COND_V(!_start_success, false);
 
 	bool hasicon = false;
 	String doc_tool;
@@ -1671,7 +1684,6 @@ Error Main::start() {
 #endif
 
 	main_timer_sync.init(OS::get_singleton()->get_ticks_usec());
-
 	List<String> args = OS::get_singleton()->get_cmdline_args();
 
 	// parameters that do not have an argument to the right
@@ -1681,9 +1693,6 @@ Error Main::start() {
 		if (args[i] == "--check-only") {
 			check_only = true;
 #ifdef TOOLS_ENABLED
-		} else if (args[i] == "--test") {
-			OS::get_singleton()->print("Testing enabled, all extra arguments will be passed to unit test handler!\n");
-			return test_main(args) != 0 ? ERR_TEST_FAILED : ERR_TEST_PASSED;
 		} else if (args[i] == "--no-docbase") {
 			doc_base = false;
 		} else if (args[i] == "-e" || args[i] == "--editor") {
@@ -1749,7 +1758,7 @@ Error Main::start() {
 
 		{
 			DirAccessRef da = DirAccess::open(doc_tool);
-			ERR_FAIL_COND_V_MSG(!da, FAILED, "Argument supplied to --doctool must be a valid directory path.");
+			ERR_FAIL_COND_V_MSG(!da, false, "Argument supplied to --doctool must be a valid directory path.");
 		}
 
 #ifndef MODULE_MONO_ENABLED
@@ -1839,7 +1848,7 @@ Error Main::start() {
 
 	if (script != "") {
 		Ref<Script> script_res = ResourceLoader::load(script);
-		ERR_FAIL_COND_V_MSG(script_res.is_null(), FAILED, "Can't load script: " + script);
+		ERR_FAIL_COND_V_MSG(script_res.is_null(), false, "Can't load script: " + script);
 
 		if (check_only) {
 			if (!script_res->is_valid()) {
@@ -1856,7 +1865,7 @@ Error Main::start() {
 				if (obj) {
 					memdelete(obj);
 				}
-				ERR_FAIL_V_MSG(FAILED,
+				ERR_FAIL_V_MSG(false,
 						vformat("Can't load the script \"%s\" as it doesn't inherit from SceneTree or MainLoop.",
 								script));
 			}
@@ -1881,12 +1890,12 @@ Error Main::start() {
 			return FAILED;
 		} else {
 			Object *ml = ClassDB::instance(main_loop_type);
-			ERR_FAIL_COND_V_MSG(!ml, FAILED, "Can't instance MainLoop type.");
+			ERR_FAIL_COND_V_MSG(!ml, false, "Can't instance MainLoop type.");
 
 			main_loop = Object::cast_to<MainLoop>(ml);
 			if (!main_loop) {
 				memdelete(ml);
-				ERR_FAIL_V_MSG(FAILED, "Invalid MainLoop type.");
+				ERR_FAIL_V_MSG(false, "Invalid MainLoop type.");
 			}
 		}
 	}
