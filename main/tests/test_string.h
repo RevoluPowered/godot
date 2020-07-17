@@ -269,301 +269,301 @@ TEST_CASE("[String] Begins with") {
 }
 
 TEST_CASE("[String] sprintf") {
-//	bool success, state = true;
-//	String format, output;
-//	Array args;
-//	bool error;
-//
-//	// %%
-//	format = "fish %% frog";
-//	args.clear();
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish % frog") && !error);
-//	state = state && success;
-//
-//	//////// INTS
-//
-//	// Int
-//	format = "fish %d frog";
-//	args.clear();
-//	args.push_back(5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 5 frog") && !error);
-//	state = state && success;
-//
-//	// Int left padded with zeroes.
-//	format = "fish %05d frog";
-//	args.clear();
-//	args.push_back(5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 00005 frog") && !error);
-//	state = state && success;
-//
-//	// Int left padded with spaces.
-//	format = "fish %5d frog";
-//	args.clear();
-//	args.push_back(5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish     5 frog") && !error);
-//	state = state && success;
-//
-//	// Int right padded with spaces.
-//	format = "fish %-5d frog";
-//	args.clear();
-//	args.push_back(5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 5     frog") && !error);
-//	state = state && success;
-//
-//	// Int with sign (positive).
-//	format = "fish %+d frog";
-//	args.clear();
-//	args.push_back(5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish +5 frog") && !error);
-//	state = state && success;
-//
-//	// Negative int.
-//	format = "fish %d frog";
-//	args.clear();
-//	args.push_back(-5);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish -5 frog") && !error);
-//	state = state && success;
-//
-//	// Hex (lower)
-//	format = "fish %x frog";
-//	args.clear();
-//	args.push_back(45);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 2d frog") && !error);
-//	state = state && success;
-//
-//	// Hex (upper)
-//	format = "fish %X frog";
-//	args.clear();
-//	args.push_back(45);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 2D frog") && !error);
-//	state = state && success;
-//
-//	// Octal
-//	format = "fish %o frog";
-//	args.clear();
-//	args.push_back(99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 143 frog") && !error);
-//	state = state && success;
-//
-//	////// REALS
-//
-//	// Real
-//	format = "fish %f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 99.990000 frog") && !error);
-//	state = state && success;
-//
-//	// Real left-padded
-//	format = "fish %11f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish   99.990000 frog") && !error);
-//	state = state && success;
-//
-//	// Real right-padded
-//	format = "fish %-11f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 99.990000   frog") && !error);
-//	state = state && success;
-//
-//	// Real given int.
-//	format = "fish %f frog";
-//	args.clear();
-//	args.push_back(99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 99.000000 frog") && !error);
-//	state = state && success;
-//
-//	// Real with sign (positive).
-//	format = "fish %+f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish +99.990000 frog") && !error);
-//	state = state && success;
-//
-//	// Real with 1 decimals.
-//	format = "fish %.1f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 100.0 frog") && !error);
-//	state = state && success;
-//
-//	// Real with 12 decimals.
-//	format = "fish %.12f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 99.990000000000 frog") && !error);
-//	state = state && success;
-//
-//	// Real with no decimals.
-//	format = "fish %.f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish 100 frog") && !error);
-//	state = state && success;
-//
-//	/////// Strings.
-//
-//	// String
-//	format = "fish %s frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish cheese frog") && !error);
-//	state = state && success;
-//
-//	// String left-padded
-//	format = "fish %10s frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish     cheese frog") && !error);
-//	state = state && success;
-//
-//	// String right-padded
-//	format = "fish %-10s frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish cheese     frog") && !error);
-//	state = state && success;
-//
-//	///// Characters
-//
-//	// Character as string.
-//	format = "fish %c frog";
-//	args.clear();
-//	args.push_back("A");
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish A frog") && !error);
-//	state = state && success;
-//
-//	// Character as int.
-//	format = "fish %c frog";
-//	args.clear();
-//	args.push_back(65);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish A frog") && !error);
-//	state = state && success;
-//
-//	///// Dynamic width
-//
-//	// String dynamic width
-//	format = "fish %*s frog";
-//	args.clear();
-//	args.push_back(10);
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish     cheese frog") && !error);
-//	state = state && success;
-//
-//	// Int dynamic width
-//	format = "fish %*d frog";
-//	args.clear();
-//	args.push_back(10);
-//	args.push_back(99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish         99 frog") && !error);
-//	state = state && success;
-//
-//	// Float dynamic width
-//	format = "fish %*.*f frog";
-//	args.clear();
-//	args.push_back(10);
-//	args.push_back(3);
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == String("fish     99.990 frog") && !error);
-//	state = state && success;
-//
-//	///// Errors
-//
-//	// More formats than arguments.
-//	format = "fish %s %s frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == "not enough arguments for format string" && error);
-//	state = state && success;
-//
-//	// More arguments than formats.
-//	format = "fish %s frog";
-//	args.clear();
-//	args.push_back("hello");
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == "not all arguments converted during string formatting" && error);
-//	state = state && success;
-//
-//	// Incomplete format.
-//	format = "fish %10";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == "incomplete format" && error);
-//	state = state && success;
-//
-//	// Bad character in format string
-//	format = "fish %&f frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	output = format.sprintf(args, &error);
-//	success = (output == "unsupported format character" && error);
-//	state = state && success;
-//
-//	// Too many decimals.
-//	format = "fish %2.2.2f frog";
-//	args.clear();
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == "too many decimal points in format" && error);
-//	state = state && success;
-//
-//	// * not a number
-//	format = "fish %*f frog";
-//	args.clear();
-//	args.push_back("cheese");
-//	args.push_back(99.99);
-//	output = format.sprintf(args, &error);
-//	success = (output == "* wants number" && error);
-//	state = state && success;
-//
-//	// Character too long.
-//	format = "fish %c frog";
-//	args.clear();
-//	args.push_back("sc");
-//	output = format.sprintf(args, &error);
-//	success = (output == "%c requires number or single-character string" && error);
-//	state = state && success;
-//
-//	// Character bad type.
-//	format = "fish %c frog";
-//	args.clear();
-//	args.push_back(Array());
-//	output = format.sprintf(args, &error);
-//	success = (output == "%c requires number or single-character string" && error);
-//	state = state && success;
-//
-//	CHECK(state);
+	bool success, state = true;
+	String format, output;
+	Array args;
+	bool error;
+
+	// %%
+	format = "fish %% frog";
+	args.clear();
+	output = format.sprintf(args, &error);
+	success = (output == String("fish % frog") && !error);
+	state = state && success;
+
+	//////// INTS
+
+	// Int
+	format = "fish %d frog";
+	args.clear();
+	args.push_back(5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 5 frog") && !error);
+	state = state && success;
+
+	// Int left padded with zeroes.
+	format = "fish %05d frog";
+	args.clear();
+	args.push_back(5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 00005 frog") && !error);
+	state = state && success;
+
+	// Int left padded with spaces.
+	format = "fish %5d frog";
+	args.clear();
+	args.push_back(5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish     5 frog") && !error);
+	state = state && success;
+
+	// Int right padded with spaces.
+	format = "fish %-5d frog";
+	args.clear();
+	args.push_back(5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 5     frog") && !error);
+	state = state && success;
+
+	// Int with sign (positive).
+	format = "fish %+d frog";
+	args.clear();
+	args.push_back(5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish +5 frog") && !error);
+	state = state && success;
+
+	// Negative int.
+	format = "fish %d frog";
+	args.clear();
+	args.push_back(-5);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish -5 frog") && !error);
+	state = state && success;
+
+	// Hex (lower)
+	format = "fish %x frog";
+	args.clear();
+	args.push_back(45);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 2d frog") && !error);
+	state = state && success;
+
+	// Hex (upper)
+	format = "fish %X frog";
+	args.clear();
+	args.push_back(45);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 2D frog") && !error);
+	state = state && success;
+
+	// Octal
+	format = "fish %o frog";
+	args.clear();
+	args.push_back(99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 143 frog") && !error);
+	state = state && success;
+
+	////// REALS
+
+	// Real
+	format = "fish %f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 99.990000 frog") && !error);
+	state = state && success;
+
+	// Real left-padded
+	format = "fish %11f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish   99.990000 frog") && !error);
+	state = state && success;
+
+	// Real right-padded
+	format = "fish %-11f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 99.990000   frog") && !error);
+	state = state && success;
+
+	// Real given int.
+	format = "fish %f frog";
+	args.clear();
+	args.push_back(99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 99.000000 frog") && !error);
+	state = state && success;
+
+	// Real with sign (positive).
+	format = "fish %+f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish +99.990000 frog") && !error);
+	state = state && success;
+
+	// Real with 1 decimals.
+	format = "fish %.1f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 100.0 frog") && !error);
+	state = state && success;
+
+	// Real with 12 decimals.
+	format = "fish %.12f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 99.990000000000 frog") && !error);
+	state = state && success;
+
+	// Real with no decimals.
+	format = "fish %.f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish 100 frog") && !error);
+	state = state && success;
+
+	/////// Strings.
+
+	// String
+	format = "fish %s frog";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == String("fish cheese frog") && !error);
+	state = state && success;
+
+	// String left-padded
+	format = "fish %10s frog";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == String("fish     cheese frog") && !error);
+	state = state && success;
+
+	// String right-padded
+	format = "fish %-10s frog";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == String("fish cheese     frog") && !error);
+	state = state && success;
+
+	///// Characters
+
+	// Character as string.
+	format = "fish %c frog";
+	args.clear();
+	args.push_back("A");
+	output = format.sprintf(args, &error);
+	success = (output == String("fish A frog") && !error);
+	state = state && success;
+
+	// Character as int.
+	format = "fish %c frog";
+	args.clear();
+	args.push_back(65);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish A frog") && !error);
+	state = state && success;
+
+	///// Dynamic width
+
+	// String dynamic width
+	format = "fish %*s frog";
+	args.clear();
+	args.push_back(10);
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == String("fish     cheese frog") && !error);
+	state = state && success;
+
+	// Int dynamic width
+	format = "fish %*d frog";
+	args.clear();
+	args.push_back(10);
+	args.push_back(99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish         99 frog") && !error);
+	state = state && success;
+
+	// Float dynamic width
+	format = "fish %*.*f frog";
+	args.clear();
+	args.push_back(10);
+	args.push_back(3);
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == String("fish     99.990 frog") && !error);
+	state = state && success;
+
+	///// Errors
+
+	// More formats than arguments.
+	format = "fish %s %s frog";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == "not enough arguments for format string" && error);
+	state = state && success;
+
+	// More arguments than formats.
+	format = "fish %s frog";
+	args.clear();
+	args.push_back("hello");
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == "not all arguments converted during string formatting" && error);
+	state = state && success;
+
+	// Incomplete format.
+	format = "fish %10";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == "incomplete format" && error);
+	state = state && success;
+
+	// Bad character in format string
+	format = "fish %&f frog";
+	args.clear();
+	args.push_back("cheese");
+	output = format.sprintf(args, &error);
+	success = (output == "unsupported format character" && error);
+	state = state && success;
+
+	// Too many decimals.
+	format = "fish %2.2.2f frog";
+	args.clear();
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == "too many decimal points in format" && error);
+	state = state && success;
+
+	// * not a number
+	format = "fish %*f frog";
+	args.clear();
+	args.push_back("cheese");
+	args.push_back(99.99);
+	output = format.sprintf(args, &error);
+	success = (output == "* wants number" && error);
+	state = state && success;
+
+	// Character too long.
+	format = "fish %c frog";
+	args.clear();
+	args.push_back("sc");
+	output = format.sprintf(args, &error);
+	success = (output == "%c requires number or single-character string" && error);
+	state = state && success;
+
+	// Character bad type.
+	format = "fish %c frog";
+	args.clear();
+	args.push_back(Array());
+	output = format.sprintf(args, &error);
+	success = (output == "%c requires number or single-character string" && error);
+	state = state && success;
+
+	CHECK(state);
 }
 
 TEST_CASE("[String] IPVX address to string") {
