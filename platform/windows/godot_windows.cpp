@@ -190,6 +190,13 @@ int main(int _argc, char **_argv) {
 	// _argc and _argv are ignored
 	// we are going to use the WideChar version of them instead
 
+	// execute the unit tests for the engine if they're required and instantly return.
+	bool run_test = false;
+	int return_code = Main::test_entrypoint(argc, argv, run_test);
+	if (run_test) {
+		return return_code;
+	}
+
 #ifdef CRASH_HANDLER_EXCEPTION
 	__try {
 		return _main();

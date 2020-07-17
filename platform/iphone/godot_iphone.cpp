@@ -46,6 +46,13 @@ int add_cmdline(int p_argc, char **p_args);
 int iphone_main(int, int, int, char **, String);
 
 int iphone_main(int width, int height, int argc, char **argv, String data_dir) {
+	// execute the unit tests for the engine if they're required and instantly return.
+	bool run_test = false;
+	int return_code = Main::test_entrypoint(argc, argv, run_test);
+	if (run_test) {
+		return return_code;
+	}
+
 	size_t len = strlen(argv[0]);
 
 	while (len--) {

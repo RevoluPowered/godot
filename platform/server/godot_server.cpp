@@ -32,6 +32,13 @@
 #include "os_server.h"
 
 int main(int argc, char *argv[]) {
+	// execute the unit tests for the engine if they're required and instantly return.
+	bool run_test = false;
+	int return_code = Main::test_entrypoint(argc, argv, run_test);
+	if (run_test) {
+		return return_code;
+	}
+
 	OS_Server os;
 
 	Error err = Main::setup(argv[0], argc - 1, &argv[1]);
