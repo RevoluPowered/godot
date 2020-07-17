@@ -47,10 +47,13 @@
 #include "test_render.h"
 #include "test_shader_lang.h"
 #include "test_string.h"
+#include "test_validate_testing.h"
+#include <thirdparty/doctest/doctest.h>
 
 const char **tests_get_names() {
 	static const char *test_names[] = {
-		"string",
+		"*",
+		"all",
 		"math",
 		"basis",
 		"physics_2d",
@@ -72,75 +75,35 @@ const char **tests_get_names() {
 	return test_names;
 }
 
-MainLoop *test_main(String p_test, const List<String> &p_args) {
-	if (p_test == "string") {
-		return TestString::test();
+int test_main(const List<String> &p_args) {
+	// doctest runner for when legacy unit tests are not found
+	doctest::Context test_context;
+	List<String> valid_arguments;
+
+	// clean arguments of --test from the args
+	for (int x = 0; x < p_args.size(); x++) {
+		if (p_args[x] != "--test") {
+			valid_arguments.push_back(p_args[x]);
+			print_verbose("[test handler] added argument: " + p_args[x]);
+		}
 	}
 
-	if (p_test == "math") {
-		return TestMath::test();
+	// convert godot command line arguments back to standard arguments.
+	const char **args = new const char *[valid_arguments.size()];
+	for (int x = 0; x < valid_arguments.size(); x++) {
+		const char *str = (const char *)valid_arguments[x].c_str();
+		args[x] = str;
 	}
 
-	if (p_test == "basis") {
-		return TestBasis::test();
-	}
+	test_context.applyCommandLine(p_args.size(), args);
+	delete[] args;
 
-	if (p_test == "physics_2d") {
-		return TestPhysics2D::test();
-	}
-
-	if (p_test == "physics_3d") {
-		return TestPhysics3D::test();
-	}
-
-	if (p_test == "render") {
-		return TestRender::test();
-	}
-
-	if (p_test == "oa_hash_map") {
-		return TestOAHashMap::test();
-	}
-
-	if (p_test == "class_db") {
-		return TestClassDB::test();
-	}
-
-#ifndef _3D_DISABLED
-	if (p_test == "gui") {
-		return TestGUI::test();
-	}
-#endif
-
-	if (p_test == "shaderlang") {
-		return TestShaderLang::test();
-	}
-
-	if (p_test == "gd_tokenizer") {
-		return TestGDScript::test(TestGDScript::TEST_TOKENIZER);
-	}
-
-	if (p_test == "gd_parser") {
-		return TestGDScript::test(TestGDScript::TEST_PARSER);
-	}
-
-	if (p_test == "gd_compiler") {
-		return TestGDScript::test(TestGDScript::TEST_COMPILER);
-	}
-
-	if (p_test == "gd_bytecode") {
-		return TestGDScript::test(TestGDScript::TEST_BYTECODE);
-	}
-
-	if (p_test == "ordered_hash_map") {
-		return TestOrderedHashMap::test();
-	}
-
-	if (p_test == "astar") {
-		return TestAStar::test();
-	}
-
-	print_line("Unknown test: " + p_test);
-	return nullptr;
+	test_context.setOption("order-by", "name");
+	test_context.setOption("abort-after", 5);
+	test_context.setOption("no-breaks", true);
+	int test_return_code = test_context.run();
+	OS::get_singleton()->set_exit_code(test_return_code);
+	return test_return_code;
 }
 
 #else
@@ -153,8 +116,8 @@ const char **tests_get_names() {
 	return test_names;
 }
 
-MainLoop *test_main(String p_test, const List<String> &p_args) {
-	return nullptr;
+int test_main(const List<String> &p_args) {
+	return 0;
 }
 
 #endif

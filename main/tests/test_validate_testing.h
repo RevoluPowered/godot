@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  test_main.h                                                          */
+/*  test_validate_testing.h                                              */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,14 +28,16 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef TEST_MAIN_H
-#define TEST_MAIN_H
+#ifndef TEST_VALIDATE_TESTING_H
+#define TEST_VALIDATE_TESTING_H
 
-#include "core/list.h"
-#include "core/os/main_loop.h"
-#include "core/ustring.h"
+#include "core/os/os.h"
 
-const char **tests_get_names();
-int test_main(const List<String> &p_args);
+#include "thirdparty/doctest/doctest.h"
 
-#endif // TEST_MAIN_H
+TEST_CASE("Validate Test will always pass") {
+	OS::get_singleton()->print("this test will pass always\n");
+	CHECK(true);
+}
+
+#endif // TEST_VALIDATE_TESTING_H

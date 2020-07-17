@@ -74,6 +74,14 @@ Files extracted from upstream source:
 - all .cpp, .h, and .txt files in ConvectionKernels/
 
 
+## doctest
+- Upstream: https://github.com/onqtam/doctest.git
+- Version: 1c8da00 (2.4.0)
+- License: MIT License
+
+Extracted from .zip provided. Extracted license and header only.
+
+
 ## enet
 
 - Upstream: http://enet.bespin.org
