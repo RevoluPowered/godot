@@ -33,7 +33,7 @@
 
 #include "core/reference.h"
 #include "core/ustring.h"
-#include "modules/fbx_importer/tools/import_utils.h"
+#include "modules/fbx/tools/import_utils.h"
 
 struct FBXMaterial : public Reference {
 	String material_name = String();

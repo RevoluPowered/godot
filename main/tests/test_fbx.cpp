@@ -36,7 +36,7 @@
 
 #include "test_fbx.h"
 
-#include <modules/fbx_importer/editor_scene_importer_fbx.h>
+#include "modules/fbx/editor_scene_importer_fbx.h"
 
 namespace TestFBX {
 
