@@ -54,7 +54,6 @@
 #include <string>
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {
-
 	const String import_setting_string = "filesystem/import/fbx/";
 
 	Map<String, ImportFormat> import_format;
