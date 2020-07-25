@@ -31,8 +31,8 @@
 #ifndef IMPORT_UTILS_FBX_IMPORTER_H
 #define IMPORT_UTILS_FBX_IMPORTER_H
 
-#include "modules/fbx/data/FBX/FBXDocument.h"
 #include "modules/fbx/data/import_state.h"
+#include "thirdparty/assimp_fbx/FBXDocument.h"
 
 #include "core/io/image_loader.h"
 #include <string>

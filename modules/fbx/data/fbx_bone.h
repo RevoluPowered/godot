@@ -31,9 +31,9 @@
 #ifndef MODEL_ABSTRACTION_FBX_BONE_H
 #define MODEL_ABSTRACTION_FBX_BONE_H
 
-#include "FBX/FBXDocument.h"
 #include "fbx_node.h"
 #include "import_state.h"
+#include "thirdparty/assimp_fbx/FBXDocument.h"
 
 struct PivotTransform;
 

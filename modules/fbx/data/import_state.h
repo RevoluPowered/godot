@@ -47,12 +47,12 @@
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
 
-#include "FBX/FBXDocument.h"
-#include "FBX/FBXImportSettings.h"
-#include "FBX/FBXMeshGeometry.h"
-#include "FBX/FBXParser.h"
-#include "FBX/FBXTokenizer.h"
-#include "FBX/FBXUtil.h"
+#include "thirdparty/assimp_fbx/FBXDocument.h"
+#include "thirdparty/assimp_fbx/FBXImportSettings.h"
+#include "thirdparty/assimp_fbx/FBXMeshGeometry.h"
+#include "thirdparty/assimp_fbx/FBXParser.h"
+#include "thirdparty/assimp_fbx/FBXTokenizer.h"
+#include "thirdparty/assimp_fbx/FBXUtil.h"
 
 struct FBXBone;
 struct FBXMeshData;

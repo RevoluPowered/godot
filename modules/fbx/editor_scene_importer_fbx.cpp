@@ -45,12 +45,12 @@
 #include "scene/resources/material.h"
 #include "tools/import_utils.h"
 
-#include "data/FBX/FBXDocument.h"
-#include "data/FBX/FBXImportSettings.h"
-#include "data/FBX/FBXMeshGeometry.h"
-#include "data/FBX/FBXParser.h"
-#include "data/FBX/FBXProperties.h"
-#include "data/FBX/FBXTokenizer.h"
+#include "thirdparty/assimp_fbx/FBXDocument.h"
+#include "thirdparty/assimp_fbx/FBXImportSettings.h"
+#include "thirdparty/assimp_fbx/FBXMeshGeometry.h"
+#include "thirdparty/assimp_fbx/FBXParser.h"
+#include "thirdparty/assimp_fbx/FBXProperties.h"
+#include "thirdparty/assimp_fbx/FBXTokenizer.h"
 #include <string>
 
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {

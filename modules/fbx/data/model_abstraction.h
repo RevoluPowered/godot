@@ -31,7 +31,7 @@
 #ifndef MODEL_ABSTRACTION_FBX_IMPORTER_H
 #define MODEL_ABSTRACTION_FBX_IMPORTER_H
 
-#include "FBX/FBXDocument.h"
+#include "thirdparty/assimp_fbx/FBXDocument.h"
 
 struct ModelAbstraction {
 	mutable const Assimp::FBX::Model *fbx_model = nullptr;
