@@ -31,7 +31,7 @@
 #include "fbx_skeleton.h"
 
 #include "import_state.h"
-#include "modules/fbx_importer/tools/import_utils.h"
+#include "modules/fbx/tools/import_utils.h"
 
 void FBXSkeleton::init_skeleton(const ImportState &state) {
 	int skeleton_bone_count = skeleton_bones.size();

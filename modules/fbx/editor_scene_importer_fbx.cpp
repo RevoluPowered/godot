@@ -36,7 +36,7 @@
 #include "editor/editor_log.h"
 #include "editor/editor_node.h"
 #include "editor/import/resource_importer_scene.h"
-#include "modules/fbx_importer/data/fbx_mesh_data.h"
+#include "modules/fbx/data/fbx_mesh_data.h"
 #include "scene/3d/bone_attachment.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/light.h"

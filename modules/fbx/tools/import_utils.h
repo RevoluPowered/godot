@@ -31,11 +31,10 @@
 #ifndef IMPORT_UTILS_FBX_IMPORTER_H
 #define IMPORT_UTILS_FBX_IMPORTER_H
 
-#include "modules/fbx_importer/data/FBX/FBXDocument.h"
+#include "modules/fbx/data/FBX/FBXDocument.h"
+#include "modules/fbx/data/import_state.h"
 
 #include "core/io/image_loader.h"
-#include "modules/fbx_importer/data/import_state.h"
-
 #include <string>
 
 #define CONVERT_FBX_TIME(time) static_cast<double>(time) / 46186158000LL

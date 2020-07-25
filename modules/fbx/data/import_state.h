@@ -32,7 +32,7 @@
 #define EDITOR_SCENE_IMPORT_STATE_H
 
 #include "fbx_mesh_data.h"
-#include "modules/fbx_importer/tools/import_utils.h"
+#include "modules/fbx/tools/import_utils.h"
 #include "pivot_transform.h"
 
 #include "core/bind/core_bind.h"

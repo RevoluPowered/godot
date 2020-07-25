@@ -34,7 +34,7 @@
 #include "core/vector.h"
 
 // Generic keyframes 99.99 percent of files will be vector3, except if quat interp is used, or visibility tracks
-// FBXTrack is used in a map in the implementation in fbx_importer/editor_scene_importer_fbx.cpp
+// FBXTrack is used in a map in the implementation in fbx/editor_scene_importer_fbx.cpp
 // to avoid having to rewrite the entire logic I refactored this into the code instead.
 // once it works I can rewrite so we can add the fun misc features / small features
 struct FBXTrack {
@@ -42,9 +42,5 @@ struct FBXTrack {
 	Vector3 default_value;
 	std::map<uint64_t, Vector3> keyframes;
 };
-
-// old code - before we didn't need an interchangable type and default value for track
-// target id, [ track name, [time index, vector] ]
-// std::map<uint64_t, std::map<StringName, std::map<uint64_t, Vector3> > > AnimCurveNodes;
 
 #endif //MODEL_ABSTRACTION_ANIM_CONTAINER_H
