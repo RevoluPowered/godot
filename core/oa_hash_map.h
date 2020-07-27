@@ -351,6 +351,7 @@ public:
 	}
 
 	OAHashMap(const OAHashMap &p_other) {
+		capacity = 0;
 		(*this) = p_other;
 	}
 
@@ -361,7 +362,10 @@ public:
 
 		_resize_and_rehash(p_other.capacity);
 
-		for (Iterator it = p_other.iter(); it.valid; it = p_other.next_iter(it)) {
+		for (
+				Iterator it = p_other.iter();
+				it.valid;
+				it = p_other.next_iter(it)) {
 			set(*it.key, *it.value);
 		}
 		return *this;
