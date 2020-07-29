@@ -332,8 +332,26 @@ public:
 		return it;
 	}
 
-	OAHashMap(const OAHashMap &) = delete; // Delete the copy constructor so we don't get unexpected copies and dangling pointers.
-	OAHashMap &operator=(const OAHashMap &) = delete; // Same for assignment operator.
+	OAHashMap(const OAHashMap &p_other) {
+		capacity = 0;
+		(*this) = p_other;
+	}
+
+	OAHashMap &operator=(const OAHashMap &p_other) {
+		if (capacity != 0) {
+			clear();
+		}
+
+		_resize_and_rehash(p_other.capacity);
+
+		for (
+				Iterator it = p_other.iter();
+				it.valid;
+				it = p_other.next_iter(it)) {
+			set(*it.key, *it.value);
+		}
+		return *this;
+	}
 
 	OAHashMap(uint32_t p_initial_capacity = 64) {
 
