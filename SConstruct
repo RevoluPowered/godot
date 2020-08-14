@@ -244,9 +244,12 @@ if env_base["target"] == "debug":
     # The two options below speed up incremental builds, but reduce the certainty that all files
     # will properly be rebuilt. As such, we only enable them for debug (dev) builds, not release.
 
+    # Use exact timestamp matches by default.
+    Decider('timestamp-match')
+
     # To decide whether to rebuild a file, use the MD5 sum only if the timestamp has changed.
     # http://scons.org/doc/production/HTML/scons-user/ch06.html#idm139837621851792
-    env_base.Decider("MD5-timestamp")
+    env_base.Decider('timestamp-match')
     # Use cached implicit dependencies by default. Can be overridden by specifying `--implicit-deps-changed` in the command line.
     # http://scons.org/doc/production/HTML/scons-user/ch06s04.html
     env_base.SetOption("implicit_cache", 1)
