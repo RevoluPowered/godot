@@ -10,30 +10,11 @@ env_modules = env.Clone()
 Export("env_modules")
 
 # Header with MODULE_*_ENABLED defines.
-env.CommandNoCache(
+env.Depends(
     "modules_enabled.gen.h",
-    Value(env.module_list),
-    env.Run(
-        modules_builders.generate_modules_enabled,
-        "Generating enabled modules header.",
-        # NOTE: No need to run in subprocess since this is still executed serially.
-        subprocess=False,
-    ),
+    Value(env.module_list)
 )
 
-# Header to be included in `tests/test_main.cpp` to run module-specific tests.
-if env["tests"]:
-    env.CommandNoCache(
-        "modules_tests.gen.h",
-        Value(env.module_list),
-        env.Run(
-            modules_builders.generate_modules_tests,
-            "Generating modules tests header.",
-            # NOTE: No need to run in subprocess since this is still executed serially.
-            subprocess=False,
-        ),
-    )
-    env.AlwaysBuild("modules_tests.gen.h")
 
 vs_sources = []
 # libmodule_<name>.a for each active module.
