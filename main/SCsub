@@ -26,4 +26,3 @@ env_main.Depends("#main/app_icon.gen.h", "#main/app_icon.png")
 env_main.CommandNoCache("#main/app_icon.gen.h", "#main/app_icon.png", run_in_subprocess(main_builders.make_app_icon))
 
 lib = env_main.add_library("main", env.main_sources)
-env.Prepend(LIBS=[lib])
