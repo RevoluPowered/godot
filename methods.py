@@ -604,7 +604,7 @@ def add_shared_library(env, name, sources, **args):
 
 
 def add_library(env, name, sources, **args):
-    library = env.Library(name, sources, **args)
+    library = env.SharedLibrary(name, sources, **args)
     env.NoCache(library)
     return library
 
