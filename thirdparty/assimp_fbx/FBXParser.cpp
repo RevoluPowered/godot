@@ -80,7 +80,7 @@ namespace Assimp {
 namespace FBX {
 
 // ------------------------------------------------------------------------------------------------
-Element::Element(const Token &key_token, Parser &parser) :
+Element::Element(const TokenPtr key_token, Parser &parser) :
 		key_token(key_token) {
 	TokenPtr n = nullptr;
 	do {
@@ -150,7 +150,7 @@ Scope::Scope(Parser &parser, bool topLevel) {
 	}
 
 	TokenPtr n = parser.AdvanceToNextToken();
-	if (n == NULL) {
+	if (n == nullptr) {
 		print_error("unexpected end of file");
 	}
 
@@ -161,7 +161,7 @@ Scope::Scope(Parser &parser, bool topLevel) {
 		}
 
 		const std::string &str = n->StringContents();
-		elements.insert(ElementMap::value_type(str, new_Element(*n, parser)));
+		elements.insert(ElementMap::value_type(str, new_Element(n, parser)));
 
 		// Element() should stop at the next Key token (or right after a Close token)
 		n = parser.CurrentToken();
@@ -197,7 +197,7 @@ Parser::~Parser() {
 TokenPtr Parser::AdvanceToNextToken() {
 	last = current;
 	if (cursor == tokens.end()) {
-		current = NULL;
+		current = nullptr;
 	} else {
 		current = *cursor++;
 	}
@@ -215,32 +215,33 @@ TokenPtr Parser::LastToken() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
-	err_out = NULL;
+uint64_t ParseTokenAsID(const TokenPtr t, const char *&err_out) {
+	ERR_FAIL_COND_V_MSG(t == nullptr, 0L, "Invalid token passed to ParseTokenAsID");
+	err_out = nullptr;
 
-	if (t.Type() != TokenType_DATA) {
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return 0L;
 	}
 
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'L') {
 			err_out = "failed to parse ID, unexpected data type, expected L(ong) (binary)";
 			return 0L;
 		}
 
-		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
+		uint64_t id = SafeParse<uint64_t>(data + 1, t->end());
 		return id;
 	}
 
 	// XXX: should use size_t here
-	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
+	unsigned int length = static_cast<unsigned int>(t->end() - t->begin());
 	//ai_assert(length > 0);
 
 	const char *out = nullptr;
-	const uint64_t id = strtoul10_64(t.begin(), &out, &length);
-	if (out > t.end()) {
+	const uint64_t id = strtoul10_64(t->begin(), &out, &length);
+	if (out > t->end()) {
 		err_out = "failed to parse ID (text)";
 		return 0L;
 	}
@@ -249,42 +250,53 @@ uint64_t ParseTokenAsID(const Token &t, const char *&err_out) {
 }
 
 // ------------------------------------------------------------------------------------------------
-size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
-	// same as ID parsing, except there is a trailing asterisk
-	err_out = NULL;
+// wrapper around ParseTokenAsID() with print_error handling
+uint64_t ParseTokenAsID(const TokenPtr t) {
+	const char *err = nullptr;
+	const uint64_t i = ParseTokenAsID(t, err);
+	if (err) {
+		print_error(String(err) + " " + String(t->StringContents().c_str()));
+	}
+	return i;
+}
 
-	if (t.Type() != TokenType_DATA) {
+// ------------------------------------------------------------------------------------------------
+size_t ParseTokenAsDim(const TokenPtr t, const char *&err_out) {
+	// same as ID parsing, except there is a trailing asterisk
+	err_out = nullptr;
+
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return 0;
 	}
 
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'L') {
 			err_out = "failed to parse ID, unexpected data type, expected L(ong) (binary)";
 			return 0;
 		}
 
-		uint64_t id = SafeParse<uint64_t>(data + 1, t.end());
+		uint64_t id = SafeParse<uint64_t>(data + 1, t->end());
 		AI_SWAP8(id);
 		return static_cast<size_t>(id);
 	}
 
-	if (*t.begin() != '*') {
+	if (*t->begin() != '*') {
 		err_out = "expected asterisk before array dimension";
 		return 0;
 	}
 
 	// XXX: should use size_t here
-	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
+	unsigned int length = static_cast<unsigned int>(t->end() - t->begin());
 	if (length == 0) {
 		err_out = "expected valid integer number after asterisk";
 		return 0;
 	}
 
 	const char *out = nullptr;
-	const size_t id = static_cast<size_t>(strtoul10_64(t.begin() + 1, &out, &length));
-	if (out > t.end()) {
+	const size_t id = static_cast<size_t>(strtoul10_64(t->begin() + 1, &out, &length));
+	if (out > t->end()) {
 		print_error("failed to parse id");
 		err_out = "failed to parse ID";
 		return 0;
@@ -294,111 +306,110 @@ size_t ParseTokenAsDim(const Token &t, const char *&err_out) {
 }
 
 // ------------------------------------------------------------------------------------------------
-float ParseTokenAsFloat(const Token &t, const char *&err_out) {
-	err_out = NULL;
+float ParseTokenAsFloat(const TokenPtr t, const char *&err_out) {
+	err_out = nullptr;
 
-	if (t.Type() != TokenType_DATA) {
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return 0.0f;
 	}
 
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'F' && data[0] != 'D') {
 			err_out = "failed to parse F(loat) or D(ouble), unexpected data type (binary)";
 			return 0.0f;
 		}
 
 		if (data[0] == 'F') {
-			return SafeParse<float>(data + 1, t.end());
+			return SafeParse<float>(data + 1, t->end());
 		} else {
-			return static_cast<float>(SafeParse<double>(data + 1, t.end()));
+			return static_cast<float>(SafeParse<double>(data + 1, t->end()));
 		}
 	}
 
 	// need to copy the input string to a temporary buffer
 	// first - next in the fbx token stream comes ',',
 	// which fast_atof could interpret as decimal point.
-#define MAX_FLOAT_LENGTH 31
+	#define MAX_FLOAT_LENGTH 31
 	char temp[MAX_FLOAT_LENGTH + 1];
-	const size_t length = static_cast<size_t>(t.end() - t.begin());
-	std::copy(t.begin(), t.end(), temp);
+	const size_t length = static_cast<size_t>(t->end() - t->begin());
+	std::copy(t->begin(), t->end(), temp);
 	temp[std::min(static_cast<size_t>(MAX_FLOAT_LENGTH), length)] = '\0';
 
 	return atof(temp);
 }
 
 // ------------------------------------------------------------------------------------------------
-int ParseTokenAsInt(const Token &t, const char *&err_out) {
-	err_out = NULL;
+int ParseTokenAsInt(const TokenPtr t, const char *&err_out) {
+	err_out = nullptr;
 
-	if (t.Type() != TokenType_DATA) {
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return 0;
 	}
 
 	// binary files are simple to parse
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'I') {
 			err_out = "failed to parse I(nt), unexpected data type (binary)";
 			return 0;
 		}
 
-		int32_t ival = SafeParse<int32_t>(data + 1, t.end());
+		int32_t ival = SafeParse<int32_t>(data + 1, t->end());
 		AI_SWAP4(ival);
 		return static_cast<int>(ival);
 	}
 
 
 	// ASCII files are unsafe.
-
-	const size_t length = static_cast<size_t>(t.end() - t.begin());
+	const size_t length = static_cast<size_t>(t->end() - t->begin());
 	if (length == 0) {
 		err_out = "expected valid integer number after asterisk";
 		ERR_FAIL_V_MSG(0,"expected valid integer number after asterisk");
 	}
 
 	// must not be null for strtol to work
-	char *out = (char *) t.end();
+	char *out = (char *) t->end();
 	// string begin, end ptr ref, base 10
-	const int intval = strtol(t.begin(), &out, 10);
-	if (out == nullptr || out != t.end()) {
+	const int value = strtol(t->begin(), &out, 10);
+	if (out == nullptr || out != t->end()) {
 		err_out = "failed to parse ID";
 		ERR_FAIL_V_MSG(0,"failed to parse ID");
 	}
 
-	return intval;
+	return value;
 }
 
 // ------------------------------------------------------------------------------------------------
-int64_t ParseTokenAsInt64(const Token &t, const char *&err_out) {
-	err_out = NULL;
+int64_t ParseTokenAsInt64(const TokenPtr t, const char *&err_out) {
+	err_out = nullptr;
 
-	if (t.Type() != TokenType_DATA) {
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return 0L;
 	}
 
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'L') {
 			err_out = "failed to parse Int64, unexpected data type";
 			return 0L;
 		}
 
-		int64_t id = SafeParse<int64_t>(data + 1, t.end());
+		int64_t id = SafeParse<int64_t>(data + 1, t->end());
 		AI_SWAP8(id);
 		return id;
 	}
 
 	// XXX: should use size_t here
-	unsigned int length = static_cast<unsigned int>(t.end() - t.begin());
+	unsigned int length = static_cast<unsigned int>(t->end() - t->begin());
 	//ai_assert(length > 0);
 
 	char *out = nullptr;
-	const int64_t id = strtol(t.begin(), &out, length);
-	if (out > t.end()) {
+	const int64_t id = strtol(t->begin(), &out, length);
+	if (out > t->end()) {
 		err_out = "failed to parse Int64 (text)";
 		return 0L;
 	}
@@ -407,36 +418,36 @@ int64_t ParseTokenAsInt64(const Token &t, const char *&err_out) {
 }
 
 // ------------------------------------------------------------------------------------------------
-std::string ParseTokenAsString(const Token &t, const char *&err_out) {
-	err_out = NULL;
+std::string ParseTokenAsString(const TokenPtr t, const char *&err_out) {
+	err_out = nullptr;
 
-	if (t.Type() != TokenType_DATA) {
+	if (t->Type() != TokenType_DATA) {
 		err_out = "expected TOK_DATA token";
 		return "";
 	}
 
-	if (t.IsBinary()) {
-		const char *data = t.begin();
+	if (t->IsBinary()) {
+		const char *data = t->begin();
 		if (data[0] != 'S') {
-			err_out = "failed to parse S(tring), unexpected data type (binary)";
+			err_out = "failed to parse String, unexpected data type (binary)";
 			return "";
 		}
 
 		// read string length
-		int32_t len = SafeParse<int32_t>(data + 1, t.end());
+		int32_t len = SafeParse<int32_t>(data + 1, t->end());
 		AI_SWAP4(len);
 
 		//ai_assert(t.end() - data == 5 + len);
 		return std::string(data + 5, len);
 	}
 
-	const size_t length = static_cast<size_t>(t.end() - t.begin());
+	const size_t length = static_cast<size_t>(t->end() - t->begin());
 	if (length < 2) {
 		err_out = "token is too short to hold a string";
 		return "";
 	}
 
-	const char *s = t.begin(), *e = t.end() - 1;
+	const char *s = t->begin(), *e = t->end() - 1;
 	if (*s != '\"' || *e != '\"') {
 		err_out = "expected double quoted string";
 		return "";
@@ -450,9 +461,9 @@ namespace {
 // ------------------------------------------------------------------------------------------------
 // read the type code and element count of a binary data array and stop there
 void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uint32_t &count,
-		const Element &el) {
+		const Element *el) {
 	if (static_cast<size_t>(end - data) < 5) {
-		print_error("binary data array is too short, need five (5) bytes for type signature and element count: " + String(el.KeyToken().StringContents().c_str()));
+		print_error("binary data array is too short, need five (5) bytes for type signature and element count: " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	// data type
@@ -548,12 +559,12 @@ void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const cha
 
 // ------------------------------------------------------------------------------------------------
 // read an array of float3 tuples
-void ParseVectorDataArray(std::vector<Vector3> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
 	out.resize(0);
 
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element" + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element" + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -572,7 +583,7 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element &el) {
 		}
 
 		if (type != 'd' && type != 'f') {
-			print_error("expected float or double array (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected float or double array (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -608,24 +619,24 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// may throw bad_alloc if the input is rubbish, but this need
 	// not to be prevented - importing would fail but we wouldn't
 	// crash since assimp handles this case properly.
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	if (a.Tokens().size() % 3 != 0) {
-		print_error("number of floats is not a multiple of three (3)" + String(el.KeyToken().StringContents().c_str()));
+	if (a->Tokens().size() % 3 != 0) {
+		print_error("number of floats is not a multiple of three (3)" + String(el->KeyToken()->StringContents().c_str()));
 	}
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		Vector3 v;
-		v.x = ParseTokenAsFloat(**it++);
-		v.y = ParseTokenAsFloat(**it++);
-		v.z = ParseTokenAsFloat(**it++);
+		v.x = ParseTokenAsFloat(*it++);
+		v.y = ParseTokenAsFloat(*it++);
+		v.z = ParseTokenAsFloat(*it++);
 
 		out.push_back(v);
 	}
@@ -685,7 +696,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	//  see notes in ParseVectorDataArray() above
 	out.reserve(dim);
@@ -822,16 +833,16 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", &el);
 
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
-		const int ival = ParseTokenAsInt(**it++);
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
+		const int ival = ParseTokenAsInt(*it++);
 		out.push_back(ival);
 	}
 }
@@ -901,7 +912,7 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 	out.resize(0);
 	const TokenList &tok = el.Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element: " + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element: " + String(el.KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -940,13 +951,13 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", &el);
 
 	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
 		const int ival = ParseTokenAsInt(**it++);
@@ -1008,7 +1019,7 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 	const Element &a = GetRequiredElement(scope, "a", &el);
 
 	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
-		const uint64_t ival = ParseTokenAsID(**it++);
+		const uint64_t ival = ParseTokenAsID(*it++);
 
 		out.push_back(ival);
 	}
@@ -1016,11 +1027,11 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of int64_ts
-void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
 	out.resize(0);
 	const TokenList &tok = el.Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element: " + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element: " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -1035,7 +1046,7 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el) {
 		}
 
 		if (type != 'l') {
-			print_error("expected long array (binary) " + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected long array (binary) " + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -1056,23 +1067,22 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
+	const Scope *scope = GetRequiredScope(el);
 	const Element &a = GetRequiredElement(scope, "a", &el);
 
 	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
-		const int64_t ival = ParseTokenAsInt64(**it++);
-
-		out.push_back(ival);
+		const int64_t val = ParseTokenAsInt64(*it++);
+		out.push_back(val);
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
-Transform ReadMatrix(const Element &element) {
+Transform ReadMatrix(const Element *element) {
 	std::vector<float> values;
 	ParseVectorDataArray(values, element);
 
@@ -1109,17 +1119,27 @@ Transform ReadMatrix(const Element &element) {
 
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsString() with print_error handling
-std::string ParseTokenAsString(const Token &t) {
+std::string ParseTokenAsString(const TokenPtr t) {
 	const char *err;
 	const std::string &i = ParseTokenAsString(t, err);
 	if (err) {
-		print_error(String(err) + ", " + String(t.StringContents().c_str()));
+		print_error(String(err) + ", " + String(t->StringContents().c_str()));
 	}
 	return i;
 }
 
-bool HasElement(const Scope &sc, const std::string &index) {
-	const Element *el = sc[index];
+// ------------------------------------------------------------------------------------------------
+// extract a required element from a scope, abort if the element cannot be found
+const Element *GetRequiredElement(const Scope *sc, const std::string &index, const Element *element /*= NULL*/) {
+	const Element *el = sc->GetElement(index);
+	if (!el) {
+		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(element->KeyToken().StringContents().c_str()));
+	}
+	return el;
+}
+
+bool HasElement(const Scope *sc, const std::string &index) {
+	const Element *el = sc->GetElement(index);
 	if (nullptr == el) {
 		return false;
 	}
@@ -1129,30 +1149,9 @@ bool HasElement(const Scope &sc, const std::string &index) {
 
 // ------------------------------------------------------------------------------------------------
 // extract a required element from a scope, abort if the element cannot be found
-const Element &GetRequiredElement(const Scope &sc, const std::string &index, const Element *element /*= NULL*/) {
-	const Element *el = sc[index];
-	if (!el) {
-		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(element->KeyToken().StringContents().c_str()));
-	}
-	return *el;
-}
-
-// ------------------------------------------------------------------------------------------------
-// extract a required element from a scope, abort if the element cannot be found
-const Element *GetOptionalElement(const Scope &sc, const std::string &index, const Element *element /*= NULL*/) {
-	const Element *el = sc[index];
+const Element *GetOptionalElement(const Scope *sc, const std::string &index, const Element *element /*= NULL*/) {
+	const Element *el = sc->GetElement(index);
 	return el;
-}
-
-// ------------------------------------------------------------------------------------------------
-// extract required compound scope
-const Scope &GetRequiredScope(const Element &el) {
-	const Scope *const s = el.Compound();
-	if (!s) {
-		print_error("expected compound scope " + String(el.KeyToken().StringContents().c_str()));
-	}
-
-	return *s;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1164,7 +1163,7 @@ const Scope *GetRequiredScope(const Element *el) {
 			return s;
 		}
 
-		ERR_FAIL_V_MSG(nullptr,"expected compound scope " + String(el->KeyToken().StringContents().c_str()));
+		ERR_FAIL_V_MSG(nullptr,"expected compound scope " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	ERR_FAIL_V_MSG(nullptr, "Invalid element supplied to parser");
@@ -1178,7 +1177,7 @@ TokenPtr GetRequiredToken(const Element *el, unsigned int index) {
 		const TokenList& x = el->Tokens();
 
 		if (index >= x.size()) {
-			ERR_FAIL_V_MSG(nullptr,"missing token at index: " + itos(index) + " " + String(el->KeyToken().StringContents().c_str()));
+			ERR_FAIL_V_MSG(nullptr,"missing token at index: " + itos(index) + " " + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		return x[index];
@@ -1187,68 +1186,49 @@ TokenPtr GetRequiredToken(const Element *el, unsigned int index) {
 	return nullptr;
 }
 
-// ------------------------------------------------------------------------------------------------
-// get token at a particular index
-const Token &GetRequiredToken(const Element &el, unsigned int index) {
-	const TokenList &t = el.Tokens();
-	if (index >= t.size()) {
-		print_error("missing token at index: " + itos(index) + " " + String(el.KeyToken().StringContents().c_str()));
-	}
 
-	return *t[index];
-}
 
-// ------------------------------------------------------------------------------------------------
-// wrapper around ParseTokenAsID() with print_error handling
-uint64_t ParseTokenAsID(const Token &t) {
-	const char *err;
-	const uint64_t i = ParseTokenAsID(t, err);
-	if (err) {
-		print_error(String(err) + " " + String(t.StringContents().c_str()));
-	}
-	return i;
-}
 
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsDim() with print_error handling
-size_t ParseTokenAsDim(const Token &t) {
+size_t ParseTokenAsDim(const TokenPtr t) {
 	const char *err;
 	const size_t i = ParseTokenAsDim(t, err);
 	if (err) {
-		print_error(String(err) + " " + String(t.StringContents().c_str()));
+		print_error(String(err) + " " + String(t->StringContents().c_str()));
 	}
 	return i;
 }
 
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsFloat() with print_error handling
-float ParseTokenAsFloat(const Token &t) {
+float ParseTokenAsFloat(const TokenPtr t) {
 	const char *err;
 	const float i = ParseTokenAsFloat(t, err);
 	if (err) {
-		print_error(String(err) + " " + String(t.StringContents().c_str()));
+		print_error(String(err) + " " + String(t->StringContents().c_str()));
 	}
 	return i;
 }
 
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsInt() with print_error handling
-int ParseTokenAsInt(const Token &t) {
+int ParseTokenAsInt(const TokenPtr t) {
 	const char *err;
 	const int i = ParseTokenAsInt(t, err);
 	if (err) {
-		print_error(String(err) + " " + String(t.StringContents().c_str()));
+		print_error(String(err) + " " + String(t->StringContents().c_str()));
 	}
 	return i;
 }
 
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsInt64() with print_error handling
-int64_t ParseTokenAsInt64(const Token &t) {
+int64_t ParseTokenAsInt64(const TokenPtr t) {
 	const char *err;
 	const int64_t i = ParseTokenAsInt64(t, err);
 	if (err) {
-		print_error(String(err) + " " + String(t.StringContents().c_str()));
+		print_error(String(err) + " " + String(t->StringContents().c_str()));
 	}
 	return i;
 }
