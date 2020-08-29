@@ -87,14 +87,14 @@ typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> Elemen
  *  as their trailing member.  **/
 class Element {
 public:
-	Element(const Token &key_token, Parser &parser);
+	Element(const TokenPtr key_token, Parser &parser);
 	~Element();
 
 	const Scope *Compound() const {
 		return compound.get();
 	}
 
-	const Token &KeyToken() const {
+	const TokenPtr KeyToken() const {
 		return key_token;
 	}
 
@@ -103,7 +103,7 @@ public:
 	}
 
 private:
-	const Token key_token;
+	const TokenPtr key_token;
 	TokenList tokens;
 	std::shared_ptr<Scope> compound = nullptr;
 };
@@ -124,7 +124,7 @@ public:
 	Scope(Parser &parser, bool topLevel = false);
 	~Scope();
 
-	const Element *operator[](const std::string &index) const {
+	const Element *GetElement(const std::string &index) const {
 		ElementMap::const_iterator it = elements.find(index);
 		return it == elements.end() ? nullptr : (*it).second;
 	}
@@ -186,46 +186,44 @@ private:
 };
 
 /* token parsing - this happens when building the DOM out of the parse-tree*/
-uint64_t ParseTokenAsID(const Token &t, const char *&err_out);
-size_t ParseTokenAsDim(const Token &t, const char *&err_out);
-
-float ParseTokenAsFloat(const Token &t, const char *&err_out);
-int ParseTokenAsInt(const Token &t, const char *&err_out);
-int64_t ParseTokenAsInt64(const Token &t, const char *&err_out);
-std::string ParseTokenAsString(const Token &t, const char *&err_out);
+uint64_t ParseTokenAsID(const TokenPtr t, const char *&err_out);
+size_t ParseTokenAsDim(const TokenPtr t, const char *&err_out);
+float ParseTokenAsFloat(const TokenPtr t, const char *&err_out);
+int ParseTokenAsInt(const TokenPtr t, const char *&err_out);
+int64_t ParseTokenAsInt64(const TokenPtr t, const char *&err_out);
+std::string ParseTokenAsString(const TokenPtr t, const char *&err_out);
 
 /* wrapper around ParseTokenAsXXX() with DOMError handling */
-uint64_t ParseTokenAsID(const Token &t);
-size_t ParseTokenAsDim(const Token &t);
-float ParseTokenAsFloat(const Token &t);
-int ParseTokenAsInt(const Token &t);
-int64_t ParseTokenAsInt64(const Token &t);
-std::string ParseTokenAsString(const Token &t);
+uint64_t ParseTokenAsID(const TokenPtr t);
+size_t ParseTokenAsDim(const TokenPtr t);
+float ParseTokenAsFloat(const TokenPtr t);
+int ParseTokenAsInt(const TokenPtr t);
+int64_t ParseTokenAsInt64(const TokenPtr t);
+std::string ParseTokenAsString(const TokenPtr t);
 
 /* read data arrays */
-void ParseVectorDataArray(std::vector<Vector3> &out, const Element &el);
-void ParseVectorDataArray(std::vector<Color> &out, const Element &el);
-void ParseVectorDataArray(std::vector<Vector2> &out, const Element &el);
-void ParseVectorDataArray(std::vector<int> &out, const Element &el);
-void ParseVectorDataArray(std::vector<float> &out, const Element &el);
-void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el);
-void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &e);
-void ParseVectorDataArray(std::vector<int64_t> &out, const Element &el);
-bool HasElement(const Scope &sc, const std::string &index);
+void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el);
+void ParseVectorDataArray(std::vector<Color> &out, const Element *el);
+void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el);
+void ParseVectorDataArray(std::vector<int> &out, const Element *el);
+void ParseVectorDataArray(std::vector<float> &out, const Element *el);
+void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el);
+void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *ep);
+void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el);
+bool HasElement(const Scope *sc, const std::string &index);
 
 // extract a required element from a scope, abort if the element cannot be found
-const Element &GetRequiredElement(const Scope &sc, const std::string &index, const Element *element = nullptr);
+const Element *GetRequiredElement(const Scope *sc, const std::string &index, const Element *element = nullptr);
 const Scope *GetRequiredScope(const Element *el); // New in 2020. (less likely to destroy application)
-const Element *GetOptionalElement(const Scope &sc, const std::string &index, const Element *element = nullptr);
+const Element *GetOptionalElement(const Scope *sc, const std::string &index, const Element *element = nullptr);
 // extract required compound scope
-const Scope &GetRequiredScope(const Element &el);
+const Scope *GetRequiredScope(const Element *el);
 // get token at a particular index
-const Token &GetRequiredToken(const Element &el, unsigned int index);
-TokenPtr GetRequiredToken(const Element *el, unsigned int index); // New 2020
+TokenPtr GetRequiredToken(const Element *el, unsigned int index);
 
 // ------------------------------------------------------------------------------------------------
 // read a 4x4 matrix from an array of 16 floats
-Transform ReadMatrix(const Element &element);
+Transform ReadMatrix(const Element *element);
 
 } // namespace FBX
 } // namespace Assimp

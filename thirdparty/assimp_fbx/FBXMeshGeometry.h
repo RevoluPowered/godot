@@ -64,7 +64,7 @@ namespace FBX {
  */
 class Geometry : public Object {
 public:
-	Geometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+	Geometry(uint64_t id, const Element *element, const std::string &name, const Document &doc);
 	virtual ~Geometry();
 
 	/** Get the Skin attached to this geometry or NULL */
@@ -141,7 +141,7 @@ public:
 	};
 
 public:
-	MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+	MeshGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc);
 
 	virtual ~MeshGeometry();
 
@@ -188,7 +188,7 @@ private:
 class ShapeGeometry : public Geometry {
 public:
 	/** The class constructor */
-	ShapeGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+	ShapeGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc);
 
 	/** The class destructor */
 	virtual ~ShapeGeometry();
@@ -214,7 +214,7 @@ private:
 class LineGeometry : public Geometry {
 public:
 	/** The class constructor */
-	LineGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc);
+	LineGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc);
 
 	/** The class destructor */
 	virtual ~LineGeometry();

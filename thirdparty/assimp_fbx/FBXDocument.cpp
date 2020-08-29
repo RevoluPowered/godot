@@ -84,7 +84,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 		return object.get();
 	}
 
-	const Token &key = element.KeyToken();
+	const TokenPtr key = element.KeyToken();
 	const TokenList &tokens = element.Tokens();
 
 	if (tokens.size() < 3) {
@@ -93,7 +93,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 	}
 
 	const char *err;
-	std::string name = ParseTokenAsString(*tokens[1], err);
+	std::string name = ParseTokenAsString(tokens[1], err);
 	if (err) {
 		DOMError(err, &element);
 	}
@@ -111,7 +111,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 		}
 	}
 
-	const std::string classtag = ParseTokenAsString(*tokens[2], err);
+	const std::string classtag = ParseTokenAsString(tokens[2], err);
 	if (err) {
 		DOMError(err, &element);
 	}
@@ -220,17 +220,8 @@ const Object *LazyObject::Get(bool dieOnError) {
 }
 
 // ------------------------------------------------------------------------------------------------
-Object::Object(uint64_t id, const Element &element, const std::string &name) :
+Object::Object(uint64_t id, const Element *element, const std::string &name) :
 		element(element), name(name), id(id) {
-	// empty
-	//
-	//    const Scope& sc = GetRequiredScope(element);
-	//
-	//
-	//    for( auto element : sc.Elements())
-	//    {
-	//        std::cout << " element: " << element.first << std::endl;
-	//    }
 }
 
 // ------------------------------------------------------------------------------------------------

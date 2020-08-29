@@ -125,27 +125,26 @@ public:
 
 private:
 	const Document &doc;
-	const Element &element;
-	std::unique_ptr<const Object> object;
-
-	const uint64_t id;
+	const Element *element = nullptr;
+	std::shared_ptr<const Object> object = nullptr;
+	const uint64_t id = 0;
 
 	enum Flags {
 		BEING_CONSTRUCTED = 0x1,
 		FAILED_TO_CONSTRUCT = 0x2
 	};
 
-	unsigned int flags;
+	unsigned int flags = 0;
 };
 
 /** Base class for in-memory (DOM) representations of FBX objects */
 class Object {
 public:
-	Object(uint64_t id, const Element &element, const std::string &name);
+	Object(uint64_t id, const Element *element, const std::string &name);
 
 	virtual ~Object();
 
-	const Element &SourceElement() const {
+	const std::shared_ptr<Element> SourceElement() const {
 		return element;
 	}
 
@@ -158,9 +157,9 @@ public:
 	}
 
 protected:
-	const Element &element;
+	const std::shared_ptr<Element> element = nullptr;
 	const std::string name;
-	const uint64_t id;
+	const uint64_t id = 0;
 };
 
 /** DOM class for generic FBX NoteAttribute blocks. NoteAttribute's just hold a property table,
@@ -1285,10 +1284,8 @@ private:
 	// constraints aren't in the tree / at least they are not easy to access.
 	std::vector<uint64_t> constraints;
 	std::vector<uint64_t> materials;
-
 	mutable std::vector<const AnimationStack *> animationStacksResolved;
-
-	std::unique_ptr<FileGlobalSettings> globals;
+	std::shared_ptr<FileGlobalSettings> globals;
 };
 
 } // Namespace FBX
