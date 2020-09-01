@@ -120,7 +120,7 @@ Element::Element(const TokenPtr key_token, Parser &parser) :
 		}
 
 		if (n && n->Type() == TokenType_OPEN_BRACKET) {
-			compound = new Scope(parser);
+			compound = new_Scope(parser);
 
 			// current token should be a TOK_CLOSE_BRACKET
 			n = parser.CurrentToken();
@@ -160,12 +160,14 @@ Scope::Scope(Parser &parser, bool topLevel) {
 			print_error("unexpected token, expected TOK_KEY" + String(n->StringContents().c_str()));
 		}
 
-		const std::string &str = n->StringContents();
-		elements.insert(ElementMap::value_type(str, new_Element(n, parser)));
+		const std::string str = n->StringContents();
+
+		// std::multimap<std::string, ElementPtr> (key and value)
+		elements.insert(ElementMap::value_type(str, new_Element(n,parser)));
 
 		// Element() should stop at the next Key token (or right after a Close token)
 		n = parser.CurrentToken();
-		if (n == NULL) {
+		if (n == nullptr) {
 			if (topLevel) {
 				return;
 			}
@@ -178,14 +180,14 @@ Scope::Scope(Parser &parser, bool topLevel) {
 // ------------------------------------------------------------------------------------------------
 Scope::~Scope() {
 	for (ElementMap::value_type &v : elements) {
-		delete v.second;
+		v.second.reset();
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 Parser::Parser(const TokenList &tokens, bool is_binary) :
 		tokens(tokens), last(), current(), cursor(tokens.begin()), is_binary(is_binary) {
-	root = new Scope(*this, true);
+	root = new_Scope(*this, true);
 }
 
 // ------------------------------------------------------------------------------------------------

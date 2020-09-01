@@ -61,7 +61,7 @@ using namespace Util;
 // ------------------------------------------------------------------------------------------------
 Deformer::Deformer(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
 	const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
 	props = GetPropertyTable(doc, "Deformer.Fbx" + classname, element, sc, true);
@@ -73,7 +73,7 @@ Deformer::~Deformer() {
 
 Constraint::Constraint(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 	const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
 	// used something.fbx as this is a cache name.
 	props = GetPropertyTable(doc, "Something.Fbx" + classname, element, sc, true);

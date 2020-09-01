@@ -266,11 +266,11 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 	ElementPtr FileName = nullptr;
 	if(HasElement(sc, "Filename") )
 	{
-		FileName = (Element*) sc->GetElement("Filename");
+		FileName = (ElementPtr) sc->GetElement("Filename");
 	}
 	else if(HasElement(sc, "FileName"))
 	{
-		FileName = (Element*) sc->GetElement("FileName");
+		FileName = (ElementPtr) sc->GetElement("FileName");
 	}
 	else {
 		print_error("file has invalid video material returning...");

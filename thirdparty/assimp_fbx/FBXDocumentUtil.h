@@ -72,8 +72,8 @@ void DOMWarning(const std::string &message, const std::shared_ptr<Element> eleme
 // fetch a property table and the corresponding property template
 const PropertyTable* GetPropertyTable(const Document &doc,
 		const std::string &templateName,
-		const Element *element,
-		const Scope *sc,
+		const ElementPtr element,
+		const ScopePtr sc,
 		bool no_warn = false);
 
 // ------------------------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ template <typename T>
 inline const T *ProcessSimpleConnection(const Connection &con,
 		bool is_object_property_conn,
 		const char *name,
-		const Element *element,
+		const ElementPtr element,
 		const char **propNameOut = nullptr) {
 	if (is_object_property_conn && !con.PropertyName().length()) {
 		DOMWarning("expected incoming " + std::string(name) +

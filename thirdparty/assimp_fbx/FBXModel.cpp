@@ -57,7 +57,7 @@ using namespace Util;
 // ------------------------------------------------------------------------------------------------
 Model::Model(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name), shading("Y") {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 	const ElementPtr Shading = sc->GetElement("Shading");
 	const ElementPtr Culling = sc->GetElement("Culling");
 

@@ -97,7 +97,7 @@ private:
 
 typedef std::map<std::string, std::shared_ptr<Property> > DirectPropertyMap;
 typedef std::map<std::string, const Property *> PropertyMap;
-typedef std::map<std::string, const Element *> LazyPropertyMap;
+typedef std::map<std::string, const ElementPtr> LazyPropertyMap;
 
 /** 
  *  Represents a property table as can be found in the newer FBX files (Properties60, Properties70)
@@ -112,7 +112,7 @@ public:
 	const Property *Get(const std::string &name) const;
 
 	// PropertyTable's need not be coupled with FBX elements so this can be NULL
-	const Element *GetElement() const {
+	const ElementPtr GetElement() const {
 		return element;
 	}
 
@@ -128,7 +128,7 @@ private:
 	LazyPropertyMap lazyProps;
 	mutable PropertyMap props;
 	const PropertyTable* templateProps = nullptr;
-	const Element * element = nullptr;
+	const ElementPtr element = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------

@@ -113,8 +113,8 @@ void DOMWarning(const std::string &message, const std::shared_ptr<Element> eleme
 // fetch a property table and the corresponding property template
 const PropertyTable* GetPropertyTable(const Document &doc,
 		const std::string &templateName,
-		const Element *element,
-		const Scope *sc,
+		const ElementPtr element,
+		const ScopePtr sc,
 		bool no_warn /*= false*/) {
 	// todo: make this an abstraction
 	const ElementPtr Properties70 = sc->GetElement("Properties70");

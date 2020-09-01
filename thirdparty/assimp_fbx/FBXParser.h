@@ -66,15 +66,15 @@ class Parser;
 class Element;
 
 // XXX should use C++11's unique_ptr - but assimp's need to keep working with 03
-typedef Element * ElementPtr;
-typedef Scope * ScopePtr;
+typedef std::shared_ptr<Element> ElementPtr;
+typedef std::shared_ptr<Scope> ScopePtr;
 
 typedef std::vector<ScopePtr> ScopeList;
 typedef std::multimap<std::string, ElementPtr> ElementMap;
 typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> ElementCollection;
 
-#define new_Scope new Scope
-#define new_Element new Element
+#define new_Scope std::make_shared<Scope>
+#define new_Element std::make_shared<Element>
 
 
 /** FBX data entity that consists of a key:value tuple.
@@ -183,7 +183,7 @@ private:
 
 	TokenPtr last = nullptr, current = nullptr;
 	TokenList::const_iterator cursor;
-	Scope* root = nullptr;
+	ScopePtr root = nullptr;
 
 	const bool is_binary;
 };

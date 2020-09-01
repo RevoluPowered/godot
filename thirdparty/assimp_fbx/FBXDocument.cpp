@@ -397,9 +397,9 @@ void Document::ReadObjects() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadPropertyTemplates() {
-	const Scope *sc = parser.GetRootScope();
+	const ScopePtr sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const ElementPtr  edefs = sc->GetElement("Definitions");
+	const ElementPtr edefs = sc->GetElement("Definitions");
 	if (!edefs || !edefs->Compound()) {
 		DOMWarning("no Definitions dictionary found");
 		return;
@@ -408,16 +408,16 @@ void Document::ReadPropertyTemplates() {
 	const Scope &sdefs = *edefs->Compound();
 	const ElementCollection otypes = sdefs.GetCollection("ObjectType");
 	for (ElementMap::const_iterator it = otypes.first; it != otypes.second; ++it) {
-		const Element &el = *(*it).second;
-		const Scope *sc_2 = el.Compound();
+		const ElementPtr el = (*it).second;
+		const ScopePtr sc_2 = el->Compound();
 		if (!sc_2) {
-			DOMWarning("expected nested scope in ObjectType, ignoring", &el);
+			DOMWarning("expected nested scope in ObjectType, ignoring", el);
 			continue;
 		}
 
-		const TokenList &tok = el.Tokens();
+		const TokenList &tok = el->Tokens();
 		if (tok.empty()) {
-			DOMWarning("expected name for ObjectType element, ignoring", &el);
+			DOMWarning("expected name for ObjectType element, ignoring", el);
 			continue;
 		}
 
@@ -425,16 +425,16 @@ void Document::ReadPropertyTemplates() {
 
 		const ElementCollection templs = sc_2->GetCollection("PropertyTemplate");
 		for (ElementMap::const_iterator iter = templs.first; iter != templs.second; ++iter) {
-			const Element &el_2 = *(*iter).second;
-			const Scope *sc_3 = el_2.Compound();
+			const ElementPtr el_2 = (*iter).second;
+			const ScopePtr sc_3 = el_2->Compound();
 			if (!sc_3) {
-				DOMWarning("expected nested scope in PropertyTemplate, ignoring", &el);
+				DOMWarning("expected nested scope in PropertyTemplate, ignoring", el);
 				continue;
 			}
 
-			const TokenList &tok_2 = el_2.Tokens();
+			const TokenList &tok_2 = el_2->Tokens();
 			if (tok_2.empty()) {
-				DOMWarning("expected name for PropertyTemplate element, ignoring", &el);
+				DOMWarning("expected name for PropertyTemplate element, ignoring", el);
 				continue;
 			}
 
@@ -453,7 +453,8 @@ void Document::ReadPropertyTemplates() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadConnections() {
-	const Scope *sc = parser.GetRootScope();
+	const ScopePtr sc = parser.GetRootScope();
+
 	// read property templates from "Definitions" section
 	const ElementPtr econns = sc->GetElement("Connections");
 	if (!econns || !econns->Compound()) {
@@ -461,7 +462,7 @@ void Document::ReadConnections() {
 	}
 
 	uint64_t insertionOrder = 0l;
-	const Scope *sconns = econns->Compound();
+	const ScopePtr sconns = econns->Compound();
 	const ElementCollection conns = sconns->GetCollection("C");
 	for (ElementMap::const_iterator it = conns.first; it != conns.second; ++it) {
 		const ElementPtr el = (*it).second;

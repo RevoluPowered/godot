@@ -144,7 +144,7 @@ public:
 
 	virtual ~Object();
 
-	const Element* SourceElement() const {
+	const ElementPtr SourceElement() const {
 		return element;
 	}
 

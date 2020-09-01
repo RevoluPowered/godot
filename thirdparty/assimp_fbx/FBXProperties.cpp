@@ -124,6 +124,7 @@ PropertyTable::PropertyTable() :
 PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* templateProps) :
 		templateProps(templateProps), element(element) {
 	const ScopePtr scope = GetRequiredScope(element);
+
 	for (const ElementMap::value_type &v : scope->Elements()) {
 		if (v.first != "P") {
 			DOMWarning("expected only P elements in property table", v.second);
@@ -142,7 +143,8 @@ PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* temp
 			continue;
 		}
 
-		lazyProps[name] = v.second;
+		// since the above checks for duplicates we can be sure to insert the only match here.
+		lazyProps.insert(std::pair<std::string, ElementPtr>(name, v.second));
 	}
 }
 
