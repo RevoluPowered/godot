@@ -46,9 +46,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef INCLUDED_AI_FBX_PROPERTIES_H
 #define INCLUDED_AI_FBX_PROPERTIES_H
 
+#include "FBXParser.h"
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
 #include <vector>
 
 namespace Assimp {
@@ -105,7 +106,7 @@ class PropertyTable {
 public:
 	// in-memory property table with no source element
 	PropertyTable();
-	PropertyTable(const Element *element, const PropertyTable* templateProps);
+	PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 	~PropertyTable();
 
 	const Property *Get(const std::string &name) const;

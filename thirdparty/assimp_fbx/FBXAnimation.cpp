@@ -57,11 +57,11 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-AnimationCurve::AnimationCurve(uint64_t id, const Element *element, const std::string &name, const Document & /*doc*/) :
+AnimationCurve::AnimationCurve(uint64_t id, const ElementPtr element, const std::string &name, const Document & /*doc*/) :
 		Object(id, element, name) {
-	const Scope *sc = GetRequiredScope(element);
-	const Element *KeyTime = GetRequiredElement(sc, "KeyTime");
-	const Element *KeyValueFloat = GetRequiredElement(sc, "KeyValueFloat");
+	const ScopePtr sc = GetRequiredScope(element);
+	const ElementPtr KeyTime = GetRequiredElement(sc, "KeyTime");
+	const ElementPtr KeyValueFloat = GetRequiredElement(sc, "KeyValueFloat");
 
 	// note preserved keys and values for legacy FBXConverter.cpp
 	// we can remove this once the animation system is written
@@ -82,12 +82,12 @@ AnimationCurve::AnimationCurve(uint64_t id, const Element *element, const std::s
 		keyvalues[keys[x]] = values[x];
 	}
 
-	const Element *KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat");
+	const ElementPtr KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat");
 	if (KeyAttrDataFloat) {
 		ParseVectorDataArray(attributes, KeyAttrDataFloat);
 	}
 
-	const Element *KeyAttrFlags = sc->GetElement("KeyAttrFlags");
+	const ElementPtr KeyAttrFlags = sc->GetElement("KeyAttrFlags");
 	if (KeyAttrFlags) {
 		ParseVectorDataArray(flags, KeyAttrFlags);
 	}
@@ -99,11 +99,11 @@ AnimationCurve::~AnimationCurve() {
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationCurveNode::AnimationCurveNode(uint64_t id, const Element *element, const std::string &name,
+AnimationCurveNode::AnimationCurveNode(uint64_t id, const ElementPtr element, const std::string &name,
 		const Document &doc, const char *const *target_prop_whitelist /*= NULL*/,
 		size_t whitelist_size /*= 0*/) :
 		Object(id, element, name), target(), doc(doc) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
 	// find target node
 	const char *whitelist[] = { "Model", "NodeAttribute", "Deformer" };
@@ -194,9 +194,9 @@ const std::map<std::string, const AnimationCurve *> &AnimationCurveNode::Curves(
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationLayer::AnimationLayer(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+AnimationLayer::AnimationLayer(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Object(id, element, name), doc(doc) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
 	// note: the props table here bears little importance and is usually absent
 	props = GetPropertyTable(doc, "AnimationLayer.FbxAnimLayer", element, sc, true);
@@ -255,9 +255,9 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationStack::AnimationStack(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+AnimationStack::AnimationStack(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Object(id, element, name) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
 	// note: we don't currently use any of these properties so we shouldn't bother if it is missing
 	props = GetPropertyTable(doc, "AnimationStack.FbxAnimStack", element, sc, true);

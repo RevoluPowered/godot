@@ -120,7 +120,7 @@ Element::Element(const TokenPtr key_token, Parser &parser) :
 		}
 
 		if (n && n->Type() == TokenType_OPEN_BRACKET) {
-			compound.reset(new Scope(parser));
+			compound = new Scope(parser);
 
 			// current token should be a TOK_CLOSE_BRACKET
 			n = parser.CurrentToken();
@@ -461,7 +461,7 @@ namespace {
 // ------------------------------------------------------------------------------------------------
 // read the type code and element count of a binary data array and stop there
 void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uint32_t &count,
-		const Element *el) {
+		const ElementPtr el) {
 	if (static_cast<size_t>(end - data) < 5) {
 		print_error("binary data array is too short, need five (5) bytes for type signature and element count: " + String(el->KeyToken()->StringContents().c_str()));
 	}
@@ -481,7 +481,7 @@ void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uin
 // read binary data array, assume cursor points to the 'compression mode' field (i.e. behind the header)
 void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const char *end,
 		std::vector<char> &buff,
-		const Element * /*el*/) {
+		const ElementPtr  /*el*/) {
 	uint32_t encmode = SafeParse<uint32_t>(data, end);
 	AI_SWAP4(encmode);
 	data += 4;
@@ -559,7 +559,7 @@ void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const cha
 
 // ------------------------------------------------------------------------------------------------
 // read an array of float3 tuples
-void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<Vector3> &out, const ElementPtr el) {
 	out.resize(0);
 
 	const TokenList &tok = el->Tokens();
@@ -626,8 +626,8 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
 	// crash since assimp handles this case properly.
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	if (a->Tokens().size() % 3 != 0) {
 		print_error("number of floats is not a multiple of three (3)" + String(el->KeyToken()->StringContents().c_str()));
@@ -644,7 +644,7 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of color4 tuples
-void ParseVectorDataArray(std::vector<Color> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<Color> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -701,8 +701,8 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element *el) {
 	//  see notes in ParseVectorDataArray() above
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	if (a->Tokens().size() % 4 != 0) {
 		print_error("number of floats is not a multiple of four (4)" + String(el->KeyToken()->StringContents().c_str()));
@@ -720,7 +720,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of float2 tuples
-void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<Vector2> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -776,8 +776,8 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el) {
 	// see notes in ParseVectorDataArray() above
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	if (a->Tokens().size() % 2 != 0) {
 		print_error("number of floats is not a multiple of two (2)" + String(el->KeyToken()->StringContents().c_str()));
@@ -792,7 +792,7 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of ints
-void ParseVectorDataArray(std::vector<int> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<int> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -837,8 +837,8 @@ void ParseVectorDataArray(std::vector<int> &out, const Element *el) {
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const int ival = ParseTokenAsInt(*it++);
@@ -848,7 +848,7 @@ void ParseVectorDataArray(std::vector<int> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of floats
-void ParseVectorDataArray(std::vector<float> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<float> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -896,8 +896,8 @@ void ParseVectorDataArray(std::vector<float> &out, const Element *el) {
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const float ival = ParseTokenAsFloat(*it++);
@@ -907,7 +907,7 @@ void ParseVectorDataArray(std::vector<float> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of uints
-void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<unsigned int> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -955,8 +955,8 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el) {
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const int ival = ParseTokenAsInt(*it++);
@@ -969,7 +969,7 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of uint64_ts
-void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<uint64_t> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -1014,8 +1014,8 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *el) {
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const uint64_t ival = ParseTokenAsID(*it++);
@@ -1026,7 +1026,7 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of int64_ts
-void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
+void ParseVectorDataArray(std::vector<int64_t> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
@@ -1071,8 +1071,8 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", el);
+	const ScopePtr scope = GetRequiredScope(el);
+	const ElementPtr a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const int64_t val = ParseTokenAsInt64(*it++);
@@ -1081,7 +1081,7 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
 }
 
 // ------------------------------------------------------------------------------------------------
-Transform ReadMatrix(const Element *element) {
+Transform ReadMatrix(const ElementPtr element) {
 	std::vector<float> values;
 	ParseVectorDataArray(values, element);
 
@@ -1129,16 +1129,16 @@ std::string ParseTokenAsString(const TokenPtr t) {
 
 // ------------------------------------------------------------------------------------------------
 // extract a required element from a scope, abort if the element cannot be found
-const Element *GetRequiredElement(const Scope *sc, const std::string &index, const Element *element /*= NULL*/) {
-	const Element *el = sc->GetElement(index);
+const ElementPtr GetRequiredElement(const ScopePtr sc, const std::string &index, const ElementPtr element /*= NULL*/) {
+	const ElementPtr el = sc->GetElement(index);
 	if (!el) {
 		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(element->KeyToken()->StringContents().c_str()));
 	}
 	return el;
 }
 
-bool HasElement(const Scope *sc, const std::string &index) {
-	const Element *el = sc->GetElement(index);
+bool HasElement(const ScopePtr sc, const std::string &index) {
+	const ElementPtr el = sc->GetElement(index);
 	if (nullptr == el) {
 		return false;
 	}
@@ -1148,16 +1148,16 @@ bool HasElement(const Scope *sc, const std::string &index) {
 
 // ------------------------------------------------------------------------------------------------
 // extract a required element from a scope, abort if the element cannot be found
-const Element *GetOptionalElement(const Scope *sc, const std::string &index, const Element *element /*= NULL*/) {
-	const Element *el = sc->GetElement(index);
+const ElementPtr GetOptionalElement(const ScopePtr sc, const std::string &index, const ElementPtr element /*= NULL*/) {
+	const ElementPtr el = sc->GetElement(index);
 	return el;
 }
 
 // ------------------------------------------------------------------------------------------------
 // extract required compound scope
-const Scope *GetRequiredScope(const Element *el) {
+const ScopePtr GetRequiredScope(const ElementPtr el) {
 	if(el) {
-		const Scope *s = el->Compound();
+		const ScopePtr s = el->Compound();
 		if (s) {
 			return s;
 		}
@@ -1171,7 +1171,7 @@ const Scope *GetRequiredScope(const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // get token at a particular index
-TokenPtr GetRequiredToken(const Element *el, unsigned int index) {
+TokenPtr GetRequiredToken(const ElementPtr el, unsigned int index) {
 	if(el) {
 		const TokenList& x = el->Tokens();
 

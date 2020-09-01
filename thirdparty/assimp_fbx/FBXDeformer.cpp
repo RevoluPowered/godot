@@ -59,7 +59,7 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-Deformer::Deformer(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Deformer::Deformer(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name) {
 	const Scope *sc = GetRequiredScope(element);
 
@@ -71,7 +71,7 @@ Deformer::Deformer(uint64_t id, const Element *element, const Document &doc, con
 Deformer::~Deformer() {
 }
 
-Constraint::Constraint(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Constraint::Constraint(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name) {
 	const Scope *sc = GetRequiredScope(element);
 	const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
@@ -83,9 +83,9 @@ Constraint::~Constraint() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Cluster::Cluster(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Cluster::Cluster(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name), valid_transformAssociateModel(false) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 	//    for( auto element : sc.Elements())
 	//    {
 	//        std::cout << "cluster element: " << element.first << std::endl;
@@ -99,10 +99,10 @@ Cluster::Cluster(uint64_t id, const Element *element, const Document &doc, const
 	//    element: Version
 	//    element: Weights
 
-	const Element *const Indexes = sc->GetElement("Indexes");
-	const Element *const Weights = sc->GetElement("Weights");
+	const ElementPtr Indexes = sc->GetElement("Indexes");
+	const ElementPtr Weights = sc->GetElement("Weights");
 
-	const Element *const TransformAssociateModel = sc->GetElement("TransformAssociateModel");
+	const ElementPtr TransformAssociateModel = sc->GetElement("TransformAssociateModel");
 	if (TransformAssociateModel != nullptr) {
 		//Transform t = ReadMatrix(*TransformAssociateModel);
 		link_mode = SkinLinkMode_Additive;
@@ -112,8 +112,8 @@ Cluster::Cluster(uint64_t id, const Element *element, const Document &doc, const
 		valid_transformAssociateModel = false;
 	}
 
-	const Element *Transform = GetRequiredElement(sc, "Transform", element);
-	const Element *TransformLink = GetRequiredElement(sc, "TransformLink", element);
+	const ElementPtr Transform = GetRequiredElement(sc, "Transform", element);
+	const ElementPtr TransformLink = GetRequiredElement(sc, "TransformLink", element);
 
 	// todo: check if we need this
 	//const Element& TransformAssociateModel = GetRequiredElement(sc, "TransformAssociateModel", &element);
@@ -156,21 +156,21 @@ Cluster::~Cluster() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Skin::Skin(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name), accuracy(0.0f) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
 	// keep this it is used for debugging and any FBX format changes
 	// for (auto element : sc.Elements()) {
 	// 	std::cout << "skin element: " << element.first << std::endl;
 	// }
 
-	const Element *const Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy");
+	const ElementPtr Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy");
 	if (Link_DeformAcuracy) {
 		accuracy = ParseTokenAsFloat(GetRequiredToken(Link_DeformAcuracy, 0));
 	}
 
-	const Element *const SkinType = sc->GetElement("SkinningType");
+	const ElementPtr SkinType = sc->GetElement("SkinningType");
 
 	if (SkinType) {
 		std::string skin_type = ParseTokenAsString(GetRequiredToken(SkinType, 0));
@@ -196,7 +196,7 @@ Skin::Skin(uint64_t id, const Element *element, const Document &doc, const std::
 	clusters.reserve(conns.size());
 	for (const Connection *con : conns) {
 
-		const Cluster *const cluster = ProcessSimpleConnection<Cluster>(*con, false, "Cluster -> Skin", element);
+		const Cluster *cluster = ProcessSimpleConnection<Cluster>(*con, false, "Cluster -> Skin", element);
 		if (cluster) {
 			clusters.push_back(cluster);
 			continue;
@@ -208,7 +208,7 @@ Skin::Skin(uint64_t id, const Element *element, const Document &doc, const std::
 Skin::~Skin() {
 }
 // ------------------------------------------------------------------------------------------------
-BlendShape::BlendShape(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+BlendShape::BlendShape(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name) {
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Deformer");
 	blendShapeChannels.reserve(conns.size());
@@ -224,14 +224,14 @@ BlendShape::BlendShape(uint64_t id, const Element *element, const Document &doc,
 BlendShape::~BlendShape() {
 }
 // ------------------------------------------------------------------------------------------------
-BlendShapeChannel::BlendShapeChannel(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+BlendShapeChannel::BlendShapeChannel(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name) {
-	const Scope *sc = GetRequiredScope(element);
-	const Element *DeformPercent = sc->GetElement("DeformPercent");
+	const ScopePtr sc = GetRequiredScope(element);
+	const ElementPtr DeformPercent = sc->GetElement("DeformPercent");
 	if (DeformPercent) {
 		percent = ParseTokenAsFloat(GetRequiredToken(DeformPercent, 0));
 	}
-	const Element *FullWeights = sc->GetElement("FullWeights");
+	const ElementPtr FullWeights = sc->GetElement("FullWeights");
 	if (FullWeights) {
 		ParseVectorDataArray(fullWeights, FullWeights);
 	}

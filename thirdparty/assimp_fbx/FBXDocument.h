@@ -91,7 +91,7 @@ class Cluster;
  *  upfront. */
 class LazyObject {
 public:
-	LazyObject(uint64_t id, const Element *element, const Document &doc);
+	LazyObject(uint64_t id, const ElementPtr element, const Document &doc);
 
 	~LazyObject();
 
@@ -115,7 +115,7 @@ public:
 		return (flags & FAILED_TO_CONSTRUCT) != 0;
 	}
 
-	const Element *GetElement() const {
+	const ElementPtr GetElement() const {
 		return element;
 	}
 
@@ -125,7 +125,7 @@ public:
 
 private:
 	const Document &doc;
-	const Element *element = nullptr;
+	const ElementPtr element = nullptr;
 	std::shared_ptr<const Object> object = nullptr;
 	const uint64_t id = 0;
 
@@ -140,7 +140,7 @@ private:
 /** Base class for in-memory (DOM) representations of FBX objects */
 class Object {
 public:
-	Object(uint64_t id, const Element *element, const std::string &name);
+	Object(uint64_t id, const ElementPtr element, const std::string &name);
 
 	virtual ~Object();
 
@@ -157,7 +157,7 @@ public:
 	}
 
 protected:
-	const Element* element = nullptr;
+	const ElementPtr element = nullptr;
 	const std::string name;
 	const uint64_t id = 0;
 };
@@ -166,7 +166,7 @@ protected:
  *  fixed members are added by deriving classes. */
 class NodeAttribute : public Object {
 public:
-	NodeAttribute(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	NodeAttribute(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~NodeAttribute();
 
@@ -181,7 +181,7 @@ private:
 /** DOM base class for FBX camera settings attached to a node */
 class CameraSwitcher : public NodeAttribute {
 public:
-	CameraSwitcher(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	CameraSwitcher(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~CameraSwitcher();
 
@@ -223,7 +223,7 @@ private:
 class FbxPoseNode;
 class FbxPose : public Object {
 public:
-	FbxPose(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	FbxPose(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	const std::vector<FbxPoseNode*> &GetBindPoses() const {
 		return pose_nodes;
@@ -237,15 +237,15 @@ private:
 
 class FbxPoseNode {
 public:
-	FbxPoseNode(const Element *element, const Document &doc, const std::string &name) {
-		const Scope *sc = GetRequiredScope(element);
+	FbxPoseNode(const ElementPtr element, const Document &doc, const std::string &name) {
+		const ScopePtr sc = GetRequiredScope(element);
 
 		// get pose node transform
-		const Element *Transform = GetRequiredElement(sc, "Matrix", element);
+		const ElementPtr Transform = GetRequiredElement(sc, "Matrix", element);
 		transform = ReadMatrix(Transform);
 
 		// get node id this pose node is for
-		const Element * NodeId = sc->GetElement("Node");
+		const ElementPtr  NodeId = sc->GetElement("Node");
 		if (NodeId) {
 			target_id = ParseTokenAsInt64(GetRequiredToken(NodeId, 0));
 		}
@@ -271,7 +271,7 @@ private:
 /** DOM base class for FBX cameras attached to a node */
 class Camera : public NodeAttribute {
 public:
-	Camera(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Camera(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Camera();
 
@@ -297,21 +297,21 @@ public:
 /** DOM base class for FBX null markers attached to a node */
 class Null : public NodeAttribute {
 public:
-	Null(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Null(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~Null();
 };
 
 /** DOM base class for FBX limb node markers attached to a node */
 class LimbNode : public NodeAttribute {
 public:
-	LimbNode(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	LimbNode(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~LimbNode();
 };
 
 /** DOM base class for FBX lights attached to a node */
 class Light : public NodeAttribute {
 public:
-	Light(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Light(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~Light();
 
 	enum Type {
@@ -382,7 +382,7 @@ public:
 		RotOrder_MAX // end-of-enum sentinel
 	};
 
-	Model(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Model(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Model();
 
@@ -492,7 +492,7 @@ public:
 	bool IsNull() const;
 
 private:
-	void ResolveLinks(const Element *element, const Document &doc);
+	void ResolveLinks(const ElementPtr element, const Document &doc);
 
 private:
 	std::vector<const Material *> materials;
@@ -506,7 +506,7 @@ private:
 
 class LimbNodeMaya : public Model {
 public:
-	LimbNodeMaya(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	LimbNodeMaya(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~LimbNodeMaya();
 };
@@ -514,7 +514,7 @@ public:
 /** DOM class for generic FBX textures */
 class Texture : public Object {
 public:
-	Texture(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Texture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Texture();
 
@@ -573,7 +573,7 @@ private:
 /** DOM class for layered FBX textures */
 class LayeredTexture : public Object {
 public:
-	LayeredTexture(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	LayeredTexture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~LayeredTexture();
 
 	// Can only be called after construction of the layered texture object due to construction flag.
@@ -639,7 +639,7 @@ typedef std::map<std::string, const LayeredTexture *> LayeredTextureMap;
 /** DOM class for generic FBX videos */
 class Video : public Object {
 public:
-	Video(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Video(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Video();
 
@@ -695,7 +695,7 @@ private:
 /** DOM class for generic FBX materials */
 class Material : public Object {
 public:
-	Material(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Material(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Material();
 
@@ -734,7 +734,7 @@ typedef std::vector<float> KeyValueList;
 /** Represents a FBX animation curve (i.e. a 1-dimensional set of keyframes and values therefor) */
 class AnimationCurve : public Object {
 public:
-	AnimationCurve(uint64_t id, const Element *element, const std::string &name, const Document &doc);
+	AnimationCurve(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
 	virtual ~AnimationCurve();
 
 	/** get list of keyframe positions (time).
@@ -778,7 +778,7 @@ public:
 	/* the optional white list specifies a list of property names for which the caller
     wants animations for. If the curve node does not match one of these, std::range_error
     will be thrown. */
-	AnimationCurveNode(uint64_t id, const Element *element, const std::string &name, const Document &doc,
+	AnimationCurveNode(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc,
 			const char *const *target_prop_whitelist = NULL, size_t whitelist_size = 0);
 
 	virtual ~AnimationCurveNode();
@@ -824,7 +824,7 @@ typedef std::vector<const AnimationCurveNode *> AnimationCurveNodeList;
 /** Represents a FBX animation layer (i.e. a list of node animations) */
 class AnimationLayer : public Object {
 public:
-	AnimationLayer(uint64_t id, const Element *element, const std::string &name, const Document &doc);
+	AnimationLayer(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
 	virtual ~AnimationLayer();
 
 	const PropertyTable *Props() const {
@@ -847,7 +847,7 @@ typedef std::vector<const AnimationLayer *> AnimationLayerList;
 /** Represents a FBX animation stack (i.e. a list of animation layers) */
 class AnimationStack : public Object {
 public:
-	AnimationStack(uint64_t id, const Element *element, const std::string &name, const Document &doc);
+	AnimationStack(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
 	virtual ~AnimationStack();
 
 	fbx_simple_property(LocalStart, int64_t, 0L);
@@ -871,7 +871,7 @@ private:
 /** DOM class for deformers */
 class Deformer : public Object {
 public:
-	Deformer(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Deformer(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~Deformer();
 
 	const PropertyTable *Props() const {
@@ -886,7 +886,7 @@ private:
 /** Constraints are from Maya they can help us with BoneAttachments :) **/
 class Constraint : public Object {
 public:
-	Constraint(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Constraint(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 	virtual ~Constraint();
 
 private:
@@ -899,7 +899,7 @@ typedef std::vector<unsigned int> WeightIndexArray;
 /** DOM class for BlendShapeChannel deformers */
 class BlendShapeChannel : public Deformer {
 public:
-	BlendShapeChannel(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	BlendShapeChannel(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~BlendShapeChannel();
 
@@ -924,7 +924,7 @@ private:
 /** DOM class for BlendShape deformers */
 class BlendShape : public Deformer {
 public:
-	BlendShape(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	BlendShape(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~BlendShape();
 
@@ -939,7 +939,7 @@ private:
 /** DOM class for skin deformer clusters (aka sub-deformers) */
 class Cluster : public Deformer {
 public:
-	Cluster(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Cluster(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Cluster();
 
@@ -1005,7 +1005,7 @@ private:
 /** DOM class for skin deformers */
 class Skin : public Deformer {
 public:
-	Skin(uint64_t id, const Element *element, const Document &doc, const std::string &name);
+	Skin(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
 	virtual ~Skin();
 

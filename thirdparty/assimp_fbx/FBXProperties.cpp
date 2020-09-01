@@ -121,9 +121,9 @@ PropertyTable::PropertyTable() :
 }
 
 // ------------------------------------------------------------------------------------------------
-PropertyTable::PropertyTable(const Element *element, const PropertyTable* templateProps) :
+PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* templateProps) :
 		templateProps(templateProps), element(element) {
-	const Scope *scope = GetRequiredScope(element);
+	const ScopePtr scope = GetRequiredScope(element);
 	for (const ElementMap::value_type &v : scope->Elements()) {
 		if (v.first != "P") {
 			DOMWarning("expected only P elements in property table", v.second);

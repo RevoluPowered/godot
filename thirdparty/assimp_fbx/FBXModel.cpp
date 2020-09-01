@@ -55,11 +55,11 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-Model::Model(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Model::Model(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name), shading("Y") {
 	const Scope *sc = GetRequiredScope(element);
-	const Element * Shading = sc->GetElement("Shading");
-	const Element * Culling = sc->GetElement("Culling");
+	const ElementPtr Shading = sc->GetElement("Shading");
+	const ElementPtr Culling = sc->GetElement("Culling");
 
 	if (Shading) {
 		shading = GetRequiredToken(Shading, 0)->StringContents();
@@ -77,7 +77,7 @@ Model::Model(uint64_t id, const Element *element, const Document &doc, const std
 Model::~Model() {
 }
 
-LimbNodeMaya::LimbNodeMaya(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+LimbNodeMaya::LimbNodeMaya(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Model(id, element, doc, name){
 
 		};
@@ -86,7 +86,7 @@ LimbNodeMaya::~LimbNodeMaya() {
 }
 
 // ------------------------------------------------------------------------------------------------
-void Model::ResolveLinks(const Element *element, const Document &doc) {
+void Model::ResolveLinks(const ElementPtr element, const Document &doc) {
 	const char *const arr[] = { "Geometry", "Material", "NodeAttribute" };
 
 	// resolve material

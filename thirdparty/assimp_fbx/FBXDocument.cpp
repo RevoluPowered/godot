@@ -64,7 +64,7 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-LazyObject::LazyObject(uint64_t id, const Element *element, const Document &doc) :
+LazyObject::LazyObject(uint64_t id, const ElementPtr element, const Document &doc) :
 		doc(doc), element(element), id(id), flags() {
 	// empty
 }
@@ -220,7 +220,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 }
 
 // ------------------------------------------------------------------------------------------------
-Object::Object(uint64_t id, const Element *element, const std::string &name) :
+Object::Object(uint64_t id, const ElementPtr element, const std::string &name) :
 		element(element), name(name), id(id) {
 }
 
@@ -281,13 +281,13 @@ static const unsigned int UpperSupportedVersion = 7700;
 
 bool Document::ReadHeader() {
 	// Read ID objects from "Objects" section
-	const Scope *sc = parser.GetRootScope();
-	const Element *const ehead = sc->GetElement("FBXHeaderExtension");
+	const ScopePtr sc = parser.GetRootScope();
+	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension");
 	if (!ehead || !ehead->Compound()) {
 		DOMError("no FBXHeaderExtension dictionary found");
 	}
 
-	const Scope *shead = ehead->Compound();
+	const ScopePtr shead = ehead->Compound();
 	fbxVersion = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(shead, "FBXVersion", ehead), 0));
 
 	// While we may have some success with newer files, we don't support
@@ -301,14 +301,14 @@ bool Document::ReadHeader() {
 				   " trying to read it nevertheless");
 	}
 
-	const Element *const ecreator = shead->GetElement("Creator");
+	const ElementPtr ecreator = shead->GetElement("Creator");
 	if (ecreator) {
 		creator = ParseTokenAsString(GetRequiredToken(ecreator, 0));
 	}
 
-	const Element *const etimestamp = shead->GetElement("CreationTimeStamp");
+	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp");
 	if (etimestamp && etimestamp->Compound()) {
-		const Scope *stimestamp = etimestamp->Compound();
+		const ScopePtr stimestamp = etimestamp->Compound();
 		creationTimeStamp[0] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Year"), 0));
 		creationTimeStamp[1] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Month"), 0));
 		creationTimeStamp[2] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Day"), 0));
@@ -323,8 +323,8 @@ bool Document::ReadHeader() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadGlobalSettings() {
-	const Scope *sc = parser.GetRootScope();
-	const Element *const ehead = sc->GetElement("GlobalSettings");
+	const ScopePtr sc = parser.GetRootScope();
+	const ElementPtr  ehead = sc->GetElement("GlobalSettings");
 	if (nullptr == ehead || !ehead->Compound()) {
 		DOMWarning("no GlobalSettings dictionary found");
 		globals.reset(new FileGlobalSettings(*this, new PropertyTable()));
@@ -345,8 +345,8 @@ void Document::ReadGlobalSettings() {
 // ------------------------------------------------------------------------------------------------
 void Document::ReadObjects() {
 	// read ID objects from "Objects" section
-	const Scope *sc = parser.GetRootScope();
-	const Element *const eobjects = sc->GetElement("Objects");
+	const ScopePtr sc = parser.GetRootScope();
+	const ElementPtr  eobjects = sc->GetElement("Objects");
 	if (!eobjects || !eobjects->Compound()) {
 		DOMError("no Objects dictionary found");
 	}
@@ -355,7 +355,7 @@ void Document::ReadObjects() {
 	// which is only indirectly defined in the input file
 	objects[0] = new LazyObject(0L, eobjects, *this);
 
-	const Scope *sobjects = eobjects->Compound();
+	const ScopePtr sobjects = eobjects->Compound();
 	for (const ElementMap::value_type iter : sobjects->Elements()) {
 
 		// extract ID
@@ -399,7 +399,7 @@ void Document::ReadObjects() {
 void Document::ReadPropertyTemplates() {
 	const Scope *sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const Element *const edefs = sc->GetElement("Definitions");
+	const ElementPtr  edefs = sc->GetElement("Definitions");
 	if (!edefs || !edefs->Compound()) {
 		DOMWarning("no Definitions dictionary found");
 		return;
@@ -440,9 +440,9 @@ void Document::ReadPropertyTemplates() {
 
 			const std::string &pname = ParseTokenAsString(tok_2[0]);
 
-			const Element *Properties70 = sc_3->GetElement("Properties70");
+			const ElementPtr Properties70 = sc_3->GetElement("Properties70");
 			if (Properties70) {
-				// PropertyTable(const Element *element, const PropertyTable* templateProps);
+				// PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 				const PropertyTable* props = new PropertyTable(Properties70, nullptr);
 
 				templates[oname + "." + pname] = props;
@@ -455,7 +455,7 @@ void Document::ReadPropertyTemplates() {
 void Document::ReadConnections() {
 	const Scope *sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const Element *const econns = sc->GetElement("Connections");
+	const ElementPtr econns = sc->GetElement("Connections");
 	if (!econns || !econns->Compound()) {
 		DOMError("no Connections dictionary found");
 	}
@@ -464,7 +464,7 @@ void Document::ReadConnections() {
 	const Scope *sconns = econns->Compound();
 	const ElementCollection conns = sconns->GetCollection("C");
 	for (ElementMap::const_iterator it = conns.first; it != conns.second; ++it) {
-		const Element *el = (*it).second;
+		const ElementPtr el = (*it).second;
 		const std::string &type = ParseTokenAsString(GetRequiredToken(el, 0));
 
 		// PP = property-property connection, ignored for now
@@ -506,7 +506,7 @@ const std::vector<const AnimationStack *> &Document::AnimationStacks() const {
 
 	animationStacksResolved.reserve(animationStacks.size());
 	for (uint64_t id : animationStacks) {
-		LazyObject *const lazy = GetObject(id);
+		LazyObject * lazy = GetObject(id);
 		const AnimationStack *stack;
 		if (!lazy || !(stack = lazy->Get<AnimationStack>())) {
 			DOMWarning("failed to read AnimationStack object");

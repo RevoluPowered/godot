@@ -58,7 +58,7 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-Geometry::Geometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+Geometry::Geometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Object(id, element, name), skin() {
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Deformer");
 	for (const Connection *con : conns) {
@@ -90,20 +90,20 @@ const Skin *Geometry::DeformerSkin() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-MeshGeometry::MeshGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+MeshGeometry::MeshGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
 	print_verbose("mesh name: " + String(name.c_str()) );
 
-	const Scope *sc = element->Compound();
+	const ScopePtr sc = element->Compound();
 	ERR_FAIL_COND_MSG(sc == nullptr, "failed to read geometry, prevented crash");
 	ERR_FAIL_COND_MSG(!HasElement(sc, "Vertices"), "Detected mesh with no vertexes, didn't populate the mesh");
 
 	// must have Mesh elements:
-	const Element *Vertices = GetRequiredElement(sc, "Vertices", element);
-	const Element *PolygonVertexIndex = GetRequiredElement(sc, "PolygonVertexIndex", element);
+	const ElementPtr Vertices = GetRequiredElement(sc, "Vertices", element);
+	const ElementPtr PolygonVertexIndex = GetRequiredElement(sc, "PolygonVertexIndex", element);
 
 	if (HasElement(sc, "Edges")) {
-		const Element *element_edges = GetRequiredElement(sc, "Edges", element);
+		const ElementPtr element_edges = GetRequiredElement(sc, "Edges", element);
 		ParseVectorDataArray(m_edges, element_edges);
 	}
 
@@ -122,16 +122,16 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element *element, const std::strin
 
 	// now read the sub mesh information from the geometry (normals, uvs, etc)
 	for (ElementMap::const_iterator it = Layer.first; it != Layer.second; ++it) {
-		const Scope *layer = GetRequiredScope(it->second);
+		const ScopePtr layer = GetRequiredScope(it->second);
 		const ElementCollection &LayerElement = layer->GetCollection("LayerElement");
 		for (ElementMap::const_iterator eit = LayerElement.first; eit != LayerElement.second; ++eit) {
 			std::string layer_name = eit->first;
-			Element *element_layer = eit->second;
-			const Scope *layer_element = GetRequiredScope(element_layer);
+			ElementPtr element_layer = eit->second;
+			const ScopePtr layer_element = GetRequiredScope(element_layer);
 
 			// Actual usable 'type' LayerElementUV, LayerElementNormal, etc
-			const Element *Type = GetRequiredElement(layer_element, "Type");
-			const Element *TypedIndex = GetRequiredElement(layer_element, "TypedIndex");
+			const ElementPtr Type = GetRequiredElement(layer_element, "Type");
+			const ElementPtr TypedIndex = GetRequiredElement(layer_element, "TypedIndex");
 			const std::string &type = ParseTokenAsString(GetRequiredToken(Type, 0));
 			const int typedIndex = ParseTokenAsInt(GetRequiredToken(TypedIndex, 0));
 
@@ -141,7 +141,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element *element, const std::strin
 	}
 
 	// get object / mesh directly from the FBX by the element ID.
-	const Scope *top = GetRequiredScope(element);
+	const ScopePtr top = GetRequiredScope(element);
 
 	// iterate over all layers for the mesh (uvs, normals, smoothing groups, colors, etc)
 	for( size_t x = 0; x < valid_layers.size(); x++) {
@@ -159,7 +159,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const Element *element, const std::strin
 		ElementMap::const_iterator iter;
 		for( iter = candidates.first; iter != candidates.second; ++iter)
 		{
-			const Scope *layer_scope = GetRequiredScope(iter->second);
+			const ScopePtr layer_scope = GetRequiredScope(iter->second);
 			TokenPtr layer_token = GetRequiredToken(iter->second, 0);
 			const int index = ParseTokenAsInt(layer_token);
 
@@ -304,7 +304,7 @@ MeshGeometry::Edge MeshGeometry::get_edge(const std::vector<Edge> &p_map, int p_
 
 template <class T>
 MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
-		const Scope *source,
+		const ScopePtr source,
 		const std::string &MappingInformationType,
 		const std::string &ReferenceInformationType,
 		const std::string &dataElementName) {
@@ -356,7 +356,7 @@ MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
 	ParseVectorDataArray(tempData.data, GetRequiredElement(source, dataElementName));
 
 	// index array wont always exist
-	const Element *element = GetOptionalElement(source, indexDataElementName);
+	const ElementPtr element = GetOptionalElement(source, indexDataElementName);
 	if (element) {
 		ParseVectorDataArray(tempData.index, element);
 	}
@@ -364,15 +364,15 @@ MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
 	return tempData;
 }
 // ------------------------------------------------------------------------------------------------
-ShapeGeometry::ShapeGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+ShapeGeometry::ShapeGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const Scope *sc = element->Compound();
+	const ScopePtr sc = element->Compound();
 	if (nullptr == sc) {
 		DOMError("failed to read Geometry object (class: Shape), no data scope found");
 	}
-	const Element *Indexes = GetRequiredElement(sc, "Indexes", element);
-	const Element *Normals = GetRequiredElement(sc, "Normals", element);
-	const Element *Vertices = GetRequiredElement(sc, "Vertices", element);
+	const ElementPtr Indexes = GetRequiredElement(sc, "Indexes", element);
+	const ElementPtr Normals = GetRequiredElement(sc, "Normals", element);
+	const ElementPtr Vertices = GetRequiredElement(sc, "Vertices", element);
 	ParseVectorDataArray(m_indices, Indexes);
 	ParseVectorDataArray(m_vertices, Vertices);
 	ParseVectorDataArray(m_normals, Normals);
@@ -395,14 +395,14 @@ const std::vector<unsigned int> &ShapeGeometry::GetIndices() const {
 	return m_indices;
 }
 // ------------------------------------------------------------------------------------------------
-LineGeometry::LineGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
+LineGeometry::LineGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const Scope *sc = element->Compound();
+	const ScopePtr sc = element->Compound();
 	if (!sc) {
 		DOMError("failed to read Geometry object (class: Line), no data scope found");
 	}
-	const Element *Points = GetRequiredElement(sc, "Points", element);
-	const Element *PointsIndex = GetRequiredElement(sc, "PointsIndex", element);
+	const ElementPtr Points = GetRequiredElement(sc, "Points", element);
+	const ElementPtr PointsIndex = GetRequiredElement(sc, "PointsIndex", element);
 	ParseVectorDataArray(m_vertices, Points);
 	ParseVectorDataArray(m_indices, PointsIndex);
 }

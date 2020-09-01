@@ -59,12 +59,12 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-Material::Material(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Material::Material(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
-	const Element *const ShadingModel = sc->GetElement("ShadingModel");
-	const Element *const MultiLayer = sc->GetElement("MultiLayer");
+	const ElementPtr ShadingModel = sc->GetElement("ShadingModel");
+	const ElementPtr MultiLayer = sc->GetElement("MultiLayer");
 
 	if (MultiLayer) {
 		multilayer = !!ParseTokenAsInt(GetRequiredToken(MultiLayer, 0));
@@ -134,17 +134,17 @@ Material::~Material() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Texture::Texture(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Texture::Texture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name), uvScaling(1.0f, 1.0f), media(0) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
-	const Element *const Type = sc->GetElement("Type");
-	const Element *const FileName = sc->GetElement("FileName");
-	const Element *const RelativeFilename = sc->GetElement("RelativeFilename");
-	const Element *const ModelUVTranslation = sc->GetElement("ModelUVTranslation");
-	const Element *const ModelUVScaling = sc->GetElement("ModelUVScaling");
-	const Element *const Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source");
-	const Element *const Cropping = sc->GetElement("Cropping");
+	ElementPtr Type = sc->GetElement("Type");
+	ElementPtr FileName = sc->GetElement("FileName");
+	ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
+	ElementPtr ModelUVTranslation = sc->GetElement("ModelUVTranslation");
+	ElementPtr ModelUVScaling = sc->GetElement("ModelUVScaling");
+	ElementPtr Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source");
+	ElementPtr Cropping = sc->GetElement("Cropping");
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));
@@ -220,12 +220,12 @@ Texture::Texture(uint64_t id, const Element *element, const Document &doc, const
 Texture::~Texture() {
 }
 
-LayeredTexture::LayeredTexture(uint64_t id, const Element *element, const Document & /*doc*/, const std::string &name) :
+LayeredTexture::LayeredTexture(uint64_t id, const ElementPtr element, const Document & /*doc*/, const std::string &name) :
 		Object(id, element, name), blendMode(BlendMode_Modulate), alpha(1) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
-	const Element *const BlendModes = sc->GetElement("BlendModes");
-	const Element *const Alphas = sc->GetElement("Alphas");
+	ElementPtr BlendModes = sc->GetElement("BlendModes");
+	ElementPtr Alphas = sc->GetElement("Alphas");
 
 	if (BlendModes != 0) {
 		blendMode = (BlendMode)ParseTokenAsInt(GetRequiredToken(BlendModes, 0));
@@ -256,14 +256,14 @@ void LayeredTexture::fillTexture(const Document &doc) {
 }
 
 // ------------------------------------------------------------------------------------------------
-Video::Video(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
+Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name), contentLength(0), content(0) {
-	const Scope *sc = GetRequiredScope(element);
+	const ScopePtr sc = GetRequiredScope(element);
 
-	const Element *const Type = sc->GetElement("Type");
+	const ElementPtr Type = sc->GetElement("Type");
 	// File Version 7500 Crashes if this is not checked fully.
 	// As of writing this comment 7700 exists, in August 2020
-	Element * FileName = nullptr;
+	ElementPtr FileName = nullptr;
 	if(HasElement(sc, "Filename") )
 	{
 		FileName = (Element*) sc->GetElement("Filename");
@@ -276,8 +276,8 @@ Video::Video(uint64_t id, const Element *element, const Document &doc, const std
 		print_error("file has invalid video material returning...");
 		return;
 	}
-	const Element *const RelativeFilename = sc->GetElement("RelativeFilename");
-	const Element *const Content = sc->GetElement("Content");
+	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
+	const ElementPtr Content = sc->GetElement("Content");
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));

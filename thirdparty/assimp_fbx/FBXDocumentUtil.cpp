@@ -116,7 +116,8 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 		const Element *element,
 		const Scope *sc,
 		bool no_warn /*= false*/) {
-	const Element *const Properties70 = sc->GetElement("Properties70");
+	// todo: make this an abstraction
+	const ElementPtr Properties70 = sc->GetElement("Properties70");
 	const PropertyTable* templateProps = static_cast<const PropertyTable *>(nullptr);
 
 	if (templateName.length()) {
@@ -138,7 +139,7 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 		}
 	}
 
-	return new PropertyTable (Properties70, templateProps);
+	return new const PropertyTable(Properties70, templateProps);
 }
 } // namespace Util
 } // namespace FBX
