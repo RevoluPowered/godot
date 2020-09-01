@@ -92,7 +92,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 		return nullptr;
 	}
 
-	const char *err;
+	const char *err = nullptr;
 	std::string name = ParseTokenAsString(tokens[1], err);
 	if (err) {
 		DOMError(err, element);
@@ -167,11 +167,9 @@ const Object *LazyObject::Get(bool dieOnError) {
 			}
 		} else if (!strncmp(obtype, "Model", length)) {
 			if (!strcmp(classtag.c_str(), "LimbNode")) {
-				//std::cout << "created limb node maya!" << std::endl;
 				object.reset(new LimbNodeMaya(id, element, doc, name));
-			} else
-					// FK and IK effectors are not supported
-					if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
+			} else if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
+				// FK and IK effectors are not supporte
 				object.reset(new Model(id, element, doc, name));
 			}
 		} else if (!strncmp(obtype, "Material", length)) {
@@ -208,7 +206,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 
 		print_error(ex.what());
 
-		return NULL;
+		return nullptr;
 	}
 
 	if (!object.get()) {
