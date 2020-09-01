@@ -159,8 +159,8 @@ public:
 	Parser(const TokenList &tokens, bool is_binary);
 	~Parser();
 
-	const Scope &GetRootScope() const {
-		return *root.get();
+	const Scope *GetRootScope() const {
+		return root;
 	}
 
 	bool IsBinary() const {
@@ -180,7 +180,7 @@ private:
 
 	TokenPtr last = nullptr, current = nullptr;
 	TokenList::const_iterator cursor;
-	std::shared_ptr<Scope> root = nullptr;
+	Scope* root = nullptr;
 
 	const bool is_binary;
 };

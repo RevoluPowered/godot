@@ -55,9 +55,9 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-NodeAttribute::NodeAttribute(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+NodeAttribute::NodeAttribute(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		Object(id, element, name), props() {
-	const Scope &sc = GetRequiredScope(element);
+	const Scope *sc = GetRequiredScope(element);
 
 	const std::string &classname = ParseTokenAsString(GetRequiredToken(element, 2));
 
@@ -74,23 +74,23 @@ NodeAttribute::~NodeAttribute() {
 }
 
 // ------------------------------------------------------------------------------------------------
-CameraSwitcher::CameraSwitcher(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+CameraSwitcher::CameraSwitcher(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
-	const Scope &sc = GetRequiredScope(element);
-	const Element *const CameraId = sc["CameraId"];
-	const Element *const CameraName = sc["CameraName"];
-	const Element *const CameraIndexName = sc["CameraIndexName"];
+	const Scope *sc = GetRequiredScope(element);
+	const Element *CameraId = sc->GetElement("CameraId");
+	const Element *CameraName = sc->GetElement("CameraName");
+	const Element *CameraIndexName = sc->GetElement("CameraIndexName");
 
 	if (CameraId) {
-		cameraId = ParseTokenAsInt(GetRequiredToken(*CameraId, 0));
+		cameraId = ParseTokenAsInt(GetRequiredToken(CameraId, 0));
 	}
 
 	if (CameraName) {
-		cameraName = GetRequiredToken(*CameraName, 0).StringContents();
+		cameraName = GetRequiredToken(CameraName, 0)->StringContents();
 	}
 
 	if (CameraIndexName && CameraIndexName->Tokens().size()) {
-		cameraIndexName = GetRequiredToken(*CameraIndexName, 0).StringContents();
+		cameraIndexName = GetRequiredToken(CameraIndexName, 0)->StringContents();
 	}
 }
 
@@ -100,7 +100,7 @@ CameraSwitcher::~CameraSwitcher() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Camera::Camera(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+Camera::Camera(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 	// empty
 }
@@ -111,7 +111,7 @@ Camera::~Camera() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Light::Light(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+Light::Light(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 	// empty
 }
@@ -121,7 +121,7 @@ Light::~Light() {
 }
 
 // ------------------------------------------------------------------------------------------------
-Null::Null(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+Null::Null(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 }
 
@@ -130,7 +130,7 @@ Null::~Null() {
 }
 
 // ------------------------------------------------------------------------------------------------
-LimbNode::LimbNode(uint64_t id, const Element &element, const Document &doc, const std::string &name) :
+LimbNode::LimbNode(uint64_t id, const Element *element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 	//std::cout << "limb node: " << name << std::endl;
 	//const Scope &sc = GetRequiredScope(element);

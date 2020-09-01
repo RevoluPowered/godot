@@ -261,7 +261,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	MaterialInfo material_info = extract_material_info(material);
 
 	// Extract other parameters info.
-	const std::vector<std::string> properties_name = material->Props().get_properties_name();
+	const std::vector<std::string> properties_name = material->Props()->get_properties_name();
 	for (std::string name : properties_name) {
 		if (name.empty()) {
 			continue;
@@ -282,7 +282,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 
 		//ERR_CONTINUE_MSG(desc == PROPERTY_DESC_NOT_FOUND, "The FBX material parameter: `" + String(name.c_str()) + "` was not recognized. Please open an issue so we can add the support to it.");
 
-		const Assimp::FBX::Property *prop = material->Props().Get(name);
+		const Assimp::FBX::Property *prop = material->Props()->Get(name);
 
 		if (prop == nullptr) {
 			continue;

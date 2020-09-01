@@ -33,7 +33,7 @@
 #include "modules/fbx/tools/import_utils.h"
 
 void PivotTransform::ReadTransformChain() {
-	const Assimp::FBX::PropertyTable &props = fbx_model->Props();
+	const Assimp::FBX::PropertyTable *props = fbx_model->Props();
 	const Assimp::FBX::Model::RotOrder &rot = fbx_model->RotationOrder();
 	const Assimp::FBX::TransformInheritance &inheritType = fbx_model->InheritType();
 	inherit_type = inheritType; // copy the inherit type we need it in the second step.

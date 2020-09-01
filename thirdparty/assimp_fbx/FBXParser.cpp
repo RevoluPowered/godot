@@ -185,7 +185,7 @@ Scope::~Scope() {
 // ------------------------------------------------------------------------------------------------
 Parser::Parser(const TokenList &tokens, bool is_binary) :
 		tokens(tokens), last(), current(), cursor(tokens.begin()), is_binary(is_binary) {
-	root.reset(new Scope(*this, true));
+	root = new Scope(*this, true);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -481,7 +481,7 @@ void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uin
 // read binary data array, assume cursor points to the 'compression mode' field (i.e. behind the header)
 void ReadBinaryDataArray(char type, uint32_t count, const char *&data, const char *end,
 		std::vector<char> &buff,
-		const Element & /*el*/) {
+		const Element * /*el*/) {
 	uint32_t encmode = SafeParse<uint32_t>(data, end);
 	AI_SWAP4(encmode);
 	data += 4;
@@ -575,7 +575,7 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
 		ReadBinaryDataArrayHead(data, end, type, count, el);
 
 		if (count % 3 != 0) {
-			print_error("number of floats is not a multiple of three (3) (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("number of floats is not a multiple of three (3) (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		if (!count) {
@@ -644,11 +644,11 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of color4 tuples
-void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<Color> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element" + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element" + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -659,7 +659,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
 		ReadBinaryDataArrayHead(data, end, type, count, el);
 
 		if (count % 4 != 0) {
-			print_error("number of floats is not a multiple of four (4) (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("number of floats is not a multiple of four (4) (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		if (!count) {
@@ -667,7 +667,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
 		}
 
 		if (type != 'd' && type != 'f') {
-			print_error("expected float or double array (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected float or double array (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -701,18 +701,18 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
 	//  see notes in ParseVectorDataArray() above
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	if (a.Tokens().size() % 4 != 0) {
-		print_error("number of floats is not a multiple of four (4)" + String(el.KeyToken().StringContents().c_str()));
+	if (a->Tokens().size() % 4 != 0) {
+		print_error("number of floats is not a multiple of four (4)" + String(el->KeyToken()->StringContents().c_str()));
 	}
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		Color v;
-		v.r = ParseTokenAsFloat(**it++);
-		v.g = ParseTokenAsFloat(**it++);
-		v.b = ParseTokenAsFloat(**it++);
-		v.a = ParseTokenAsFloat(**it++);
+		v.r = ParseTokenAsFloat(*it++);
+		v.g = ParseTokenAsFloat(*it++);
+		v.b = ParseTokenAsFloat(*it++);
+		v.a = ParseTokenAsFloat(*it++);
 
 		out.push_back(v);
 	}
@@ -720,11 +720,11 @@ void ParseVectorDataArray(std::vector<Color> &out, const Element &el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of float2 tuples
-void ParseVectorDataArray(std::vector<Vector2> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element" + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element" + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -735,7 +735,7 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const Element &el) {
 		ReadBinaryDataArrayHead(data, end, type, count, el);
 
 		if (count % 2 != 0) {
-			print_error("number of floats is not a multiple of two (2) (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("number of floats is not a multiple of two (2) (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		if (!count) {
@@ -743,7 +743,7 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const Element &el) {
 		}
 
 		if (type != 'd' && type != 'f') {
-			print_error("expected float or double array (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected float or double array (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -771,33 +771,32 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray() above
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	if (a.Tokens().size() % 2 != 0) {
-		print_error("number of floats is not a multiple of two (2)" + String(el.KeyToken().StringContents().c_str()));
+	if (a->Tokens().size() % 2 != 0) {
+		print_error("number of floats is not a multiple of two (2)" + String(el->KeyToken()->StringContents().c_str()));
 	}
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		Vector2 v;
-		v.x = ParseTokenAsFloat(**it++);
-		v.y = ParseTokenAsFloat(**it++);
-
+		v.x = ParseTokenAsFloat(*it++);
+		v.y = ParseTokenAsFloat(*it++);
 		out.push_back(v);
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 // read an array of ints
-void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<int> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element" + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element" + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -812,7 +811,7 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 		}
 
 		if (type != 'i') {
-			print_error("expected int array (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected int array (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -839,7 +838,7 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 	out.reserve(dim);
 
 	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", &el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
 	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const int ival = ParseTokenAsInt(*it++);
@@ -849,11 +848,11 @@ void ParseVectorDataArray(std::vector<int> &out, const Element &el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of floats
-void ParseVectorDataArray(std::vector<float> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<float> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element: " + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element: " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -868,7 +867,7 @@ void ParseVectorDataArray(std::vector<float> &out, const Element &el) {
 		}
 
 		if (type != 'd' && type != 'f') {
-			print_error("expected float or double array (binary) " + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected float or double array (binary) " + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -892,27 +891,27 @@ void ParseVectorDataArray(std::vector<float> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
-		const float ival = ParseTokenAsFloat(**it++);
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
+		const float ival = ParseTokenAsFloat(*it++);
 		out.push_back(ival);
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 // read an array of uints
-void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element: " + String(el.KeyToken()->StringContents().c_str()));
+		print_error("unexpected empty element: " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -927,7 +926,7 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 		}
 
 		if (type != 'i') {
-			print_error("expected (u)int array (binary)" + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected (u)int array (binary)" + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -957,10 +956,10 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 	out.reserve(dim);
 
 	const Scope *scope = GetRequiredScope(el);
-	const Element *a = GetRequiredElement(scope, "a", &el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
-		const int ival = ParseTokenAsInt(**it++);
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
+		const int ival = ParseTokenAsInt(*it++);
 		if (ival < 0) {
 			print_error("encountered negative integer index");
 		}
@@ -970,11 +969,11 @@ void ParseVectorDataArray(std::vector<unsigned int> &out, const Element &el) {
 
 // ------------------------------------------------------------------------------------------------
 // read an array of uint64_ts
-void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
+void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
-		print_error("unexpected empty element " + String(el.KeyToken().StringContents().c_str()));
+		print_error("unexpected empty element " + String(el->KeyToken()->StringContents().c_str()));
 	}
 
 	if (tok[0]->IsBinary()) {
@@ -989,7 +988,7 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 		}
 
 		if (type != 'l') {
-			print_error("expected long array (binary): " + String(el.KeyToken().StringContents().c_str()));
+			print_error("expected long array (binary): " + String(el->KeyToken()->StringContents().c_str()));
 		}
 
 		std::vector<char> buff;
@@ -1010,15 +1009,15 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 		return;
 	}
 
-	const size_t dim = ParseTokenAsDim(*tok[0]);
+	const size_t dim = ParseTokenAsDim(tok[0]);
 
 	// see notes in ParseVectorDataArray()
 	out.reserve(dim);
 
-	const Scope &scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Scope *scope = GetRequiredScope(el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const uint64_t ival = ParseTokenAsID(*it++);
 
 		out.push_back(ival);
@@ -1029,7 +1028,7 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const Element &el) {
 // read an array of int64_ts
 void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
 	out.resize(0);
-	const TokenList &tok = el.Tokens();
+	const TokenList &tok = el->Tokens();
 	if (tok.empty()) {
 		print_error("unexpected empty element: " + String(el->KeyToken()->StringContents().c_str()));
 	}
@@ -1073,9 +1072,9 @@ void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el) {
 	out.reserve(dim);
 
 	const Scope *scope = GetRequiredScope(el);
-	const Element &a = GetRequiredElement(scope, "a", &el);
+	const Element *a = GetRequiredElement(scope, "a", el);
 
-	for (TokenList::const_iterator it = a.Tokens().begin(), end = a.Tokens().end(); it != end;) {
+	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
 		const int64_t val = ParseTokenAsInt64(*it++);
 		out.push_back(val);
 	}
@@ -1133,7 +1132,7 @@ std::string ParseTokenAsString(const TokenPtr t) {
 const Element *GetRequiredElement(const Scope *sc, const std::string &index, const Element *element /*= NULL*/) {
 	const Element *el = sc->GetElement(index);
 	if (!el) {
-		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(element->KeyToken().StringContents().c_str()));
+		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(element->KeyToken()->StringContents().c_str()));
 	}
 	return el;
 }

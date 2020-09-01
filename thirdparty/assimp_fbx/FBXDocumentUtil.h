@@ -55,19 +55,25 @@ namespace Assimp {
 namespace FBX {
 namespace Util {
 
-/* DOM/Parse error reporting - does not return */
-void DOMError(const std::string &message, const Token &token);
-void DOMError(const std::string &message, const Element *element = NULL);
+// Parser errors
+void DOMError(const std::string &message);
+void DOMError(const std::string &message, const Token *token);
+void DOMError(const std::string &message, const Element *element);
+void DOMError(const std::string &message, const std::shared_ptr<Element> element);
+void DOMError(const std::string &message, const std::shared_ptr<Token> token);
 
-// does return
-void DOMWarning(const std::string &message, const Token &token);
-void DOMWarning(const std::string &message, const Element *element = NULL);
+// Parser warnings
+void DOMWarning(const std::string &message);
+void DOMWarning(const std::string &message, const Token *token);
+void DOMWarning(const std::string &message, const Element *element);
+void DOMWarning(const std::string &message, const std::shared_ptr<Token> token);
+void DOMWarning(const std::string &message, const std::shared_ptr<Element> element);
 
 // fetch a property table and the corresponding property template
-std::shared_ptr<const PropertyTable> GetPropertyTable(const Document &doc,
+const PropertyTable* GetPropertyTable(const Document &doc,
 		const std::string &templateName,
-		const Element &element,
-		const Scope &sc,
+		const Element *element,
+		const Scope *sc,
 		bool no_warn = false);
 
 // ------------------------------------------------------------------------------------------------
@@ -75,17 +81,17 @@ template <typename T>
 inline const T *ProcessSimpleConnection(const Connection &con,
 		bool is_object_property_conn,
 		const char *name,
-		const Element &element,
+		const Element *element,
 		const char **propNameOut = nullptr) {
 	if (is_object_property_conn && !con.PropertyName().length()) {
 		DOMWarning("expected incoming " + std::string(name) +
 						   " link to be an object-object connection, ignoring",
-				&element);
+				element);
 		return nullptr;
 	} else if (!is_object_property_conn && con.PropertyName().length()) {
 		DOMWarning("expected incoming " + std::string(name) +
 						   " link to be an object-property connection, ignoring",
-				&element);
+				element);
 		return nullptr;
 	}
 

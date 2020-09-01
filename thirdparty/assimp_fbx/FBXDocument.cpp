@@ -64,7 +64,7 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-LazyObject::LazyObject(uint64_t id, const Element &element, const Document &doc) :
+LazyObject::LazyObject(uint64_t id, const Element *element, const Document &doc) :
 		doc(doc), element(element), id(id), flags() {
 	// empty
 }
@@ -84,8 +84,8 @@ const Object *LazyObject::Get(bool dieOnError) {
 		return object.get();
 	}
 
-	const TokenPtr key = element.KeyToken();
-	const TokenList &tokens = element.Tokens();
+	const TokenPtr key = element->KeyToken();
+	const TokenList &tokens = element->Tokens();
 
 	if (tokens.size() < 3) {
 		//DOMError("expected at least 3 tokens: id, name and class tag",&element);
@@ -95,7 +95,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 	const char *err;
 	std::string name = ParseTokenAsString(tokens[1], err);
 	if (err) {
-		DOMError(err, &element);
+		DOMError(err, element);
 	}
 
 	// small fix for binary reading: binary fbx files don't use
@@ -113,7 +113,7 @@ const Object *LazyObject::Get(bool dieOnError) {
 
 	const std::string classtag = ParseTokenAsString(tokens[2], err);
 	if (err) {
-		DOMError(err, &element);
+		DOMError(err, element);
 	}
 
 	// prevent recursive calls
@@ -122,8 +122,8 @@ const Object *LazyObject::Get(bool dieOnError) {
 	try {
 		// this needs to be relatively fast since it happens a lot,
 		// so avoid constructing strings all the time.
-		const char *obtype = key.begin();
-		const size_t length = static_cast<size_t>(key.end() - key.begin());
+		const char *obtype = key->begin();
+		const size_t length = static_cast<size_t>(key->end() - key->begin());
 
 		// For debugging
 		//dumpObjectClassInfo( objtype, classtag )
@@ -230,7 +230,7 @@ Object::~Object() {
 }
 
 // ------------------------------------------------------------------------------------------------
-FileGlobalSettings::FileGlobalSettings(const Document &doc, std::shared_ptr<const PropertyTable> props) :
+FileGlobalSettings::FileGlobalSettings(const Document &doc, const PropertyTable* props) :
 		props(props), doc(doc) {
 	// empty
 }
@@ -281,13 +281,13 @@ static const unsigned int UpperSupportedVersion = 7700;
 
 bool Document::ReadHeader() {
 	// Read ID objects from "Objects" section
-	const Scope &sc = parser.GetRootScope();
-	const Element *const ehead = sc["FBXHeaderExtension"];
+	const Scope *sc = parser.GetRootScope();
+	const Element *const ehead = sc->GetElement("FBXHeaderExtension");
 	if (!ehead || !ehead->Compound()) {
 		DOMError("no FBXHeaderExtension dictionary found");
 	}
 
-	const Scope &shead = *ehead->Compound();
+	const Scope *shead = ehead->Compound();
 	fbxVersion = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(shead, "FBXVersion", ehead), 0));
 
 	// While we may have some success with newer files, we don't support
@@ -301,14 +301,14 @@ bool Document::ReadHeader() {
 				   " trying to read it nevertheless");
 	}
 
-	const Element *const ecreator = shead["Creator"];
+	const Element *const ecreator = shead->GetElement("Creator");
 	if (ecreator) {
-		creator = ParseTokenAsString(GetRequiredToken(*ecreator, 0));
+		creator = ParseTokenAsString(GetRequiredToken(ecreator, 0));
 	}
 
-	const Element *const etimestamp = shead["CreationTimeStamp"];
+	const Element *const etimestamp = shead->GetElement("CreationTimeStamp");
 	if (etimestamp && etimestamp->Compound()) {
-		const Scope &stimestamp = *etimestamp->Compound();
+		const Scope *stimestamp = etimestamp->Compound();
 		creationTimeStamp[0] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Year"), 0));
 		creationTimeStamp[1] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Month"), 0));
 		creationTimeStamp[2] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Day"), 0));
@@ -323,15 +323,15 @@ bool Document::ReadHeader() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadGlobalSettings() {
-	const Scope &sc = parser.GetRootScope();
-	const Element *const ehead = sc["GlobalSettings"];
+	const Scope *sc = parser.GetRootScope();
+	const Element *const ehead = sc->GetElement("GlobalSettings");
 	if (nullptr == ehead || !ehead->Compound()) {
 		DOMWarning("no GlobalSettings dictionary found");
-		globals.reset(new FileGlobalSettings(*this, std::make_shared<const PropertyTable>()));
+		globals.reset(new FileGlobalSettings(*this, new PropertyTable()));
 		return;
 	}
 
-	std::shared_ptr<const PropertyTable> props = GetPropertyTable(*this, "", *ehead, *ehead->Compound(), true);
+	const PropertyTable* props = GetPropertyTable(*this, "", ehead, ehead->Compound(), true);
 
 	//double v = PropertyGet<float>( *props.get(), std::string("UnitScaleFactor"), 1.0 );
 
@@ -345,51 +345,51 @@ void Document::ReadGlobalSettings() {
 // ------------------------------------------------------------------------------------------------
 void Document::ReadObjects() {
 	// read ID objects from "Objects" section
-	const Scope &sc = parser.GetRootScope();
-	const Element *const eobjects = sc["Objects"];
+	const Scope *sc = parser.GetRootScope();
+	const Element *const eobjects = sc->GetElement("Objects");
 	if (!eobjects || !eobjects->Compound()) {
 		DOMError("no Objects dictionary found");
 	}
 
 	// add a dummy entry to represent the Model::RootNode object (id 0),
 	// which is only indirectly defined in the input file
-	objects[0] = new LazyObject(0L, *eobjects, *this);
+	objects[0] = new LazyObject(0L, eobjects, *this);
 
-	const Scope &sobjects = *eobjects->Compound();
-	for (const ElementMap::value_type &el : sobjects.Elements()) {
+	const Scope *sobjects = eobjects->Compound();
+	for (const ElementMap::value_type iter : sobjects->Elements()) {
 
 		// extract ID
-		const TokenList &tok = el.second->Tokens();
+		const TokenList &tok = iter.second->Tokens();
 
 		if (tok.empty()) {
-			DOMError("expected ID after object key", el.second);
+			DOMError("expected ID after object key", iter.second);
 		}
 
 		const char *err;
-		const uint64_t id = ParseTokenAsID(*tok[0], err);
+		const uint64_t id = ParseTokenAsID(tok[0], err);
 		if (err) {
-			DOMError(err, el.second);
+			DOMError(err, iter.second);
 		}
 
 		// id=0 is normally implicit
 		if (id == 0L) {
-			DOMError("encountered object with implicitly defined id 0", el.second);
+			DOMError("encountered object with implicitly defined id 0", iter.second);
 		}
 
 		if (objects.find(id) != objects.end()) {
-			DOMWarning("encountered duplicate object id, ignoring first occurrence", el.second);
+			DOMWarning("encountered duplicate object id, ignoring first occurrence", iter.second);
 		}
 
-		objects[id] = new LazyObject(id, *el.second, *this);
+		objects[id] = new LazyObject(id, iter.second, *this);
 
 		// grab all animation stacks upfront since there is no listing of them
-		if (!strcmp(el.first.c_str(), "AnimationStack")) {
+		if (!strcmp(iter.first.c_str(), "AnimationStack")) {
 			animationStacks.push_back(id);
-		} else if (!strcmp(el.first.c_str(), "Constraint")) {
+		} else if (!strcmp(iter.first.c_str(), "Constraint")) {
 			constraints.push_back(id);
-		} else if (!strcmp(el.first.c_str(), "Pose")) {
+		} else if (!strcmp(iter.first.c_str(), "Pose")) {
 			bind_poses.push_back(id);
-		} else if (!strcmp(el.first.c_str(), "Material")) {
+		} else if (!strcmp(iter.first.c_str(), "Material")) {
 			materials.push_back(id);
 		}
 	}
@@ -397,9 +397,9 @@ void Document::ReadObjects() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadPropertyTemplates() {
-	const Scope &sc = parser.GetRootScope();
+	const Scope *sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const Element *const edefs = sc["Definitions"];
+	const Element *const edefs = sc->GetElement("Definitions");
 	if (!edefs || !edefs->Compound()) {
 		DOMWarning("no Definitions dictionary found");
 		return;
@@ -421,7 +421,7 @@ void Document::ReadPropertyTemplates() {
 			continue;
 		}
 
-		const std::string &oname = ParseTokenAsString(*tok[0]);
+		const std::string &oname = ParseTokenAsString(tok[0]);
 
 		const ElementCollection templs = sc_2->GetCollection("PropertyTemplate");
 		for (ElementMap::const_iterator iter = templs.first; iter != templs.second; ++iter) {
@@ -438,12 +438,12 @@ void Document::ReadPropertyTemplates() {
 				continue;
 			}
 
-			const std::string &pname = ParseTokenAsString(*tok_2[0]);
+			const std::string &pname = ParseTokenAsString(tok_2[0]);
 
-			const Element *Properties70 = (*sc_3)["Properties70"];
+			const Element *Properties70 = sc_3->GetElement("Properties70");
 			if (Properties70) {
-				std::shared_ptr<const PropertyTable> props = std::make_shared<const PropertyTable>(
-						*Properties70, std::shared_ptr<const PropertyTable>(static_cast<const PropertyTable *>(NULL)));
+				// PropertyTable(const Element *element, const PropertyTable* templateProps);
+				const PropertyTable* props = new PropertyTable(Properties70, nullptr);
 
 				templates[oname + "." + pname] = props;
 			}
@@ -453,18 +453,18 @@ void Document::ReadPropertyTemplates() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadConnections() {
-	const Scope &sc = parser.GetRootScope();
+	const Scope *sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const Element *const econns = sc["Connections"];
+	const Element *const econns = sc->GetElement("Connections");
 	if (!econns || !econns->Compound()) {
 		DOMError("no Connections dictionary found");
 	}
 
 	uint64_t insertionOrder = 0l;
-	const Scope &sconns = *econns->Compound();
-	const ElementCollection conns = sconns.GetCollection("C");
+	const Scope *sconns = econns->Compound();
+	const ElementCollection conns = sconns->GetCollection("C");
 	for (ElementMap::const_iterator it = conns.first; it != conns.second; ++it) {
-		const Element &el = *(*it).second;
+		const Element *el = (*it).second;
 		const std::string &type = ParseTokenAsString(GetRequiredToken(el, 0));
 
 		// PP = property-property connection, ignored for now
@@ -481,13 +481,13 @@ void Document::ReadConnections() {
 		const std::string &prop = (type == "OP" ? ParseTokenAsString(GetRequiredToken(el, 3)) : "");
 
 		if (objects.find(src) == objects.end()) {
-			DOMWarning("source object for connection does not exist", &el);
+			DOMWarning("source object for connection does not exist", el);
 			continue;
 		}
 
 		// dest may be 0 (root node) but we added a dummy object before
 		if (objects.find(dest) == objects.end()) {
-			DOMWarning("destination object for connection does not exist", &el);
+			DOMWarning("destination object for connection does not exist", el);
 			continue;
 		}
 
@@ -567,13 +567,13 @@ std::vector<const Connection *> Document::GetConnectionsSequenced(uint64_t id, b
 
 	temp.reserve(std::distance(range.first, range.second));
 	for (ConnectionMap::const_iterator it = range.first; it != range.second; ++it) {
-		const Token &key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement().KeyToken();
+		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement()->KeyToken();
 
-		const char *obtype = key.begin();
+		const char *obtype = key->begin();
 
 		for (size_t i = 0; i < c; ++i) {
 			//ai_assert(classnames[i]);
-			if (static_cast<size_t>(std::distance(key.begin(), key.end())) == lengths[i] && !strncmp(classnames[i], obtype, lengths[i])) {
+			if (static_cast<size_t>(std::distance(key->begin(), key->end())) == lengths[i] && !strncmp(classnames[i], obtype, lengths[i])) {
 				obtype = nullptr;
 				break;
 			}

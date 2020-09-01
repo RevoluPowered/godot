@@ -72,18 +72,18 @@ Property *ReadTypedProperty(const Element &element) {
 	const TokenList &tok = element.Tokens();
 	//ai_assert(tok.size() >= 5);
 
-	const std::string &s = ParseTokenAsString(*tok[1]);
+	const std::string &s = ParseTokenAsString(tok[1]);
 	const char *const cs = s.c_str();
 	if (!strcmp(cs, "KString")) {
-		return new TypedProperty<std::string>(ParseTokenAsString(*tok[4]));
+		return new TypedProperty<std::string>(ParseTokenAsString(tok[4]));
 	} else if (!strcmp(cs, "bool") || !strcmp(cs, "Bool")) {
-		return new TypedProperty<bool>(ParseTokenAsInt(*tok[4]) != 0);
+		return new TypedProperty<bool>(ParseTokenAsInt(tok[4]) != 0);
 	} else if (!strcmp(cs, "int") || !strcmp(cs, "Int") || !strcmp(cs, "enum") || !strcmp(cs, "Enum")) {
-		return new TypedProperty<int>(ParseTokenAsInt(*tok[4]));
+		return new TypedProperty<int>(ParseTokenAsInt(tok[4]));
 	} else if (!strcmp(cs, "ULongLong")) {
-		return new TypedProperty<uint64_t>(ParseTokenAsID(*tok[4]));
+		return new TypedProperty<uint64_t>(ParseTokenAsID(tok[4]));
 	} else if (!strcmp(cs, "KTime")) {
-		return new TypedProperty<int64_t>(ParseTokenAsInt64(*tok[4]));
+		return new TypedProperty<int64_t>(ParseTokenAsInt64(tok[4]));
 	} else if (!strcmp(cs, "Vector3D") ||
 			   !strcmp(cs, "ColorRGB") ||
 			   !strcmp(cs, "Vector") ||
@@ -92,13 +92,13 @@ Property *ReadTypedProperty(const Element &element) {
 			   !strcmp(cs, "Lcl Rotation") ||
 			   !strcmp(cs, "Lcl Scaling")) {
 		return new TypedProperty<Vector3>(Vector3(
-				ParseTokenAsFloat(*tok[4]),
-				ParseTokenAsFloat(*tok[5]),
-				ParseTokenAsFloat(*tok[6])));
+				ParseTokenAsFloat(tok[4]),
+				ParseTokenAsFloat(tok[5]),
+				ParseTokenAsFloat(tok[6])));
 	} else if (!strcmp(cs, "double") || !strcmp(cs, "Number") || !strcmp(cs, "Float") || !strcmp(cs, "FieldOfView") || !strcmp(cs, "UnitScaleFactor")) {
-		return new TypedProperty<float>(ParseTokenAsFloat(*tok[4]));
+		return new TypedProperty<float>(ParseTokenAsFloat(tok[4]));
 	}
-	return NULL;
+	return nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -110,7 +110,7 @@ std::string PeekPropertyName(const Element &element) {
 		return "";
 	}
 
-	return ParseTokenAsString(*tok[0]);
+	return ParseTokenAsString(tok[0]);
 }
 
 } // namespace
@@ -121,10 +121,10 @@ PropertyTable::PropertyTable() :
 }
 
 // ------------------------------------------------------------------------------------------------
-PropertyTable::PropertyTable(const Element &element, std::shared_ptr<const PropertyTable> templateProps) :
-		templateProps(templateProps), element(&element) {
-	const Scope &scope = GetRequiredScope(element);
-	for (const ElementMap::value_type &v : scope.Elements()) {
+PropertyTable::PropertyTable(const Element *element, const PropertyTable* templateProps) :
+		templateProps(templateProps), element(element) {
+	const Scope *scope = GetRequiredScope(element);
+	for (const ElementMap::value_type &v : scope->Elements()) {
 		if (v.first != "P") {
 			DOMWarning("expected only P elements in property table", v.second);
 			continue;

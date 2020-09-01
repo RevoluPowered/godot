@@ -57,11 +57,11 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-AnimationCurve::AnimationCurve(uint64_t id, const Element &element, const std::string &name, const Document & /*doc*/) :
+AnimationCurve::AnimationCurve(uint64_t id, const Element *element, const std::string &name, const Document & /*doc*/) :
 		Object(id, element, name) {
-	const Scope &sc = GetRequiredScope(element);
-	const Element &KeyTime = GetRequiredElement(sc, "KeyTime");
-	const Element &KeyValueFloat = GetRequiredElement(sc, "KeyValueFloat");
+	const Scope *sc = GetRequiredScope(element);
+	const Element *KeyTime = GetRequiredElement(sc, "KeyTime");
+	const Element *KeyValueFloat = GetRequiredElement(sc, "KeyValueFloat");
 
 	// note preserved keys and values for legacy FBXConverter.cpp
 	// we can remove this once the animation system is written
@@ -70,7 +70,7 @@ AnimationCurve::AnimationCurve(uint64_t id, const Element &element, const std::s
 	ParseVectorDataArray(values, KeyValueFloat);
 
 	if (keys.size() != values.size()) {
-		DOMError("the number of key times does not match the number of keyframe values", &KeyTime);
+		DOMError("the number of key times does not match the number of keyframe values", KeyTime);
 	}
 
 	// put the two lists into the map, underlying container is really just a dictionary
@@ -82,14 +82,14 @@ AnimationCurve::AnimationCurve(uint64_t id, const Element &element, const std::s
 		keyvalues[keys[x]] = values[x];
 	}
 
-	const Element *KeyAttrDataFloat = sc["KeyAttrDataFloat"];
+	const Element *KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat");
 	if (KeyAttrDataFloat) {
-		ParseVectorDataArray(attributes, *KeyAttrDataFloat);
+		ParseVectorDataArray(attributes, KeyAttrDataFloat);
 	}
 
-	const Element *KeyAttrFlags = sc["KeyAttrFlags"];
+	const Element *KeyAttrFlags = sc->GetElement("KeyAttrFlags");
 	if (KeyAttrFlags) {
-		ParseVectorDataArray(flags, *KeyAttrFlags);
+		ParseVectorDataArray(flags, KeyAttrFlags);
 	}
 }
 
@@ -99,11 +99,11 @@ AnimationCurve::~AnimationCurve() {
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationCurveNode::AnimationCurveNode(uint64_t id, const Element &element, const std::string &name,
+AnimationCurveNode::AnimationCurveNode(uint64_t id, const Element *element, const std::string &name,
 		const Document &doc, const char *const *target_prop_whitelist /*= NULL*/,
 		size_t whitelist_size /*= 0*/) :
 		Object(id, element, name), target(), doc(doc) {
-	const Scope &sc = GetRequiredScope(element);
+	const Scope *sc = GetRequiredScope(element);
 
 	// find target node
 	const char *whitelist[] = { "Model", "NodeAttribute", "Deformer" };
@@ -133,7 +133,7 @@ AnimationCurveNode::AnimationCurveNode(uint64_t id, const Element &element, cons
 
 		const Object *const ob = con->DestinationObject();
 		if (!ob) {
-			DOMWarning("failed to read destination object for AnimationCurveNode->Model link, ignoring", &element);
+			DOMWarning("failed to read destination object for AnimationCurveNode->Model link, ignoring", element);
 			continue;
 		}
 
@@ -149,7 +149,7 @@ AnimationCurveNode::AnimationCurveNode(uint64_t id, const Element &element, cons
 	}
 
 	if (!target) {
-		DOMWarning("failed to resolve target Model/NodeAttribute/Constraint for AnimationCurveNode", &element);
+		DOMWarning("failed to resolve target Model/NodeAttribute/Constraint for AnimationCurveNode", element);
 	}
 
 	props = GetPropertyTable(doc, "AnimationCurveNode.FbxAnimCurveNode", element, sc, false);
@@ -176,13 +176,13 @@ const std::map<std::string, const AnimationCurve *> &AnimationCurveNode::Curves(
 
 			const Object *const ob = con->SourceObject();
 			if (!ob) {
-				DOMWarning("failed to read source object for AnimationCurve->AnimationCurveNode link, ignoring", &element);
+				DOMWarning("failed to read source object for AnimationCurve->AnimationCurveNode link, ignoring", element);
 				continue;
 			}
 
 			const AnimationCurve *const anim = dynamic_cast<const AnimationCurve *>(ob);
 			if (!anim) {
-				DOMWarning("source object for ->AnimationCurveNode link is not an AnimationCurve", &element);
+				DOMWarning("source object for ->AnimationCurveNode link is not an AnimationCurve", element);
 				continue;
 			}
 			//std::cout << "property found " << con->PropertyName() << std::endl;
@@ -194,9 +194,9 @@ const std::map<std::string, const AnimationCurve *> &AnimationCurveNode::Curves(
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationLayer::AnimationLayer(uint64_t id, const Element &element, const std::string &name, const Document &doc) :
+AnimationLayer::AnimationLayer(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
 		Object(id, element, name), doc(doc) {
-	const Scope &sc = GetRequiredScope(element);
+	const Scope *sc = GetRequiredScope(element);
 
 	// note: the props table here bears little importance and is usually absent
 	props = GetPropertyTable(doc, "AnimationLayer.FbxAnimLayer", element, sc, true);
@@ -225,13 +225,13 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 
 		const Object *const ob = con->SourceObject();
 		if (!ob) {
-			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", &element);
+			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", element);
 			continue;
 		}
 
 		const AnimationCurveNode *const anim = dynamic_cast<const AnimationCurveNode *>(ob);
 		if (!anim) {
-			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", &element);
+			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element);
 			continue;
 		}
 
@@ -255,9 +255,9 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationStack::AnimationStack(uint64_t id, const Element &element, const std::string &name, const Document &doc) :
+AnimationStack::AnimationStack(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
 		Object(id, element, name) {
-	const Scope &sc = GetRequiredScope(element);
+	const Scope *sc = GetRequiredScope(element);
 
 	// note: we don't currently use any of these properties so we shouldn't bother if it is missing
 	props = GetPropertyTable(doc, "AnimationStack.FbxAnimStack", element, sc, true);
@@ -275,13 +275,13 @@ AnimationStack::AnimationStack(uint64_t id, const Element &element, const std::s
 
 		const Object *const ob = con->SourceObject();
 		if (!ob) {
-			DOMWarning("failed to read source object for AnimationLayer->AnimationStack link, ignoring", &element);
+			DOMWarning("failed to read source object for AnimationLayer->AnimationStack link, ignoring", element);
 			continue;
 		}
 
 		const AnimationLayer *const anim = dynamic_cast<const AnimationLayer *>(ob);
 		if (!anim) {
-			DOMWarning("source object for ->AnimationStack link is not an AnimationLayer", &element);
+			DOMWarning("source object for ->AnimationStack link is not an AnimationLayer", element);
 			continue;
 		}
 		layers.push_back(anim);

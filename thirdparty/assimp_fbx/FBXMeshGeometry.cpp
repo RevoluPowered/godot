@@ -58,7 +58,7 @@ namespace FBX {
 using namespace Util;
 
 // ------------------------------------------------------------------------------------------------
-Geometry::Geometry(uint64_t id, const Element &element, const std::string &name, const Document &doc) :
+Geometry::Geometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
 		Object(id, element, name), skin() {
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Deformer");
 	for (const Connection *con : conns) {
@@ -90,20 +90,20 @@ const Skin *Geometry::DeformerSkin() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-MeshGeometry::MeshGeometry(uint64_t id, const Element &element, const std::string &name, const Document &doc) :
+MeshGeometry::MeshGeometry(uint64_t id, const Element *element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
 	print_verbose("mesh name: " + String(name.c_str()) );
 
-	const Scope *sc = element.Compound();
+	const Scope *sc = element->Compound();
 	ERR_FAIL_COND_MSG(sc == nullptr, "failed to read geometry, prevented crash");
-	ERR_FAIL_COND_MSG(!HasElement(*sc, "Vertices"), "Detected mesh with no vertexes, didn't populate the mesh");
+	ERR_FAIL_COND_MSG(!HasElement(sc, "Vertices"), "Detected mesh with no vertexes, didn't populate the mesh");
 
 	// must have Mesh elements:
-	const Element &Vertices = GetRequiredElement(*sc, "Vertices", &element);
-	const Element &PolygonVertexIndex = GetRequiredElement(*sc, "PolygonVertexIndex", &element);
+	const Element *Vertices = GetRequiredElement(sc, "Vertices", element);
+	const Element *PolygonVertexIndex = GetRequiredElement(sc, "PolygonVertexIndex", element);
 
-	if (HasElement(*sc, "Edges")) {
-		const Element &element_edges = GetRequiredElement(*sc, "Edges", &element);
+	if (HasElement(sc, "Edges")) {
+		const Element *element_edges = GetRequiredElement(sc, "Edges", element);
 		ParseVectorDataArray(m_edges, element_edges);
 	}
 

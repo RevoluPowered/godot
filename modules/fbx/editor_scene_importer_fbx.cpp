@@ -410,9 +410,9 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			const Assimp::FBX::FbxPose *active_skin = lazy_skin->Get<Assimp::FBX::FbxPose>();
 
 			if (active_skin) {
-				const std::vector<std::shared_ptr<Assimp::FBX::FbxPoseNode> > &bind_poses = active_skin->GetBindPoses();
+				const std::vector<Assimp::FBX::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
 
-				for (std::shared_ptr<Assimp::FBX::FbxPoseNode> pose_node : bind_poses) {
+				for (const Assimp::FBX::FbxPoseNode *pose_node : bind_poses) {
 					Transform t = pose_node->GetBindPose();
 					uint64_t fbx_node_id = pose_node->GetNodeID();
 					if (state.fbx_bone_map.has(fbx_node_id)) {
@@ -814,7 +814,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						uint64_t target_id = target->ID();
 						String target_name = ImportUtils::FBXNodeToName(target->Name());
 
-						const Assimp::FBX::PropertyTable &properties = curve_node->Props();
+						const Assimp::FBX::PropertyTable *properties = curve_node->Props();
 						bool got_x = false, got_y = false, got_z = false;
 						float offset_x = Assimp::FBX::PropertyGet<float>(properties, "d|X", got_x);
 						float offset_y = Assimp::FBX::PropertyGet<float>(properties, "d|Y", got_y);
@@ -971,7 +971,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 						Ref<FBXNode> target_node = state.fbx_target_map[target_id];
 						const Assimp::FBX::Model *model = target_node->fbx_model;
-						const Assimp::FBX::PropertyTable &props = model->Props();
+						const Assimp::FBX::PropertyTable *props = model->Props();
 
 						Map<StringName, FBXTrack> &track_data = track->value();
 						FBXTrack &translation_keys = track_data[StringName("T")];

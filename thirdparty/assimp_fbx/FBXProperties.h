@@ -105,7 +105,7 @@ class PropertyTable {
 public:
 	// in-memory property table with no source element
 	PropertyTable();
-	PropertyTable(const Element &element, std::shared_ptr<const PropertyTable> templateProps);
+	PropertyTable(const Element *element, const PropertyTable* templateProps);
 	~PropertyTable();
 
 	const Property *Get(const std::string &name) const;
@@ -116,7 +116,7 @@ public:
 	}
 
 	const PropertyTable *TemplateProps() const {
-		return templateProps.get();
+		return templateProps;
 	}
 
 	const std::vector<std::string> get_properties_name() const;
@@ -126,14 +126,14 @@ public:
 private:
 	LazyPropertyMap lazyProps;
 	mutable PropertyMap props;
-	const std::shared_ptr<const PropertyTable> templateProps;
-	const Element *const element;
+	const PropertyTable* templateProps = nullptr;
+	const Element * element = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline T PropertyGet(const PropertyTable &in, const std::string &name, const T &defaultValue) {
-	const Property *const prop = in.Get(name);
+inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &defaultValue) {
+	const Property *const prop = in->Get(name);
 	if (nullptr == prop) {
 		return defaultValue;
 	}
@@ -149,14 +149,14 @@ inline T PropertyGet(const PropertyTable &in, const std::string &name, const T &
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline T PropertyGet(const PropertyTable &in, const std::string &name, bool &result, bool useTemplate = false) {
-	const Property *prop = in.Get(name);
+inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &result, bool useTemplate = false) {
+	const Property *prop = in->Get(name);
 	if (nullptr == prop) {
 		if (!useTemplate) {
 			result = false;
 			return T();
 		}
-		const PropertyTable *templ = in.TemplateProps();
+		const PropertyTable *templ = in->TemplateProps();
 		if (nullptr == templ) {
 			result = false;
 			return T();
