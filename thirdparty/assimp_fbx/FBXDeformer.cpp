@@ -99,10 +99,10 @@ Cluster::Cluster(uint64_t id, const ElementPtr element, const Document &doc, con
 	//    element: Version
 	//    element: Weights
 
-	const ElementPtr Indexes = sc->GetElement("Indexes");
-	const ElementPtr Weights = sc->GetElement("Weights");
+	const ElementPtr Indexes = sc->GetElement("Indexes").lock();
+	const ElementPtr Weights = sc->GetElement("Weights").lock();
 
-	const ElementPtr TransformAssociateModel = sc->GetElement("TransformAssociateModel");
+	const ElementPtr TransformAssociateModel = sc->GetElement("TransformAssociateModel").lock();
 	if (TransformAssociateModel != nullptr) {
 		//Transform t = ReadMatrix(*TransformAssociateModel);
 		link_mode = SkinLinkMode_Additive;
@@ -165,12 +165,12 @@ Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std
 	// 	std::cout << "skin element: " << element.first << std::endl;
 	// }
 
-	const ElementPtr Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy");
+	const ElementPtr Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy").lock();
 	if (Link_DeformAcuracy) {
 		accuracy = ParseTokenAsFloat(GetRequiredToken(Link_DeformAcuracy, 0));
 	}
 
-	const ElementPtr SkinType = sc->GetElement("SkinningType");
+	const ElementPtr SkinType = sc->GetElement("SkinningType").lock();
 
 	if (SkinType) {
 		std::string skin_type = ParseTokenAsString(GetRequiredToken(SkinType, 0));
@@ -227,11 +227,11 @@ BlendShape::~BlendShape() {
 BlendShapeChannel::BlendShapeChannel(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name) {
 	const ScopePtr sc = GetRequiredScope(element);
-	const ElementPtr DeformPercent = sc->GetElement("DeformPercent");
+	const ElementPtr DeformPercent = sc->GetElement("DeformPercent").lock();
 	if (DeformPercent) {
 		percent = ParseTokenAsFloat(GetRequiredToken(DeformPercent, 0));
 	}
-	const ElementPtr FullWeights = sc->GetElement("FullWeights");
+	const ElementPtr FullWeights = sc->GetElement("FullWeights").lock();
 	if (FullWeights) {
 		ParseVectorDataArray(fullWeights, FullWeights);
 	}

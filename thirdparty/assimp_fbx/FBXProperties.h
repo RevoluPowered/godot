@@ -95,9 +95,11 @@ private:
 	T value;
 };
 
-typedef std::map<std::string, std::shared_ptr<Property> > DirectPropertyMap;
-typedef std::map<std::string, const Property *> PropertyMap;
-typedef std::map<std::string, const ElementPtr> LazyPropertyMap;
+#define new_Property std::make_shared<Property>
+typedef std::shared_ptr<Property> PropertyPtr;
+typedef std::map<std::string, PropertyPtr > DirectPropertyMap;
+typedef std::map<std::string, PropertyPtr > PropertyMap;
+typedef std::map<std::string, ElementPtr> LazyPropertyMap;
 
 /** 
  *  Represents a property table as can be found in the newer FBX files (Properties60, Properties70)
@@ -109,7 +111,7 @@ public:
 	PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 	~PropertyTable();
 
-	const Property *Get(const std::string &name) const;
+	PropertyPtr Get(const std::string &name) const;
 
 	// PropertyTable's need not be coupled with FBX elements so this can be NULL
 	const ElementPtr GetElement() const {
@@ -128,13 +130,13 @@ private:
 	LazyPropertyMap lazyProps;
 	mutable PropertyMap props;
 	const PropertyTable* templateProps = nullptr;
-	const ElementPtr element = nullptr;
+	ElementPtr element = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
 inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &defaultValue) {
-	const Property *const prop = in->Get(name);
+	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
 		return defaultValue;
 	}
@@ -151,7 +153,7 @@ inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &
 // ------------------------------------------------------------------------------------------------
 template <typename T>
 inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &result, bool useTemplate = false) {
-	const Property *prop = in->Get(name);
+	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
 		if (!useTemplate) {
 			result = false;

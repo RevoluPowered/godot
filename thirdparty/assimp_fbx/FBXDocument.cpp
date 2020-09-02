@@ -71,25 +71,25 @@ LazyObject::LazyObject(uint64_t id, const ElementPtr element, const Document &do
 
 // ------------------------------------------------------------------------------------------------
 LazyObject::~LazyObject() {
-	// empty
+	element.reset();
+	object.reset();
 }
 
-// ------------------------------------------------------------------------------------------------
-const Object *LazyObject::Get(bool dieOnError) {
+ObjectWeakPtr LazyObject::LoadObject() {
 	if (IsBeingConstructed() || FailedToConstruct()) {
-		return nullptr;
+		return std::weak_ptr<Object>();
 	}
 
-	if (object.get()) {
-		return object.get();
+	if (object) {
+		return object;
 	}
 
-	const TokenPtr key = element->KeyToken();
+	TokenPtr key = element->KeyToken().lock();
 	const TokenList &tokens = element->Tokens();
 
 	if (tokens.size() < 3) {
 		//DOMError("expected at least 3 tokens: id, name and class tag",&element);
-		return nullptr;
+		return std::weak_ptr<Object>();
 	}
 
 	const char *err = nullptr;
@@ -119,102 +119,76 @@ const Object *LazyObject::Get(bool dieOnError) {
 	// prevent recursive calls
 	flags |= BEING_CONSTRUCTED;
 
-	try {
-		// this needs to be relatively fast since it happens a lot,
-		// so avoid constructing strings all the time.
-		const char *obtype = key->begin();
-		const size_t length = static_cast<size_t>(key->end() - key->begin());
+	// this needs to be relatively fast since it happens a lot,
+	// so avoid constructing strings all the time.
+	const char *obtype = key->begin();
+	const size_t length = static_cast<size_t>(key->end() - key->begin());
 
-		// For debugging
-		//dumpObjectClassInfo( objtype, classtag )
-		if (!strncmp(obtype, "Pose", length)) {
-			object.reset(new FbxPose(id, element, doc, name));
-		} else if (!strncmp(obtype, "Geometry", length)) {
-			if (!strcmp(classtag.c_str(), "Mesh")) {
-				object.reset(new MeshGeometry(id, element, name, doc));
-			}
-			if (!strcmp(classtag.c_str(), "Shape")) {
-				object.reset(new ShapeGeometry(id, element, name, doc));
-			}
-			if (!strcmp(classtag.c_str(), "Line")) {
-				object.reset(new LineGeometry(id, element, name, doc));
-			}
-		} else if (!strncmp(obtype, "NodeAttribute", length)) {
-			if (!strcmp(classtag.c_str(), "Camera")) {
-				object.reset(new Camera(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "CameraSwitcher")) {
-				object.reset(new CameraSwitcher(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "Light")) {
-				object.reset(new Light(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "Null")) {
-				object.reset(new Null(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "LimbNode")) {
-				// This is an older format for bones
-				// this is what blender uses I believe
-				object.reset(new LimbNode(id, element, doc, name));
-			}
-		} else if (!strncmp(obtype, "Constraint", length)) {
-			object.reset(new Constraint(id, element, doc, name));
-		} else if (!strncmp(obtype, "Deformer", length)) {
-			if (!strcmp(classtag.c_str(), "Cluster")) {
-				object.reset(new Cluster(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "Skin")) {
-				object.reset(new Skin(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "BlendShape")) {
-				object.reset(new BlendShape(id, element, doc, name));
-			} else if (!strcmp(classtag.c_str(), "BlendShapeChannel")) {
-				object.reset(new BlendShapeChannel(id, element, doc, name));
-			}
-		} else if (!strncmp(obtype, "Model", length)) {
-			if (!strcmp(classtag.c_str(), "LimbNode")) {
-				object.reset(new LimbNodeMaya(id, element, doc, name));
-			} else if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
-				// FK and IK effectors are not supporte
-				object.reset(new Model(id, element, doc, name));
-			}
-		} else if (!strncmp(obtype, "Material", length)) {
-			object.reset(new Material(id, element, doc, name));
-		} else if (!strncmp(obtype, "Texture", length)) {
-			object.reset(new Texture(id, element, doc, name));
-		} else if (!strncmp(obtype, "LayeredTexture", length)) {
-			object.reset(new LayeredTexture(id, element, doc, name));
-		} else if (!strncmp(obtype, "Video", length)) {
-			object.reset(new Video(id, element, doc, name));
-		} else if (!strncmp(obtype, "AnimationStack", length)) {
-			object.reset(new AnimationStack(id, element, name, doc));
-		} else if (!strncmp(obtype, "AnimationLayer", length)) {
-			object.reset(new AnimationLayer(id, element, name, doc));
+	if (!strncmp(obtype, "Pose", length)) {
+		object.reset(new FbxPose(id, element, doc, name));
+	} else if (!strncmp(obtype, "Geometry", length)) {
+		if (!strcmp(classtag.c_str(), "Mesh")) {
+			object.reset(new MeshGeometry(id, element, name, doc));
 		}
-		// note: order matters for these two
-		else if (!strncmp(obtype, "AnimationCurve", length)) {
-			object.reset(new AnimationCurve(id, element, name, doc));
-		} else if (!strncmp(obtype, "AnimationCurveNode", length)) {
-			object.reset(new AnimationCurveNode(id, element, name, doc));
-		} else {
-			std::cout << "!important objtype: " << obtype << std::endl;
-			//dumpObjectClassInfo( objtype, classtag );
-			//ASSIMP_LOG_WARN_F("Unsupported node from fbx: type: ", obtype, " tag: ", classtag, "name: ", name);
+		if (!strcmp(classtag.c_str(), "Shape")) {
+			object.reset(new ShapeGeometry(id, element, name, doc));
 		}
-
-	} catch (std::exception &ex) {
-		flags &= ~BEING_CONSTRUCTED;
-		flags |= FAILED_TO_CONSTRUCT;
-
-		if (dieOnError || doc.Settings().strictMode) {
-			throw;
+		if (!strcmp(classtag.c_str(), "Line")) {
+			object.reset(new LineGeometry(id, element, name, doc));
 		}
-
-		print_error(ex.what());
-
-		return nullptr;
+	} else if (!strncmp(obtype, "NodeAttribute", length)) {
+		if (!strcmp(classtag.c_str(), "Camera")) {
+			object.reset(new Camera(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "CameraSwitcher")) {
+			object.reset(new CameraSwitcher(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "Light")) {
+			object.reset(new Light(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "Null")) {
+			object.reset(new Null(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "LimbNode")) {
+			// This is an older format for bones
+			// this is what blender uses I believe
+			object.reset(new LimbNode(id, element, doc, name));
+		}
+	} else if (!strncmp(obtype, "Constraint", length)) {
+		object.reset(new Constraint(id, element, doc, name));
+	} else if (!strncmp(obtype, "Deformer", length)) {
+		if (!strcmp(classtag.c_str(), "Cluster")) {
+			object.reset(new Cluster(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "Skin")) {
+			object.reset(new Skin(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "BlendShape")) {
+			object.reset(new BlendShape(id, element, doc, name));
+		} else if (!strcmp(classtag.c_str(), "BlendShapeChannel")) {
+			object.reset(new BlendShapeChannel(id, element, doc, name));
+		}
+	} else if (!strncmp(obtype, "Model", length)) {
+		if (!strcmp(classtag.c_str(), "LimbNode")) {
+			object.reset(new LimbNodeMaya(id, element, doc, name));
+		} else if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
+			// FK and IK effectors are not supporte
+			object.reset(new Model(id, element, doc, name));
+		}
+	} else if (!strncmp(obtype, "Material", length)) {
+		object.reset(new Material(id, element, doc, name));
+	} else if (!strncmp(obtype, "Texture", length)) {
+		object.reset(new Texture(id, element, doc, name));
+	} else if (!strncmp(obtype, "LayeredTexture", length)) {
+		object.reset(new LayeredTexture(id, element, doc, name));
+	} else if (!strncmp(obtype, "Video", length)) {
+		object.reset(new Video(id, element, doc, name));
+	} else if (!strncmp(obtype, "AnimationStack", length)) {
+		object.reset(new AnimationStack(id, element, name, doc));
+	} else if (!strncmp(obtype, "AnimationLayer", length)) {
+		object.reset(new AnimationLayer(id, element, name, doc));
+	} else if (!strncmp(obtype, "AnimationCurve", length)) {
+		object.reset(new AnimationCurve(id, element, name, doc));
+	} else if (!strncmp(obtype, "AnimationCurveNode", length)) {
+		object.reset(new AnimationCurveNode(id, element, name, doc));
+	} else {
+		ERR_FAIL_V_MSG(std::weak_ptr<Object>(), "FBX contains unsupported object: " + String(obtype));
 	}
-
-	if (!object.get()) {
-		//DOMError("failed to convert element to DOM object, class: " + classtag + ", name: " + name,&element);
-	}
-
-	flags &= ~BEING_CONSTRUCTED;
-	return object.get();
+	return object;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -236,6 +210,8 @@ FileGlobalSettings::FileGlobalSettings(const Document &doc, const PropertyTable*
 // ------------------------------------------------------------------------------------------------
 FileGlobalSettings::~FileGlobalSettings() {
 	// empty
+	delete props;
+	props = nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -263,6 +239,11 @@ Document::Document(const Parser &parser, const ImportSettings &settings) :
 
 // ------------------------------------------------------------------------------------------------
 Document::~Document() {
+	for(PropertyTemplateMap::value_type v : templates)
+	{
+		delete v.second;
+	}
+
 	for (ObjectMap::value_type &v : objects) {
 		delete v.second;
 	}
@@ -270,7 +251,9 @@ Document::~Document() {
 	for (ConnectionMap::value_type &v : src_connections) {
 		delete v.second;
 	}
-	// |dest_connections| contain the same Connection objects as the |src_connections|
+
+	// clear globals import pointer
+	globals.reset();
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -280,12 +263,12 @@ static const unsigned int UpperSupportedVersion = 7700;
 bool Document::ReadHeader() {
 	// Read ID objects from "Objects" section
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension");
-	if (!ehead || !ehead->Compound()) {
+	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension").lock();
+	if (!ehead || !ehead->Compound().lock()) {
 		DOMError("no FBXHeaderExtension dictionary found");
 	}
 
-	const ScopePtr shead = ehead->Compound();
+	const ScopePtr shead = ehead->Compound().lock();
 	fbxVersion = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(shead, "FBXVersion", ehead), 0));
 
 	// While we may have some success with newer files, we don't support
@@ -299,14 +282,14 @@ bool Document::ReadHeader() {
 				   " trying to read it nevertheless");
 	}
 
-	const ElementPtr ecreator = shead->GetElement("Creator");
+	const ElementPtr ecreator = shead->GetElement("Creator").lock();
 	if (ecreator) {
 		creator = ParseTokenAsString(GetRequiredToken(ecreator, 0));
 	}
 
-	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp");
-	if (etimestamp && etimestamp->Compound()) {
-		const ScopePtr stimestamp = etimestamp->Compound();
+	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp").lock();
+	if (etimestamp && etimestamp->Compound().lock()) {
+		const ScopePtr stimestamp = etimestamp->Compound().lock();
 		creationTimeStamp[0] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Year"), 0));
 		creationTimeStamp[1] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Month"), 0));
 		creationTimeStamp[2] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Day"), 0));
@@ -321,15 +304,17 @@ bool Document::ReadHeader() {
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadGlobalSettings() {
+	ERR_FAIL_COND_MSG(globals != nullptr, "Global settings is already setup this is a serious error and should be reported");
+
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr  ehead = sc->GetElement("GlobalSettings");
-	if (nullptr == ehead || !ehead->Compound()) {
+	const ElementPtr ehead = sc->GetElement("GlobalSettings").lock();
+	if (nullptr == ehead || !ehead->Compound().lock()) {
 		DOMWarning("no GlobalSettings dictionary found");
-		globals.reset(new FileGlobalSettings(*this, new PropertyTable()));
+		globals = std::make_shared<FileGlobalSettings>(*this, new PropertyTable());
 		return;
 	}
 
-	const PropertyTable* props = GetPropertyTable(*this, "", ehead, ehead->Compound(), true);
+	const PropertyTable* props = GetPropertyTable(*this, "", ehead, ehead->Compound().lock(), true);
 
 	//double v = PropertyGet<float>( *props.get(), std::string("UnitScaleFactor"), 1.0 );
 
@@ -337,15 +322,15 @@ void Document::ReadGlobalSettings() {
 		DOMError("GlobalSettings dictionary contains no property table");
 	}
 
-	globals.reset(new FileGlobalSettings(*this, props));
+	globals = std::make_shared<FileGlobalSettings>(*this, props);
 }
 
 // ------------------------------------------------------------------------------------------------
 void Document::ReadObjects() {
 	// read ID objects from "Objects" section
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr  eobjects = sc->GetElement("Objects");
-	if (!eobjects || !eobjects->Compound()) {
+	const ElementPtr  eobjects = sc->GetElement("Objects").lock();
+	if (!eobjects || !eobjects->Compound().lock()) {
 		DOMError("no Objects dictionary found");
 	}
 
@@ -353,7 +338,7 @@ void Document::ReadObjects() {
 	// which is only indirectly defined in the input file
 	objects[0] = new LazyObject(0L, eobjects, *this);
 
-	const ScopePtr sobjects = eobjects->Compound();
+	const ScopePtr sobjects = eobjects->Compound().lock();
 	for (const ElementMap::value_type iter : sobjects->Elements()) {
 
 		// extract ID
@@ -397,17 +382,17 @@ void Document::ReadObjects() {
 void Document::ReadPropertyTemplates() {
 	const ScopePtr sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const ElementPtr edefs = sc->GetElement("Definitions");
-	if (!edefs || !edefs->Compound()) {
+	const ElementPtr edefs = sc->GetElement("Definitions").lock();
+	if (!edefs || !edefs->Compound().lock()) {
 		DOMWarning("no Definitions dictionary found");
 		return;
 	}
 
-	const Scope &sdefs = *edefs->Compound();
-	const ElementCollection otypes = sdefs.GetCollection("ObjectType");
+	const ScopePtr sdefs = edefs->Compound().lock();
+	const ElementCollection otypes = sdefs->GetCollection("ObjectType");
 	for (ElementMap::const_iterator it = otypes.first; it != otypes.second; ++it) {
 		const ElementPtr el = (*it).second;
-		const ScopePtr sc_2 = el->Compound();
+		const ScopePtr sc_2 = el->Compound().lock();
 		if (!sc_2) {
 			DOMWarning("expected nested scope in ObjectType, ignoring", el);
 			continue;
@@ -424,7 +409,7 @@ void Document::ReadPropertyTemplates() {
 		const ElementCollection templs = sc_2->GetCollection("PropertyTemplate");
 		for (ElementMap::const_iterator iter = templs.first; iter != templs.second; ++iter) {
 			const ElementPtr el_2 = (*iter).second;
-			const ScopePtr sc_3 = el_2->Compound();
+			const ScopePtr sc_3 = el_2->Compound().lock();
 			if (!sc_3) {
 				DOMWarning("expected nested scope in PropertyTemplate, ignoring", el);
 				continue;
@@ -438,7 +423,7 @@ void Document::ReadPropertyTemplates() {
 
 			const std::string &pname = ParseTokenAsString(tok_2[0]);
 
-			const ElementPtr Properties70 = sc_3->GetElement("Properties70");
+			const ElementPtr Properties70 = sc_3->GetElement("Properties70").lock();
 			if (Properties70) {
 				// PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 				const PropertyTable* props = new PropertyTable(Properties70, nullptr);
@@ -454,13 +439,13 @@ void Document::ReadConnections() {
 	const ScopePtr sc = parser.GetRootScope();
 
 	// read property templates from "Definitions" section
-	const ElementPtr econns = sc->GetElement("Connections");
-	if (!econns || !econns->Compound()) {
+	const ElementPtr econns = sc->GetElement("Connections").lock();
+	if (!econns || !econns->Compound().lock()) {
 		DOMError("no Connections dictionary found");
 	}
 
 	uint64_t insertionOrder = 0l;
-	const ScopePtr sconns = econns->Compound();
+	const ScopePtr sconns = econns->Compound().lock();
 	const ElementCollection conns = sconns->GetCollection("C");
 	for (ElementMap::const_iterator it = conns.first; it != conns.second; ++it) {
 		const ElementPtr el = (*it).second;
@@ -498,7 +483,7 @@ void Document::ReadConnections() {
 }
 
 // ------------------------------------------------------------------------------------------------
-const std::vector<const AnimationStack *> &Document::AnimationStacks() const {
+const std::vector<std::weak_ptr<AnimationStack>> &Document::AnimationStacks() const {
 	if (!animationStacksResolved.empty() || animationStacks.empty()) {
 		return animationStacksResolved;
 	}
@@ -506,11 +491,17 @@ const std::vector<const AnimationStack *> &Document::AnimationStacks() const {
 	animationStacksResolved.reserve(animationStacks.size());
 	for (uint64_t id : animationStacks) {
 		LazyObject * lazy = GetObject(id);
-		const AnimationStack *stack;
-		if (!lazy || !(stack = lazy->Get<AnimationStack>())) {
-			DOMWarning("failed to read AnimationStack object");
-			continue;
-		}
+
+		// Two things happen here:
+		// We cast internally an Object PTR to an Animation Stack PTR
+		// We return invalid weak_ptrs for objects which are invalid
+
+		std::weak_ptr<AnimationStack> stack = lazy->Get<AnimationStack>();
+		std::shared_ptr<AnimationStack> anim_stack = stack.lock();
+		ERR_CONTINUE_MSG(!lazy, "invalid ObjectPtr from FBX Parser");
+		ERR_CONTINUE_MSG(!anim_stack, "invalid weak_ptr to AnimationStack - conversion failure");
+
+		// We push back the weak reference :) to keep things simple, as ownership is on the parser side so it wont be cleaned up.
 		animationStacksResolved.push_back(stack);
 	}
 
@@ -566,7 +557,7 @@ std::vector<const Connection *> Document::GetConnectionsSequenced(uint64_t id, b
 
 	temp.reserve(std::distance(range.first, range.second));
 	for (ConnectionMap::const_iterator it = range.first; it != range.second; ++it) {
-		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement()->KeyToken();
+		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement().lock()->KeyToken().lock();
 
 		const char *obtype = key->begin();
 
@@ -657,17 +648,17 @@ LazyObject &Connection::LazyDestinationObject() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-const Object *Connection::SourceObject() const {
-	LazyObject *const lazy = doc.GetObject(src);
+ObjectWeakPtr Connection::SourceObject() const {
+	LazyObject * lazy = doc.GetObject(src);
 	//ai_assert(lazy);
-	return lazy->Get();
+	return lazy->LoadObject();
 }
 
 // ------------------------------------------------------------------------------------------------
-const Object *Connection::DestinationObject() const {
-	LazyObject *const lazy = doc.GetObject(dest);
+ObjectWeakPtr Connection::DestinationObject() const {
+	LazyObject * lazy = doc.GetObject(dest);
 	//ai_assert(lazy);
-	return lazy->Get();
+	return lazy->LoadObject();
 }
 
 } // namespace FBX

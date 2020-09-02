@@ -67,7 +67,9 @@ class Element;
 
 // XXX should use C++11's unique_ptr - but assimp's need to keep working with 03
 typedef std::shared_ptr<Element> ElementPtr;
+typedef std::weak_ptr<Element> ElementWeakPtr;
 typedef std::shared_ptr<Scope> ScopePtr;
+typedef std::weak_ptr<Scope> ScopeWeakPtr;
 
 typedef std::vector<ScopePtr> ScopeList;
 typedef std::multimap<std::string, ElementPtr> ElementMap;
@@ -90,14 +92,14 @@ typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> Elemen
  *  as their trailing member.  **/
 class Element {
 public:
-	Element(const TokenPtr key_token, Parser &parser);
+	Element(TokenPtr key_token, Parser &parser);
 	~Element();
 
-	const ScopePtr Compound() const {
+	ScopeWeakPtr Compound() const {
 		return compound;
 	}
 
-	const TokenPtr KeyToken() const {
+	WeakTokenPtr KeyToken() const {
 		return key_token;
 	}
 
@@ -106,7 +108,7 @@ public:
 	}
 
 private:
-	const TokenPtr key_token;
+	WeakTokenPtr key_token;
 	TokenList tokens;
 	ScopePtr compound = nullptr;
 };
@@ -127,18 +129,20 @@ public:
 	Scope(Parser &parser, bool topLevel = false);
 	~Scope();
 
-	const ElementPtr GetElement(const std::string &index) const {
+	ElementWeakPtr GetElement(const std::string &index) const {
 		ElementMap::const_iterator it = elements.find(index);
 		return it == elements.end() ? nullptr : (*it).second;
 	}
 
-	const ElementPtr FindElementCaseInsensitive(const std::string &elementName) const {
+	ElementWeakPtr FindElementCaseInsensitive(const std::string &elementName) const {
 		for (auto element = elements.begin(); element != elements.end(); ++element) {
 			if (element->first.compare(elementName)) {
 				return element->second;
 			}
 		}
-		return nullptr;
+
+		// nothing to reference / expired.
+		return ElementWeakPtr();
 	}
 
 	ElementCollection GetCollection(const std::string &index) const {
@@ -181,7 +185,7 @@ private:
 private:
 	const TokenList &tokens;
 
-	TokenPtr last = nullptr, current = nullptr;
+	TokenPtr last, current;
 	TokenList::const_iterator cursor;
 	ScopePtr root = nullptr;
 

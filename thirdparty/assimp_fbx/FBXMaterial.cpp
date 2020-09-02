@@ -63,8 +63,8 @@ Material::Material(uint64_t id, const ElementPtr element, const Document &doc, c
 		Object(id, element, name) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	const ElementPtr ShadingModel = sc->GetElement("ShadingModel");
-	const ElementPtr MultiLayer = sc->GetElement("MultiLayer");
+	const ElementPtr ShadingModel = sc->GetElement("ShadingModel").lock();
+	const ElementPtr MultiLayer = sc->GetElement("MultiLayer").lock();
 
 	if (MultiLayer) {
 		multilayer = !!ParseTokenAsInt(GetRequiredToken(MultiLayer, 0));
@@ -138,13 +138,13 @@ Texture::Texture(uint64_t id, const ElementPtr element, const Document &doc, con
 		Object(id, element, name), uvScaling(1.0f, 1.0f), media(0) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	ElementPtr Type = sc->GetElement("Type");
-	ElementPtr FileName = sc->GetElement("FileName");
-	ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
-	ElementPtr ModelUVTranslation = sc->GetElement("ModelUVTranslation");
-	ElementPtr ModelUVScaling = sc->GetElement("ModelUVScaling");
-	ElementPtr Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source");
-	ElementPtr Cropping = sc->GetElement("Cropping");
+	const ElementPtr Type = sc->GetElement("Type").lock();
+	const ElementPtr FileName = sc->GetElement("FileName").lock();
+	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename").lock();
+	const ElementPtr ModelUVTranslation = sc->GetElement("ModelUVTranslation").lock();
+	const ElementPtr ModelUVScaling = sc->GetElement("ModelUVScaling").lock();
+	const ElementPtr Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source").lock();
+	const ElementPtr Cropping = sc->GetElement("Cropping").lock();
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));
@@ -224,8 +224,8 @@ LayeredTexture::LayeredTexture(uint64_t id, const ElementPtr element, const Docu
 		Object(id, element, name), blendMode(BlendMode_Modulate), alpha(1) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	ElementPtr BlendModes = sc->GetElement("BlendModes");
-	ElementPtr Alphas = sc->GetElement("Alphas");
+	ElementPtr BlendModes = sc->GetElement("BlendModes").lock();
+	ElementPtr Alphas = sc->GetElement("Alphas").lock();
 
 	if (BlendModes != 0) {
 		blendMode = (BlendMode)ParseTokenAsInt(GetRequiredToken(BlendModes, 0));
@@ -245,7 +245,7 @@ void LayeredTexture::fillTexture(const Document &doc) {
 
 		const Object *const ob = con->SourceObject();
 		if (!ob) {
-			DOMWarning("failed to read source object for texture link, ignoring", element);
+			DOMWarning("failed to read source object for texture link, ignoring", element.lock());
 			continue;
 		}
 
@@ -260,7 +260,7 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 		Object(id, element, name), contentLength(0), content(0) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	const ElementPtr Type = sc->GetElement("Type");
+	const ElementPtr Type = sc->GetElement("Type").lock();
 	// File Version 7500 Crashes if this is not checked fully.
 	// As of writing this comment 7700 exists, in August 2020
 	ElementPtr FileName = nullptr;
@@ -276,8 +276,8 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 		print_error("file has invalid video material returning...");
 		return;
 	}
-	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
-	const ElementPtr Content = sc->GetElement("Content");
+	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename").lock();
+	const ElementPtr Content = sc->GetElement("Content").lock();
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));

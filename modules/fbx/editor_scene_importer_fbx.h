@@ -83,8 +83,8 @@ private:
 		const T *return_obj = nullptr;
 
 		for (const Assimp::FBX::Connection *con : conns) {
-			const Assimp::FBX::Object *const source_object = reverse ? con->DestinationObject() : con->SourceObject();
-			const Assimp::FBX::Object *const dest_object = reverse ? con->SourceObject() : con->DestinationObject();
+			const Assimp::FBX::Object *source_object = reverse ? con->DestinationObject() : con->SourceObject();
+			const Assimp::FBX::Object *dest_object = reverse ? con->SourceObject() : con->DestinationObject();
 			if (source_object && dest_object != nullptr) {
 				//print_verbose("[doc] connection name: " + String(source_object->Name().c_str()) + ", dest: " + String(dest_object->Name().c_str()));
 				const T *temp = dynamic_cast<const T *>(reverse ? source_object : dest_object);

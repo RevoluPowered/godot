@@ -94,7 +94,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const ElementPtr element, const std::str
 		Geometry(id, element, name, doc) {
 	print_verbose("mesh name: " + String(name.c_str()) );
 
-	const ScopePtr sc = element->Compound();
+	ScopePtr sc = element->Compound().lock();
 	ERR_FAIL_COND_MSG(sc == nullptr, "failed to read geometry, prevented crash");
 	ERR_FAIL_COND_MSG(!HasElement(sc, "Vertices"), "Detected mesh with no vertexes, didn't populate the mesh");
 
@@ -366,7 +366,7 @@ MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
 // ------------------------------------------------------------------------------------------------
 ShapeGeometry::ShapeGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const ScopePtr sc = element->Compound();
+	const ScopePtr sc = element->Compound().lock();
 	if (nullptr == sc) {
 		DOMError("failed to read Geometry object (class: Shape), no data scope found");
 	}
@@ -397,7 +397,7 @@ const std::vector<unsigned int> &ShapeGeometry::GetIndices() const {
 // ------------------------------------------------------------------------------------------------
 LineGeometry::LineGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const ScopePtr sc = element->Compound();
+	const ScopePtr sc = element->Compound().lock();
 	if (!sc) {
 		DOMError("failed to read Geometry object (class: Line), no data scope found");
 	}

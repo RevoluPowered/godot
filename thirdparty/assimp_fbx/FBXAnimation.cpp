@@ -82,12 +82,12 @@ AnimationCurve::AnimationCurve(uint64_t id, const ElementPtr element, const std:
 		keyvalues[keys[x]] = values[x];
 	}
 
-	const ElementPtr KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat");
+	const ElementPtr KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat").lock();
 	if (KeyAttrDataFloat) {
 		ParseVectorDataArray(attributes, KeyAttrDataFloat);
 	}
 
-	const ElementPtr KeyAttrFlags = sc->GetElement("KeyAttrFlags");
+	const ElementPtr KeyAttrFlags = sc->GetElement("KeyAttrFlags").lock();
 	if (KeyAttrFlags) {
 		ParseVectorDataArray(flags, KeyAttrFlags);
 	}
@@ -116,40 +116,17 @@ AnimationCurveNode::AnimationCurveNode(uint64_t id, const ElementPtr element, co
 			continue;
 		}
 
-		if (target_prop_whitelist) {
-			const char *const s = con->PropertyName().c_str();
-			bool ok = false;
-			for (size_t i = 0; i < whitelist_size; ++i) {
-				if (!strcmp(s, target_prop_whitelist[i])) {
-					ok = true;
-					break;
-				}
-			}
+		ObjectWeakPtr ptr = con->DestinationObject();
+		ObjectPtr object = ptr.lock();
 
-			if (!ok) {
-				throw std::range_error("AnimationCurveNode target property is not in whitelist");
-			}
-		}
-
-		const Object *const ob = con->DestinationObject();
-		if (!ob) {
+		if (!object) {
 			DOMWarning("failed to read destination object for AnimationCurveNode->Model link, ignoring", element);
 			continue;
 		}
 
-		// XXX support constraints as DOM class
-		////ai_assert(dynamic_cast<const Model*>(ob) || dynamic_cast<const NodeAttribute*>(ob));
-		target = ob;
-		if (!target) {
-			continue;
-		}
-
+		target = object;
 		prop = con->PropertyName();
 		break;
-	}
-
-	if (!target) {
-		DOMWarning("failed to resolve target Model/NodeAttribute/Constraint for AnimationCurveNode", element);
 	}
 
 	props = GetPropertyTable(doc, "AnimationCurveNode.FbxAnimCurveNode", element, sc, false);
@@ -157,36 +134,26 @@ AnimationCurveNode::AnimationCurveNode(uint64_t id, const ElementPtr element, co
 
 // ------------------------------------------------------------------------------------------------
 AnimationCurveNode::~AnimationCurveNode() {
-	// empty
+	curves.clear();
 }
 
 // ------------------------------------------------------------------------------------------------
-const std::map<std::string, const AnimationCurve *> &AnimationCurveNode::Curves() const {
+const AnimationMap &AnimationCurveNode::Curves() {
+	/* Lazy loaded animation curves, will only load if required */
 	if (curves.empty()) {
 		// resolve attached animation curves
 		const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "AnimationCurve");
 
-		//std::cout << "================== connection processing ======================" << std::endl;
 		for (const Connection *con : conns) {
+			// So the advantage of having this STL boilerplate is that it's dead simple once you get it.
+			// The other advantage is casting is guaranteed to be safe and nullptr will be returned in the last step if it fails.
+			ObjectWeakPtr ob = con->SourceObject();
+			AnimationCurveWeakPtr anim_curve_w_ptr = std::dynamic_pointer_cast<AnimationCurve>(ob.lock());
+			AnimationCurvePtr anim_curve = anim_curve_w_ptr.lock();
 
-			// // link should go for a property
-			// if (!con->PropertyName().length()) {
-			// 	continue;
-			// }
+			ERR_CONTINUE_MSG(!anim_curve, "Failed to convert animation curve from object");
 
-			const Object *const ob = con->SourceObject();
-			if (!ob) {
-				DOMWarning("failed to read source object for AnimationCurve->AnimationCurveNode link, ignoring", element);
-				continue;
-			}
-
-			const AnimationCurve *const anim = dynamic_cast<const AnimationCurve *>(ob);
-			if (!anim) {
-				DOMWarning("source object for ->AnimationCurveNode link is not an AnimationCurve", element);
-				continue;
-			}
-			//std::cout << "property found " << con->PropertyName() << std::endl;
-			curves[con->PropertyName()] = anim;
+			curves.insert(std::make_pair(con->PropertyName(), anim_curve));
 		}
 	}
 
@@ -223,15 +190,16 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 			continue;
 		}
 
-		const Object *const ob = con->SourceObject();
+		ObjectPtr ob = con->SourceObject().lock();
+
 		if (!ob) {
-			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", element);
+			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", element.lock());
 			continue;
 		}
 
-		const AnimationCurveNode *const anim = dynamic_cast<const AnimationCurveNode *>(ob);
+		std::weak_ptr<AnimationCurveNode> * anim = dynamic_cast<const AnimationCurveNode *>(ob.get());
 		if (!anim) {
-			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element);
+			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element.lock());
 			continue;
 		}
 

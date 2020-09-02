@@ -103,58 +103,65 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 	ERR_FAIL_COND_V(!f, NULL);
 
-	PoolByteArray data;
-	// broadphase tokenizing pass in which we identify the core
-	// syntax elements of FBX (brackets, commas, key:value mappings)
-	Assimp::FBX::TokenList tokens;
+	{
 
-	bool is_binary = false;
-	data.resize(f->get_len());
-	f->get_buffer(data.write().ptr(), data.size());
-	PoolByteArray fbx_header;
-	fbx_header.resize(64);
-	for (int32_t byte_i = 0; byte_i < 64; byte_i++) {
-		fbx_header.write()[byte_i] = data.read()[byte_i];
-	}
+		PoolByteArray data;
+		// broadphase tokenizing pass in which we identify the core
+		// syntax elements of FBX (brackets, commas, key:value mappings)
+		Assimp::FBX::TokenList tokens;
 
-	String fbx_header_string;
-	if (fbx_header.size() >= 0) {
-		PoolByteArray::Read r = fbx_header.read();
-		fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
-	}
+		bool is_binary = false;
+		data.resize(f->get_len());
+		f->get_buffer(data.write().ptr(), data.size());
+		PoolByteArray fbx_header;
+		fbx_header.resize(64);
+		for (int32_t byte_i = 0; byte_i < 64; byte_i++) {
+			fbx_header.write()[byte_i] = data.read()[byte_i];
+		}
 
-	print_verbose("[doc] opening fbx file: " + p_path);
-	print_verbose("[doc] fbx header: " + fbx_header_string);
+		String fbx_header_string;
+		if (fbx_header.size() >= 0) {
+			PoolByteArray::Read r = fbx_header.read();
+			fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
+		}
 
-	// safer to check this way as there can be different formatted headers
-	if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
-		is_binary = true;
-		print_verbose("[doc] is binary");
-		Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());
-	} else {
-		print_verbose("[doc] is ascii");
-		Assimp::FBX::Tokenize(tokens, (const char *)data.write().ptr());
-	}
+		print_verbose("[doc] opening fbx file: " + p_path);
+		print_verbose("[doc] fbx header: " + fbx_header_string);
 
-	// use this information to construct a very rudimentary
-	// parse-tree representing the FBX scope structure
-	Assimp::FBX::Parser parser(tokens, is_binary);
-	Assimp::FBX::ImportSettings settings;
+		// safer to check this way as there can be different formatted headers
+		if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
+			is_binary = true;
+			print_verbose("[doc] is binary");
+			Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());
+		} else {
+			print_verbose("[doc] is ascii");
+			Assimp::FBX::Tokenize(tokens, (const char *)data.write().ptr());
+		}
 
-	// 'strict' mode is dangerous this causes more fun asserts to crash engine, so don't enable it.
-	settings.strictMode = false;
+		// The import process explained:
+		// 1. Tokens are made, these are then taken into the 'parser' below
+		// 2. The parser constructs 'Elements' and all 'real' FBX Types.
+		// 3. This creates a problem: shared_ptr ownership, should Elements later 'take ownership'
+		// 4. No, it shouldn't so we should either a.) use weak ref for elements; but this is not correct.
 
-	// take the raw parse-tree and convert it to a FBX DOM
-	Assimp::FBX::Document doc(parser, settings);
+		// use this information to construct a very rudimentary
+		// parse-tree representing the FBX scope structure
+		Assimp::FBX::Parser parser(tokens, is_binary);
+		Assimp::FBX::ImportSettings settings;
+		settings.strictMode = false;
 
-	// yeah so closing the file is a good idea (prevents readonly states)
-	f->close();
+		// this function leaks a lot
+		Assimp::FBX::Document doc(parser, settings);
 
-	// safety for version handling
-	if (doc.IsSafeToImport()) {
-		return _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
-	} else {
-		print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
+		// yeah so closing the file is a good idea (prevents readonly states)
+		f->close();
+
+		// safety for version handling
+		if (doc.IsSafeToImport()) {
+			return _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+		} else {
+			print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
+		}
 	}
 
 	return memnew(Spatial);
@@ -364,237 +371,237 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	// cache basic node information from FBX document
 	// grabs all FBX bones
 	CacheNodeInformation(Ref<FBXBone>(), state, p_document, 0L);
-	BuildDocumentNodes(nullptr, state, p_document, 0L, NULL);
+//	BuildDocumentNodes(nullptr, state, p_document, 0L, NULL);
 
-	//print_verbose("[doc] debug fbx_bone_map size: " + itos(state.fbx_bone_map.size()));
-
-	// do we globally allow for import of materials
-	// (prevents overwrite of materials; so you can handle them explicitly)
-	if (state.enable_material_import) {
-		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
-
-		for (uint64_t material_id : materials) {
-
-			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
-			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
-			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
-
-			Ref<FBXMaterial> material;
-			material.instance();
-			material->set_imported_material(mat);
-
-			Ref<SpatialMaterial> godot_material = material->import_material(state);
-
-			state.cached_materials.insert(material_id, godot_material);
-		}
-	}
-
-	// build skin and skeleton information
-	print_verbose("[doc] Skeleton Bone count: " + itos(state.fbx_bone_map.size()));
-
-	// Importing bones using document based method from FBX directly
-	// We do not use the assimp bone format to determine this information anymore.
-	if (state.fbx_bone_map.size() > 0) {
-		// We are using a single skeleton only method here
-		// this is because we really have no concept of skeletons in FBX
-		// their are bones in a scene but they have no specific armature
-		// we can detect armatures but the issue lies in the complexity
-		// we opted to merge the entire scene onto one skeleton for now
-		// if we need to change this we have an archive of the old code.
-
-		const std::vector<uint64_t> &bind_pose_ids = p_document->GetBindPoseIDs();
-
-		for (uint64_t skin_id : bind_pose_ids) {
-
-			Assimp::FBX::LazyObject *lazy_skin = p_document->GetObject(skin_id);
-			const Assimp::FBX::FbxPose *active_skin = lazy_skin->Get<Assimp::FBX::FbxPose>();
-
-			if (active_skin) {
-				const std::vector<Assimp::FBX::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
-
-				for (const Assimp::FBX::FbxPoseNode *pose_node : bind_poses) {
-					Transform t = pose_node->GetBindPose();
-					uint64_t fbx_node_id = pose_node->GetNodeID();
-					if (state.fbx_bone_map.has(fbx_node_id)) {
-						Ref<FBXBone> bone = state.fbx_bone_map[fbx_node_id];
-						if (bone.is_valid()) {
-							print_verbose("assigned skin pose from the file for bone " + bone->bone_name + ", transform: " + t);
-							bone->pose_node = t;
-							bone->assigned_pose_node = true;
-						}
-					}
-				}
-			}
-		}
-
-		// bind pose normally only has 1 per mesh but can have more than one
-		// this is the point of skins
-		// in FBX first bind pose is the master for the first skin
-
-		// In order to handle the FBX skeleton we must also inverse any parent transforms on the bones
-		// just to rule out any parent node transforms in the bone data
-		// this is trivial to do and allows us to use the single skeleton method and merge them
-		// this means that the nodes from maya kLocators will be preserved as bones
-		// in the same rig without having to match this across skeletons and merge by detection
-		// we can just merge and undo any parent transforms
-		for (Map<uint64_t, Ref<FBXBone> >::Element *bone_element = state.fbx_bone_map.front(); bone_element; bone_element = bone_element->next()) {
-			Ref<FBXBone> bone = bone_element->value();
-			Ref<FBXSkeleton> fbx_skeleton_inst;
-
-			uint64_t armature_id = bone->armature_id;
-			if (state.skeleton_map.has(armature_id)) {
-				fbx_skeleton_inst = state.skeleton_map[armature_id];
-			} else {
-				fbx_skeleton_inst.instance();
-				state.skeleton_map.insert(armature_id, fbx_skeleton_inst);
-			}
-
-			print_verbose("populating skeleton with bone: " + bone->bone_name);
-
-			//			// populate bone skeleton - since fbx has no DOM for the skeleton just a node.
-			//			bone->bone_skeleton = fbx_skeleton_inst;
-
-			// now populate bone on the armature node list
-			fbx_skeleton_inst->skeleton_bones.push_back(bone);
-
-			// we need to have a valid armature id and the model configured for the bone to be assigned fully.
-			// happens once per skeleton
-			if (state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
-				Ref<FBXNode> node = state.fbx_target_map[armature_id];
-
-				fbx_skeleton_inst->set_model(node->get_model());
-				fbx_skeleton_inst->fbx_node = node;
-				print_verbose("allocated fbx skeleton primary / armature node for the level: " + node->node_name);
-			} else if (!state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
-				print_error("bones are not mapped to an armature node for armature id: " + itos(armature_id) + " bone: " + bone->bone_name);
-				// this means bone will be removed and not used, which is safe actually and no skeleton will be created.
-			}
-		}
-
-		// setup skeleton instances if required :)
-		for (Map<uint64_t, Ref<FBXSkeleton> >::Element *skeleton_node = state.skeleton_map.front(); skeleton_node; skeleton_node = skeleton_node->next()) {
-			skeleton_node->value()->init_skeleton(state);
-		}
-	}
-
-	// build godot node tree
-	if (state.fbx_node_list.size() > 0) {
-		for (List<Ref<FBXNode> >::Element *node_element = state.fbx_node_list.front();
-				node_element;
-				node_element = node_element->next()) {
-			Ref<FBXNode> fbx_node = node_element->get();
-			MeshInstance *mesh_node = nullptr;
-			Ref<FBXMeshData> mesh_data_precached;
-
-			// check for valid geometry
-			if (fbx_node->fbx_model == nullptr) {
-				print_error("[doc] fundamental flaw, submit bug immediately with full import log with verbose logging on");
-			} else {
-				const std::vector<const Assimp::FBX::Geometry *> &geometry = fbx_node->fbx_model->GetGeometry();
-				for (const Assimp::FBX::Geometry *mesh : geometry) {
-					print_verbose("[doc] [" + itos(mesh->ID()) + "] mesh: " + fbx_node->node_name);
-
-					if (mesh == nullptr)
-						continue;
-
-					const Assimp::FBX::MeshGeometry *mesh_geometry = dynamic_cast<const Assimp::FBX::MeshGeometry *>(mesh);
-					if (mesh_geometry != NULL) {
-						uint64_t mesh_id = mesh_geometry->ID();
-
-						// this data will pre-exist if vertex weight information is found
-						if (state.renderer_mesh_data.has(mesh_id)) {
-							mesh_data_precached = state.renderer_mesh_data[mesh_id];
-						} else {
-							mesh_data_precached.instance();
-							state.renderer_mesh_data.insert(mesh_id, mesh_data_precached);
-						}
-
-						// mesh node, mesh id
-						mesh_node = mesh_data_precached->create_fbx_mesh(state, mesh_geometry, fbx_node->fbx_model);
-						if (!state.MeshNodes.has(mesh_id)) {
-							state.MeshNodes.insert(mesh_id, fbx_node);
-						}
-					}
-
-					const Assimp::FBX::ShapeGeometry *shape_geometry = dynamic_cast<const Assimp::FBX::ShapeGeometry *>(mesh);
-					if (shape_geometry != nullptr) {
-						print_verbose("[doc] valid shape geometry converted");
-					}
-				}
-			}
-
-			Ref<FBXSkeleton> node_skeleton = fbx_node->skeleton_node;
-
-			if (node_skeleton.is_valid()) {
-				Skeleton *skel = node_skeleton->skeleton;
-				fbx_node->godot_node = skel;
-			} else if (mesh_node == nullptr) {
-				fbx_node->godot_node = memnew(Spatial);
-			} else {
-				fbx_node->godot_node = mesh_node;
-			}
-
-			fbx_node->godot_node->set_name(fbx_node->node_name);
-
-			// assign parent if valid
-			if (fbx_node->fbx_parent.is_valid()) {
-				fbx_node->fbx_parent->godot_node->add_child(fbx_node->godot_node);
-				fbx_node->godot_node->set_owner(state.root_owner);
-			}
-
-			// Node Transform debug, set local xform data.
-			fbx_node->godot_node->set_transform(get_unscaled_transform(fbx_node->pivot_transform->LocalTransform, state.scale));
-
-			// populate our mesh node reference
-			if (mesh_node != nullptr && mesh_data_precached.is_valid()) {
-				mesh_data_precached->godot_mesh_instance = mesh_node;
-			}
-		}
-	}
-
-	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
-		create_mesh_data_skin(state, skin_mesh->value(), skin_mesh->key());
-	}
-
-	// mesh data iteration for populating skeleton mapping
-	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
-		Ref<FBXMeshData> mesh = mesh_data->value();
-		MeshInstance *mesh_instance = mesh->godot_mesh_instance;
-		int mesh_weights = mesh->max_weight_count;
-		Ref<FBXSkeleton> skeleton;
-		bool valid_armature = mesh->valid_armature_id;
-		uint64_t armature = mesh->armature_id;
-
-		if (mesh_weights > 0 && valid_armature) {
-			if (state.skeleton_map.has(armature)) {
-				skeleton = state.skeleton_map[armature];
-				print_verbose("[doc] armature mesh to skeleton mapping has been allocated");
-			} else {
-				print_error("[doc] unable to find armature mapping");
-			}
-
-			if (mesh_instance && skeleton.is_valid()) {
-				mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
-				print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
-
-				// do we have a mesh skin for this mesh
-				if (state.MeshSkins.has(mesh->mesh_id)) {
-					Ref<Skin> mesh_skin = state.MeshSkins[mesh->mesh_id];
-					if (mesh_skin.is_valid()) {
-						print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
-						mesh_instance->set_skin(mesh_skin);
-					}
-				}
-			}
-		}
-	}
-
-	// build skin and skeleton information
-	print_verbose("[doc] Skeleton Bone count: " + itos(state.fbx_bone_map.size()));
-	const Assimp::FBX::FileGlobalSettings *FBXSettings = p_document->GlobalSettingsPtr();
-
-	// Configure constraints
-	const std::vector<uint64_t> fbx_constraints = p_document->GetConstraintStackIDs();
+//	//print_verbose("[doc] debug fbx_bone_map size: " + itos(state.fbx_bone_map.size()));
+//
+//	// do we globally allow for import of materials
+//	// (prevents overwrite of materials; so you can handle them explicitly)
+//	if (state.enable_material_import) {
+//		const std::vector<uint64_t> &materials = p_document->GetMaterialIDs();
+//
+//		for (uint64_t material_id : materials) {
+//
+//			Assimp::FBX::LazyObject *lazy_material = p_document->GetObject(material_id);
+//			const Assimp::FBX::Material *mat = lazy_material->Get<Assimp::FBX::Material>();
+//			ERR_CONTINUE_MSG(!mat, "Could not convert fbx material by id: " + itos(material_id));
+//
+//			Ref<FBXMaterial> material;
+//			material.instance();
+//			material->set_imported_material(mat);
+//
+//			Ref<SpatialMaterial> godot_material = material->import_material(state);
+//
+//			state.cached_materials.insert(material_id, godot_material);
+//		}
+//	}
+//
+//	// build skin and skeleton information
+//	print_verbose("[doc] Skeleton Bone count: " + itos(state.fbx_bone_map.size()));
+//
+//	// Importing bones using document based method from FBX directly
+//	// We do not use the assimp bone format to determine this information anymore.
+//	if (state.fbx_bone_map.size() > 0) {
+//		// We are using a single skeleton only method here
+//		// this is because we really have no concept of skeletons in FBX
+//		// their are bones in a scene but they have no specific armature
+//		// we can detect armatures but the issue lies in the complexity
+//		// we opted to merge the entire scene onto one skeleton for now
+//		// if we need to change this we have an archive of the old code.
+//
+//		const std::vector<uint64_t> &bind_pose_ids = p_document->GetBindPoseIDs();
+//
+//		for (uint64_t skin_id : bind_pose_ids) {
+//
+//			Assimp::FBX::LazyObject *lazy_skin = p_document->GetObject(skin_id);
+//			const Assimp::FBX::FbxPose *active_skin = lazy_skin->Get<Assimp::FBX::FbxPose>();
+//
+//			if (active_skin) {
+//				const std::vector<Assimp::FBX::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
+//
+//				for (const Assimp::FBX::FbxPoseNode *pose_node : bind_poses) {
+//					Transform t = pose_node->GetBindPose();
+//					uint64_t fbx_node_id = pose_node->GetNodeID();
+//					if (state.fbx_bone_map.has(fbx_node_id)) {
+//						Ref<FBXBone> bone = state.fbx_bone_map[fbx_node_id];
+//						if (bone.is_valid()) {
+//							print_verbose("assigned skin pose from the file for bone " + bone->bone_name + ", transform: " + t);
+//							bone->pose_node = t;
+//							bone->assigned_pose_node = true;
+//						}
+//					}
+//				}
+//			}
+//		}
+//
+//		// bind pose normally only has 1 per mesh but can have more than one
+//		// this is the point of skins
+//		// in FBX first bind pose is the master for the first skin
+//
+//		// In order to handle the FBX skeleton we must also inverse any parent transforms on the bones
+//		// just to rule out any parent node transforms in the bone data
+//		// this is trivial to do and allows us to use the single skeleton method and merge them
+//		// this means that the nodes from maya kLocators will be preserved as bones
+//		// in the same rig without having to match this across skeletons and merge by detection
+//		// we can just merge and undo any parent transforms
+//		for (Map<uint64_t, Ref<FBXBone> >::Element *bone_element = state.fbx_bone_map.front(); bone_element; bone_element = bone_element->next()) {
+//			Ref<FBXBone> bone = bone_element->value();
+//			Ref<FBXSkeleton> fbx_skeleton_inst;
+//
+//			uint64_t armature_id = bone->armature_id;
+//			if (state.skeleton_map.has(armature_id)) {
+//				fbx_skeleton_inst = state.skeleton_map[armature_id];
+//			} else {
+//				fbx_skeleton_inst.instance();
+//				state.skeleton_map.insert(armature_id, fbx_skeleton_inst);
+//			}
+//
+//			print_verbose("populating skeleton with bone: " + bone->bone_name);
+//
+//			//			// populate bone skeleton - since fbx has no DOM for the skeleton just a node.
+//			//			bone->bone_skeleton = fbx_skeleton_inst;
+//
+//			// now populate bone on the armature node list
+//			fbx_skeleton_inst->skeleton_bones.push_back(bone);
+//
+//			// we need to have a valid armature id and the model configured for the bone to be assigned fully.
+//			// happens once per skeleton
+//			if (state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
+//				Ref<FBXNode> node = state.fbx_target_map[armature_id];
+//
+//				fbx_skeleton_inst->set_model(node->get_model());
+//				fbx_skeleton_inst->fbx_node = node;
+//				print_verbose("allocated fbx skeleton primary / armature node for the level: " + node->node_name);
+//			} else if (!state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
+//				print_error("bones are not mapped to an armature node for armature id: " + itos(armature_id) + " bone: " + bone->bone_name);
+//				// this means bone will be removed and not used, which is safe actually and no skeleton will be created.
+//			}
+//		}
+//
+//		// setup skeleton instances if required :)
+//		for (Map<uint64_t, Ref<FBXSkeleton> >::Element *skeleton_node = state.skeleton_map.front(); skeleton_node; skeleton_node = skeleton_node->next()) {
+//			skeleton_node->value()->init_skeleton(state);
+//		}
+//	}
+//
+//	// build godot node tree
+//	if (state.fbx_node_list.size() > 0) {
+//		for (List<Ref<FBXNode> >::Element *node_element = state.fbx_node_list.front();
+//				node_element;
+//				node_element = node_element->next()) {
+//			Ref<FBXNode> fbx_node = node_element->get();
+//			MeshInstance *mesh_node = nullptr;
+//			Ref<FBXMeshData> mesh_data_precached;
+//
+//			// check for valid geometry
+//			if (fbx_node->fbx_model == nullptr) {
+//				print_error("[doc] fundamental flaw, submit bug immediately with full import log with verbose logging on");
+//			} else {
+//				const std::vector<const Assimp::FBX::Geometry *> &geometry = fbx_node->fbx_model->GetGeometry();
+//				for (const Assimp::FBX::Geometry *mesh : geometry) {
+//					print_verbose("[doc] [" + itos(mesh->ID()) + "] mesh: " + fbx_node->node_name);
+//
+//					if (mesh == nullptr)
+//						continue;
+//
+//					const Assimp::FBX::MeshGeometry *mesh_geometry = dynamic_cast<const Assimp::FBX::MeshGeometry *>(mesh);
+//					if (mesh_geometry != NULL) {
+//						uint64_t mesh_id = mesh_geometry->ID();
+//
+//						// this data will pre-exist if vertex weight information is found
+//						if (state.renderer_mesh_data.has(mesh_id)) {
+//							mesh_data_precached = state.renderer_mesh_data[mesh_id];
+//						} else {
+//							mesh_data_precached.instance();
+//							state.renderer_mesh_data.insert(mesh_id, mesh_data_precached);
+//						}
+//
+//						// mesh node, mesh id
+//						mesh_node = mesh_data_precached->create_fbx_mesh(state, mesh_geometry, fbx_node->fbx_model);
+//						if (!state.MeshNodes.has(mesh_id)) {
+//							state.MeshNodes.insert(mesh_id, fbx_node);
+//						}
+//					}
+//
+//					const Assimp::FBX::ShapeGeometry *shape_geometry = dynamic_cast<const Assimp::FBX::ShapeGeometry *>(mesh);
+//					if (shape_geometry != nullptr) {
+//						print_verbose("[doc] valid shape geometry converted");
+//					}
+//				}
+//			}
+//
+//			Ref<FBXSkeleton> node_skeleton = fbx_node->skeleton_node;
+//
+//			if (node_skeleton.is_valid()) {
+//				Skeleton *skel = node_skeleton->skeleton;
+//				fbx_node->godot_node = skel;
+//			} else if (mesh_node == nullptr) {
+//				fbx_node->godot_node = memnew(Spatial);
+//			} else {
+//				fbx_node->godot_node = mesh_node;
+//			}
+//
+//			fbx_node->godot_node->set_name(fbx_node->node_name);
+//
+//			// assign parent if valid
+//			if (fbx_node->fbx_parent.is_valid()) {
+//				fbx_node->fbx_parent->godot_node->add_child(fbx_node->godot_node);
+//				fbx_node->godot_node->set_owner(state.root_owner);
+//			}
+//
+//			// Node Transform debug, set local xform data.
+//			fbx_node->godot_node->set_transform(get_unscaled_transform(fbx_node->pivot_transform->LocalTransform, state.scale));
+//
+//			// populate our mesh node reference
+//			if (mesh_node != nullptr && mesh_data_precached.is_valid()) {
+//				mesh_data_precached->godot_mesh_instance = mesh_node;
+//			}
+//		}
+//	}
+//
+//	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
+//		create_mesh_data_skin(state, skin_mesh->value(), skin_mesh->key());
+//	}
+//
+//	// mesh data iteration for populating skeleton mapping
+//	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
+//		Ref<FBXMeshData> mesh = mesh_data->value();
+//		MeshInstance *mesh_instance = mesh->godot_mesh_instance;
+//		int mesh_weights = mesh->max_weight_count;
+//		Ref<FBXSkeleton> skeleton;
+//		bool valid_armature = mesh->valid_armature_id;
+//		uint64_t armature = mesh->armature_id;
+//
+//		if (mesh_weights > 0 && valid_armature) {
+//			if (state.skeleton_map.has(armature)) {
+//				skeleton = state.skeleton_map[armature];
+//				print_verbose("[doc] armature mesh to skeleton mapping has been allocated");
+//			} else {
+//				print_error("[doc] unable to find armature mapping");
+//			}
+//
+//			if (mesh_instance && skeleton.is_valid()) {
+//				mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
+//				print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
+//
+//				// do we have a mesh skin for this mesh
+//				if (state.MeshSkins.has(mesh->mesh_id)) {
+//					Ref<Skin> mesh_skin = state.MeshSkins[mesh->mesh_id];
+//					if (mesh_skin.is_valid()) {
+//						print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
+//						mesh_instance->set_skin(mesh_skin);
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	// build skin and skeleton information
+//	print_verbose("[doc] Skeleton Bone count: " + itos(state.fbx_bone_map.size()));
+//	const Assimp::FBX::FileGlobalSettings *FBXSettings = p_document->GlobalSettingsPtr();
+//
+//	// Configure constraints
+//	const std::vector<uint64_t> fbx_constraints = p_document->GetConstraintStackIDs();
 
 	//	for (uint64_t constraint_id : fbx_constraints) {
 	//		Assimp::FBX::LazyObject *lazyObject = p_document->GetObject(constraint_id);
@@ -712,10 +719,10 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	//	//print_verbose("Constraints count: " + itos(fbx_constraints.size()));
 
 	// get the animation FPS
-	float fps_setting = ImportUtils::get_fbx_fps(FBXSettings);
+	float fps_setting = 0.0f;
 
 	// enable animation import, only if local animation is enabled
-	if (state.enable_animation_import && (p_flags & IMPORT_ANIMATION)) {
+	if (false && state.enable_animation_import && (p_flags & IMPORT_ANIMATION)) {
 		// document animation stack list - get by ID so we can unload any non used animation stack
 		const std::vector<uint64_t> animation_stack = p_document->GetAnimationStackIDs();
 
@@ -1151,6 +1158,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	state.renderer_mesh_data.clear();
 	state.MeshSkins.clear();
+	state.MeshNodes.clear();
 	state.fbx_target_map.clear();
 	state.fbx_node_list.clear();
 
@@ -1199,7 +1207,7 @@ void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref
 void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 		ImportState &state, const Assimp::FBX::Document *p_doc,
 		uint64_t p_id) {
-	const std::vector<const Assimp::FBX::Connection *> &conns = p_doc->GetConnectionsByDestinationSequenced(p_id, "Model");
+	const std::vector<const Assimp::FBX::Connection *> conns = p_doc->GetConnectionsByDestinationSequenced(p_id, "Model");
 	// FBX can do an join like this
 	// Model -> SubDeformer (bone) -> Deformer (skin pose)
 	// This is important because we need to somehow link skin back to bone id in skeleton :)
@@ -1216,178 +1224,178 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 		}
 
 		// convert connection source object into Object base class
-		const Assimp::FBX::Object *const object = con->SourceObject();
+		const Assimp::FBX::Object * object = con->SourceObject();
 
 		if (nullptr == object) {
 			print_verbose("failed to convert source object for Model link");
 			continue;
 		}
-
-		// FBX Model::Cube, Model::Bone001, etc elements
-		// This detects if we can cast the object into this model structure.
-		const Assimp::FBX::Model *const model = dynamic_cast<const Assimp::FBX::Model *>(object);
-
-		// declare our bone element reference (invalid, unless we create a bone in this step)
-		// this lets us pass valid armature information into children objects and this is why we moved this up here
-		// previously this was created .instanced() on the same line.
-		Ref<FBXBone> bone_element;
-
-		if (model != nullptr) {
-			const Assimp::FBX::LimbNodeMaya *const limb_node = dynamic_cast<const Assimp::FBX::LimbNodeMaya *>(model);
-			if (limb_node != nullptr) {
-				// Write bone into bone list for FBX
-				if (!state.fbx_bone_map.has(limb_node->ID())) {
-					bool parent_is_bone = state.fbx_bone_map.find(p_id);
-					bone_element.instance();
-
-					// used to build the bone hierarchy in the skeleton
-					bone_element->parent_bone_id = parent_is_bone ? p_id : 0;
-					bone_element->valid_parent = parent_is_bone;
-
-					// armature handling
-
-					// parent is a node and this is the first bone
-					if (!parent_is_bone) {
-						uint64_t armature_id = p_id;
-
-						bone_element->valid_armature_id = true;
-						bone_element->armature_id = armature_id;
-						print_verbose("[doc] valid armature has been configured for first child: " + itos(armature_id));
-					} else if (p_parent_bone.is_valid()) {
-						if (p_parent_bone->valid_armature_id) {
-							bone_element->valid_armature_id = true;
-							bone_element->armature_id = p_parent_bone->armature_id;
-							print_verbose("[doc] bone has valid armature id:" + itos(bone_element->armature_id));
-						} else {
-							print_error("[doc] unassigned armature id: " + String(limb_node->Name().c_str()));
-						}
-					} else {
-						print_error("[doc] error is this a bone? " + String(limb_node->Name().c_str()));
-					}
-
-					if (!parent_is_bone) {
-						print_verbose("[doc] Root bone: " + bone_element->bone_name);
-					}
-
-					// ;Deformer::, Geometry::
-					// C: "OO",2188874359888,2190730951072
-					uint64_t limb_id = limb_node->ID();
-
-					// Model "limb node" to SubDeformer to Deformer (skin)
-					const Assimp::FBX::Cluster *deformer = ProcessDOMConnection<Assimp::FBX::Cluster>(p_doc, "Deformer", limb_id);
-
-					bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
-					bone_element->parent_bone = p_parent_bone;
-
-					if (deformer != nullptr) {
-						uint64_t mesh_target_id = 0;
-
-						// inverse lookup of mesh from skin, this is because we like to reduce information down so we can re-use skins.
-						const Assimp::FBX::Skin *skin = ProcessDOMConnection<Assimp::FBX::Skin>(p_doc, "Skin", deformer->ID());
-						if (skin) {
-							bone_element->skin = skin; // do not copy info out
-							//print_verbose("[doc] valid skin found! searching for geometry that this skin applies to");
-							const Assimp::FBX::Geometry *geo = ProcessDOMConnection<Assimp::FBX::Geometry>(p_doc, "Mesh", skin->ID());
-							if (geo) {
-								bone_element->geometry = geo;
-								//print_verbose("[doc] valid mesh found!");
-								mesh_target_id = geo->ID();
-							} else {
-								print_error("skin element is not assigned properly to mesh - unsupported");
-							}
-
-						} else {
-							print_error("invalid skin layout / unsupported fbx file");
-						}
-
-						print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
-						print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
-
-						// assign FBX animation bind pose compensation data;
-						// TODO Do I need scale this?
-						bone_element->transform_link = deformer->TransformLink();
-						bone_element->transform_matrix = deformer->GetTransform();
-						bone_element->cluster = deformer;
-
-						// skin configures target node ID.
-						bone_element->target_node_id = deformer->TargetNode()->ID();
-						bone_element->valid_target = true;
-						bone_element->bone_id = limb_id;
-
-						// apply the vertex weight information
-						const std::vector<unsigned int> &indexes = deformer->GetIndices();
-						const std::vector<float> &weights = deformer->GetWeights();
-
-						// Pipeline to move vertex weight information
-						// to the renderer
-						Ref<FBXMeshData> mesh_vertex_data;
-						if (state.renderer_mesh_data.has(mesh_target_id)) {
-							mesh_vertex_data = state.renderer_mesh_data[mesh_target_id];
-						} else {
-							mesh_vertex_data.instance();
-							state.renderer_mesh_data.insert(mesh_target_id, mesh_vertex_data);
-						}
-
-						// Mesh vertex data retrieved now to stream this deformer
-						// data into the internal mesh storage.
-						if (mesh_vertex_data.is_valid()) {
-							// tell the mesh what Armature it should use
-							mesh_vertex_data->armature_id = bone_element->armature_id;
-							mesh_vertex_data->valid_armature_id = true;
-
-							//print_verbose("storing mesh vertex data for mesh to use later");
-							ERR_FAIL_COND_MSG(indexes.size() != weights.size(), "[doc] error mismatch between weight info");
-
-							for (size_t idx = 0; idx < indexes.size(); idx++) {
-
-								const size_t vertex_index = indexes[idx];
-								//print_verbose("vertex index: " + itos(vertex_index));
-
-								const real_t influence_weight = weights[idx];
-
-								VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
-								vm.weights.push_back(influence_weight);
-								vm.bones.push_back(0);
-								vm.bones_ref.push_back(bone_element);
-								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
-							}
-
-							for (
-									const int *vertex_index = mesh_vertex_data->vertex_weights.next(nullptr);
-									vertex_index != nullptr;
-									vertex_index = mesh_vertex_data->vertex_weights.next(vertex_index)) {
-								VertexMapping *vm = mesh_vertex_data->vertex_weights.getptr(*vertex_index);
-								const int influence_count = vm->weights.size();
-								if (influence_count > mesh_vertex_data->max_weight_count) {
-									mesh_vertex_data->max_weight_count = influence_count;
-									mesh_vertex_data->valid_weight_count = true;
-								}
-							}
-
-							if (mesh_vertex_data->max_weight_count > 4) {
-								if (mesh_vertex_data->max_weight_count > 8) {
-									ERR_PRINT("[doc] Serious: maximum bone influences is 8 in this branch.");
-								}
-								// Clamp to 8 bone vertex influences.
-								mesh_vertex_data->max_weight_count = 8;
-								print_verbose("[doc] Using 8 vertex bone influences configuration.");
-							} else {
-								mesh_vertex_data->max_weight_count = 4;
-								print_verbose("[doc] Using 4 vertex bone influences configuration.");
-							}
-						}
-					} else {
-						print_verbose("[doc] warning: no skin for the deformer found: " + bone_element->bone_name);
-					}
-
-					// insert limb by ID into list.
-					state.fbx_bone_map.insert(limb_node->ID(), bone_element);
-				}
-			}
-
-			// recursion call - child nodes
-			CacheNodeInformation(bone_element, state, p_doc, model->ID());
-		}
+//
+//		// FBX Model::Cube, Model::Bone001, etc elements
+//		// This detects if we can cast the object into this model structure.
+//		const Assimp::FBX::Model * model = dynamic_cast<const Assimp::FBX::Model *>(object);
+//		if(model){}
+		//
+//		// declare our bone element reference (invalid, unless we create a bone in this step)
+//		// this lets us pass valid armature information into children objects and this is why we moved this up here
+//		// previously this was created .instanced() on the same line.
+//		Ref<FBXBone> bone_element;
+//
+//		if (model != nullptr) {
+//			const Assimp::FBX::LimbNodeMaya *const limb_node = dynamic_cast<const Assimp::FBX::LimbNodeMaya *>(model);
+//			if (limb_node != nullptr) {
+//				// Write bone into bone list for FBX
+//				if (!state.fbx_bone_map.has(limb_node->ID())) {
+//					bool parent_is_bone = state.fbx_bone_map.find(p_id);
+//					bone_element.instance();
+//
+//					// used to build the bone hierarchy in the skeleton
+//					bone_element->parent_bone_id = parent_is_bone ? p_id : 0;
+//					bone_element->valid_parent = parent_is_bone;
+//
+//					// armature handling
+//
+//					// parent is a node and this is the first bone
+//					if (!parent_is_bone) {
+//						uint64_t armature_id = p_id;
+//
+//						bone_element->valid_armature_id = true;
+//						bone_element->armature_id = armature_id;
+//						print_verbose("[doc] valid armature has been configured for first child: " + itos(armature_id));
+//					} else if (p_parent_bone.is_valid()) {
+//						if (p_parent_bone->valid_armature_id) {
+//							bone_element->valid_armature_id = true;
+//							bone_element->armature_id = p_parent_bone->armature_id;
+//							print_verbose("[doc] bone has valid armature id:" + itos(bone_element->armature_id));
+//						} else {
+//							print_error("[doc] unassigned armature id: " + String(limb_node->Name().c_str()));
+//						}
+//					} else {
+//						print_error("[doc] error is this a bone? " + String(limb_node->Name().c_str()));
+//					}
+//
+//					if (!parent_is_bone) {
+//						print_verbose("[doc] Root bone: " + bone_element->bone_name);
+//					}
+//
+//					// ;Deformer::, Geometry::
+//					// C: "OO",2188874359888,2190730951072
+//					uint64_t limb_id = limb_node->ID();
+//
+//					// Model "limb node" to SubDeformer to Deformer (skin)
+//					const Assimp::FBX::Cluster *deformer = ProcessDOMConnection<Assimp::FBX::Cluster>(p_doc, "Deformer", limb_id);
+//
+//					bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
+//					bone_element->parent_bone = p_parent_bone;
+//
+//					if (deformer != nullptr) {
+//						uint64_t mesh_target_id = 0;
+//
+//						// inverse lookup of mesh from skin, this is because we like to reduce information down so we can re-use skins.
+//						const Assimp::FBX::Skin *skin = ProcessDOMConnection<Assimp::FBX::Skin>(p_doc, "Skin", deformer->ID());
+//						if (skin) {
+//							bone_element->skin = skin; // do not copy info out
+//							//print_verbose("[doc] valid skin found! searching for geometry that this skin applies to");
+//							const Assimp::FBX::Geometry *geo = ProcessDOMConnection<Assimp::FBX::Geometry>(p_doc, "Mesh", skin->ID());
+//							if (geo) {
+//								bone_element->geometry = geo;
+//								//print_verbose("[doc] valid mesh found!");
+//								mesh_target_id = geo->ID();
+//							} else {
+//								print_error("skin element is not assigned properly to mesh - unsupported");
+//							}
+//
+//						} else {
+//							print_error("invalid skin layout / unsupported fbx file");
+//						}
+//
+//						print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
+//						print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
+//
+//						// assign FBX animation bind pose compensation data;
+//						// TODO Do I need scale this?
+//						bone_element->transform_link = deformer->TransformLink();
+//						bone_element->transform_matrix = deformer->GetTransform();
+//						bone_element->cluster = deformer;
+//
+//						// skin configures target node ID.
+//						bone_element->target_node_id = deformer->TargetNode()->ID();
+//						bone_element->valid_target = true;
+//						bone_element->bone_id = limb_id;
+//
+//						// apply the vertex weight information
+//						const std::vector<unsigned int> &indexes = deformer->GetIndices();
+//						const std::vector<float> &weights = deformer->GetWeights();
+//
+//						// Pipeline to move vertex weight information
+//						// to the renderer
+//						Ref<FBXMeshData> mesh_vertex_data;
+//						if (state.renderer_mesh_data.has(mesh_target_id)) {
+//							mesh_vertex_data = state.renderer_mesh_data[mesh_target_id];
+//						} else {
+//							mesh_vertex_data.instance();
+//							state.renderer_mesh_data.insert(mesh_target_id, mesh_vertex_data);
+//						}
+//
+//						// Mesh vertex data retrieved now to stream this deformer
+//						// data into the internal mesh storage.
+//						if (mesh_vertex_data.is_valid()) {
+//							// tell the mesh what Armature it should use
+//							mesh_vertex_data->armature_id = bone_element->armature_id;
+//							mesh_vertex_data->valid_armature_id = true;
+//
+//							//print_verbose("storing mesh vertex data for mesh to use later");
+//							ERR_FAIL_COND_MSG(indexes.size() != weights.size(), "[doc] error mismatch between weight info");
+//
+//							for (size_t idx = 0; idx < indexes.size(); idx++) {
+//
+//								const size_t vertex_index = indexes[idx];
+//								//print_verbose("vertex index: " + itos(vertex_index));
+//
+//								const real_t influence_weight = weights[idx];
+//
+//								VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
+//								vm.weights.push_back(influence_weight);
+//								vm.bones.push_back(0);
+//								vm.bones_ref.push_back(bone_element);
+//								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
+//							}
+//
+//							for (const int *vertex_index = mesh_vertex_data->vertex_weights.next(nullptr);
+//									vertex_index != nullptr;
+//									vertex_index = mesh_vertex_data->vertex_weights.next(vertex_index)) {
+//								VertexMapping *vm = mesh_vertex_data->vertex_weights.getptr(*vertex_index);
+//								const int influence_count = vm->weights.size();
+//								if (influence_count > mesh_vertex_data->max_weight_count) {
+//									mesh_vertex_data->max_weight_count = influence_count;
+//									mesh_vertex_data->valid_weight_count = true;
+//								}
+//							}
+//
+//							if (mesh_vertex_data->max_weight_count > 4) {
+//								if (mesh_vertex_data->max_weight_count > 8) {
+//									ERR_PRINT("[doc] Serious: maximum bone influences is 8 in this branch.");
+//								}
+//								// Clamp to 8 bone vertex influences.
+//								mesh_vertex_data->max_weight_count = 8;
+//								print_verbose("[doc] Using 8 vertex bone influences configuration.");
+//							} else {
+//								mesh_vertex_data->max_weight_count = 4;
+//								print_verbose("[doc] Using 4 vertex bone influences configuration.");
+//							}
+//						}
+//					} else {
+//						print_verbose("[doc] warning: no skin for the deformer found: " + bone_element->bone_name);
+//					}
+//
+//					// insert limb by ID into list.
+//					state.fbx_bone_map.insert(limb_node->ID(), bone_element);
+//				}
+//			}
+//
+//			// recursion call - child nodes
+//			CacheNodeInformation(bone_element, state, p_doc, model->ID());
+//		}
 	}
 }
 

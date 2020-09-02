@@ -51,6 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace Assimp {
 namespace FBX {
@@ -146,6 +147,7 @@ private:
 
 // Fixed leak by using shared_ptr for tokens
 typedef std::shared_ptr<Token> TokenPtr;
+typedef std::weak_ptr<Token> WeakTokenPtr;
 typedef std::vector<TokenPtr> TokenList;
 
 #define new_Token std::make_shared<Token>

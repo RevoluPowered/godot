@@ -66,7 +66,7 @@ namespace {
 
 // ------------------------------------------------------------------------------------------------
 // read a typed property out of a FBX element. The return value is NULL if the property cannot be read.
-Property *ReadTypedProperty(const Element &element) {
+PropertyPtr ReadTypedProperty(const Element &element) {
 	//ai_assert(element.KeyToken().StringContents() == "P");
 
 	const TokenList &tok = element.Tokens();
@@ -75,15 +75,15 @@ Property *ReadTypedProperty(const Element &element) {
 	const std::string &s = ParseTokenAsString(tok[1]);
 	const char *const cs = s.c_str();
 	if (!strcmp(cs, "KString")) {
-		return new TypedProperty<std::string>(ParseTokenAsString(tok[4]));
+		return new_Property(TypedProperty<std::string>(ParseTokenAsString(tok[4])));
 	} else if (!strcmp(cs, "bool") || !strcmp(cs, "Bool")) {
-		return new TypedProperty<bool>(ParseTokenAsInt(tok[4]) != 0);
+		return new_Property(TypedProperty<bool>(ParseTokenAsInt(tok[4]) != 0));
 	} else if (!strcmp(cs, "int") || !strcmp(cs, "Int") || !strcmp(cs, "enum") || !strcmp(cs, "Enum")) {
-		return new TypedProperty<int>(ParseTokenAsInt(tok[4]));
+		return new_Property(TypedProperty<int>(ParseTokenAsInt(tok[4])));
 	} else if (!strcmp(cs, "ULongLong")) {
-		return new TypedProperty<uint64_t>(ParseTokenAsID(tok[4]));
+		return new_Property(TypedProperty<uint64_t>(ParseTokenAsID(tok[4])));
 	} else if (!strcmp(cs, "KTime")) {
-		return new TypedProperty<int64_t>(ParseTokenAsInt64(tok[4]));
+		return new_Property(TypedProperty<int64_t>(ParseTokenAsInt64(tok[4])));
 	} else if (!strcmp(cs, "Vector3D") ||
 			   !strcmp(cs, "ColorRGB") ||
 			   !strcmp(cs, "Vector") ||
@@ -91,12 +91,12 @@ Property *ReadTypedProperty(const Element &element) {
 			   !strcmp(cs, "Lcl Translation") ||
 			   !strcmp(cs, "Lcl Rotation") ||
 			   !strcmp(cs, "Lcl Scaling")) {
-		return new TypedProperty<Vector3>(Vector3(
+		return new_Property(TypedProperty<Vector3>(Vector3(
 				ParseTokenAsFloat(tok[4]),
 				ParseTokenAsFloat(tok[5]),
-				ParseTokenAsFloat(tok[6])));
+				ParseTokenAsFloat(tok[6]))));
 	} else if (!strcmp(cs, "double") || !strcmp(cs, "Number") || !strcmp(cs, "Float") || !strcmp(cs, "FieldOfView") || !strcmp(cs, "UnitScaleFactor")) {
-		return new TypedProperty<float>(ParseTokenAsFloat(tok[4]));
+		return new_Property(TypedProperty<float>(ParseTokenAsFloat(tok[4])));
 	}
 	return nullptr;
 }
@@ -151,12 +151,17 @@ PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* temp
 // ------------------------------------------------------------------------------------------------
 PropertyTable::~PropertyTable() {
 	for (PropertyMap::value_type &v : props) {
-		delete v.second;
+		v.second.reset();
 	}
+    for (LazyPropertyMap::value_type &v : lazyProps) {
+        v.second.reset();
+    }
+
+	element.reset();
 }
 
 // ------------------------------------------------------------------------------------------------
-const Property *PropertyTable::Get(const std::string &name) const {
+PropertyPtr PropertyTable::Get(const std::string &name) const {
 	PropertyMap::const_iterator it = props.find(name);
 	if (it == props.end()) {
 		// hasn't been parsed yet?
@@ -174,7 +179,7 @@ const Property *PropertyTable::Get(const std::string &name) const {
 				return templateProps->Get(name);
 			}
 
-			return NULL;
+			return nullptr;
 		}
 	}
 

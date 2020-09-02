@@ -86,21 +86,27 @@ class BlendShape;
 class Skin;
 class Cluster;
 
+typedef std::shared_ptr<Object> ObjectPtr;
+typedef std::weak_ptr<Object> ObjectWeakPtr;
+#define new_Object std::make_shared<Object>
+
 /** Represents a delay-parsed FBX objects. Many objects in the scene
  *  are not needed by assimp, so it makes no sense to parse them
  *  upfront. */
 class LazyObject {
 public:
 	LazyObject(uint64_t id, const ElementPtr element, const Document &doc);
-
 	~LazyObject();
 
-	const Object *Get(bool dieOnError = false);
+	ObjectWeakPtr LoadObject();
 
+	/* Casting weak pointers to their templated type safely and preserving ref counting and safety
+	 * with lock() keyword to prevent leaking memory
+	 */
 	template <typename T>
-	const T *Get(bool dieOnError = false) {
-		const Object *const ob = Get(dieOnError);
-		return ob ? dynamic_cast<const T *>(ob) : NULL;
+	std::weak_ptr<T> Get() {
+		ObjectWeakPtr ob = LoadObject();
+		return std::dynamic_pointer_cast<T>(ob.lock());
 	}
 
 	uint64_t ID() const {
@@ -115,7 +121,7 @@ public:
 		return (flags & FAILED_TO_CONSTRUCT) != 0;
 	}
 
-	const ElementPtr GetElement() const {
+	const ElementWeakPtr GetElement() const {
 		return element;
 	}
 
@@ -125,8 +131,8 @@ public:
 
 private:
 	const Document &doc;
-	const ElementPtr element = nullptr;
-	std::shared_ptr<const Object> object = nullptr;
+	ElementPtr element = nullptr;
+	std::shared_ptr<Object> object = nullptr;
 	const uint64_t id = 0;
 
 	enum Flags {
@@ -144,7 +150,16 @@ public:
 
 	virtual ~Object();
 
-	const ElementPtr SourceElement() const {
+	/* Casting weak pointers to their templated type safely and preserving ref counting and safety
+ * with lock() keyword to prevent leaking memory
+ */
+	template <typename T>
+	std::weak_ptr<T> Get() {
+		ObjectWeakPtr ob = LoadObject();
+		return std::dynamic_pointer_cast<T>(ob.lock());
+	}
+
+	const ElementWeakPtr SourceElement() const {
 		return element;
 	}
 
@@ -157,7 +172,7 @@ public:
 	}
 
 protected:
-	const ElementPtr element = nullptr;
+	const ElementWeakPtr element;
 	const std::string name;
 	const uint64_t id = 0;
 };
@@ -245,7 +260,7 @@ public:
 		transform = ReadMatrix(Transform);
 
 		// get node id this pose node is for
-		const ElementPtr  NodeId = sc->GetElement("Node");
+		const ElementPtr NodeId = sc->GetElement("Node").lock();
 		if (NodeId) {
 			target_id = ParseTokenAsInt64(GetRequiredToken(NodeId, 0));
 		}
@@ -769,8 +784,11 @@ private:
 	std::vector<unsigned int> flags;
 };
 
-// property-name -> animation curve
-typedef std::map<std::string, const AnimationCurve *> AnimationCurveMap;
+/* Typedef for pointers for the animation handler */
+typedef std::shared_ptr<AnimationCurve> AnimationCurvePtr;
+typedef std::weak_ptr<AnimationCurve> AnimationCurveWeakPtr;
+typedef std::map<std::string, AnimationCurveWeakPtr> AnimationMap;
+
 
 /** Represents a FBX animation curve (i.e. a mapping from single animation curves to nodes) */
 class AnimationCurveNode : public Object {
@@ -779,30 +797,29 @@ public:
     wants animations for. If the curve node does not match one of these, std::range_error
     will be thrown. */
 	AnimationCurveNode(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc,
-			const char *const *target_prop_whitelist = NULL, size_t whitelist_size = 0);
+			const char *const *target_prop_whitelist = nullptr, size_t whitelist_size = 0);
 
 	virtual ~AnimationCurveNode();
 
 	const PropertyTable *Props() const {
-		//ai_assert(props.get());
 		return props;
 	}
 
-	const std::map<std::string, const AnimationCurve *> &Curves() const;
+	const AnimationMap &Curves();
 
 	/** Object the curve is assigned to, this can be NULL if the
      *  target object has no DOM representation or could not
      *  be read for other reasons.*/
-	const Object *Target() const {
+	ObjectWeakPtr Target() const {
 		return target;
 	}
 
-	const Model *TargetAsModel() const {
-		return dynamic_cast<const Model *>(target);
+	std::weak_ptr<Model> TargetAsModel() const {
+		return std::dynamic_pointer_cast<Model>(target.lock());
 	}
 
-	const NodeAttribute *TargetAsNodeAttribute() const {
-		return dynamic_cast<const NodeAttribute *>(target);
+	std::weak_ptr<NodeAttribute> TargetAsNodeAttribute() const {
+		return std::dynamic_pointer_cast<NodeAttribute>(target.lock());
 	}
 
 	/** Property of Target() that is being animated*/
@@ -811,10 +828,9 @@ public:
 	}
 
 private:
-	const Object *target;
+	ObjectWeakPtr target;
 	const PropertyTable* props;
-	mutable std::map<std::string, const AnimationCurve *> curves;
-
+	AnimationMap curves;
 	std::string prop;
 	const Document &doc;
 };
@@ -1038,14 +1054,13 @@ private:
 class Connection {
 public:
 	Connection(uint64_t insertionOrder, uint64_t src, uint64_t dest, const std::string &prop, const Document &doc);
-
 	~Connection();
 
 	// note: a connection ensures that the source and dest objects exist, but
 	// not that they have DOM representations, so the return value of one of
 	// these functions can still be NULL.
-	const Object *SourceObject() const;
-	const Object *DestinationObject() const;
+	ObjectWeakPtr SourceObject() const;
+	ObjectWeakPtr DestinationObject() const;
 
 	// these, however, are always guaranteed to be valid
 	LazyObject &LazySourceObject() const;
@@ -1151,7 +1166,7 @@ public:
 	fbx_simple_property(CustomFrameRate, float, -1.0f);
 
 private:
-	const PropertyTable* props;
+	const PropertyTable* props = nullptr;
 	const Document &doc;
 };
 
@@ -1227,7 +1242,7 @@ public:
 			const char *const *classnames,
 			size_t count) const;
 
-	const std::vector<const AnimationStack *> &AnimationStacks() const;
+	const std::vector<std::weak_ptr<AnimationStack>> &AnimationStacks() const;
 	const std::vector<uint64_t> &GetAnimationStackIDs() const {
 		return animationStacks;
 	}
@@ -1276,8 +1291,8 @@ private:
 	// constraints aren't in the tree / at least they are not easy to access.
 	std::vector<uint64_t> constraints;
 	std::vector<uint64_t> materials;
-	mutable std::vector<const AnimationStack *> animationStacksResolved;
-	std::shared_ptr<FileGlobalSettings> globals;
+	mutable std::vector<std::weak_ptr<AnimationStack>> animationStacksResolved;
+	std::shared_ptr<FileGlobalSettings> globals = nullptr;
 };
 
 } // Namespace FBX

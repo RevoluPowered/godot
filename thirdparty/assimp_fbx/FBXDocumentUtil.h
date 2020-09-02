@@ -78,7 +78,7 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline const T *ProcessSimpleConnection(const Connection &con,
+std::weak_ptr<T> ProcessSimpleConnection(const Connection &con,
 		bool is_object_property_conn,
 		const char *name,
 		const ElementPtr element,
@@ -101,15 +101,10 @@ inline const T *ProcessSimpleConnection(const Connection &con,
 		*propNameOut = con.PropertyName().c_str();
 	}
 
-	const Object *const ob = con.SourceObject();
-	if (!ob) {
-		// DOMWarning("failed to read source object for incoming " + std::string(name) +
-		//     " link, ignoring",
-		//     &element);
-		return nullptr;
-	}
-
-	return dynamic_cast<const T *>(ob);
+	// Cast Object to AnimationPlayer for example using safe functions, which return nullptr etc
+	ObjectPtr ob = con.SourceObject().lock();
+	ERR_FAIL_COND_V_MSG(ob, std::weak_ptr<T>(), "Failed to load object from SourceObject ptr");
+	return std::dynamic_pointer_cast<T>(ob);
 }
 
 } // namespace Util
