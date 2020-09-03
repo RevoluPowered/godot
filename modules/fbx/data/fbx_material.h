@@ -78,6 +78,7 @@ struct FBXMaterial : public Reference {
 	// TODO make this static?
 	const std::map<std::string, SpatialMaterial::TextureParam> fbx_texture_mapping_desc = {
 		/* Diffuse */
+		{ "Maya|base", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "DiffuseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|DiffuseTexture", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
 		{ "Maya|baseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },

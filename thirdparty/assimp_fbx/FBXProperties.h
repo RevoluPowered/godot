@@ -46,9 +46,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef INCLUDED_AI_FBX_PROPERTIES_H
 #define INCLUDED_AI_FBX_PROPERTIES_H
 
+#include "FBXParser.h"
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
 #include <vector>
 
 namespace Assimp {
@@ -94,9 +95,11 @@ private:
 	T value;
 };
 
-typedef std::map<std::string, std::shared_ptr<Property> > DirectPropertyMap;
-typedef std::map<std::string, const Property *> PropertyMap;
-typedef std::map<std::string, const Element *> LazyPropertyMap;
+#define new_Property new Property
+typedef Property* PropertyPtr;
+typedef std::map<std::string, PropertyPtr > DirectPropertyMap;
+typedef std::map<std::string, PropertyPtr > PropertyMap;
+typedef std::map<std::string, ElementPtr> LazyPropertyMap;
 
 /** 
  *  Represents a property table as can be found in the newer FBX files (Properties60, Properties70)
@@ -105,18 +108,18 @@ class PropertyTable {
 public:
 	// in-memory property table with no source element
 	PropertyTable();
-	PropertyTable(const Element &element, std::shared_ptr<const PropertyTable> templateProps);
+	PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 	~PropertyTable();
 
-	const Property *Get(const std::string &name) const;
+	PropertyPtr Get(const std::string &name) const;
 
 	// PropertyTable's need not be coupled with FBX elements so this can be NULL
-	const Element *GetElement() const {
+	const ElementPtr GetElement() const {
 		return element;
 	}
 
 	const PropertyTable *TemplateProps() const {
-		return templateProps.get();
+		return templateProps;
 	}
 
 	const std::vector<std::string> get_properties_name() const;
@@ -126,14 +129,14 @@ public:
 private:
 	LazyPropertyMap lazyProps;
 	mutable PropertyMap props;
-	const std::shared_ptr<const PropertyTable> templateProps;
-	const Element *const element;
+	const PropertyTable* templateProps = nullptr;
+	const ElementPtr element = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline T PropertyGet(const PropertyTable &in, const std::string &name, const T &defaultValue) {
-	const Property *const prop = in.Get(name);
+inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &defaultValue) {
+	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
 		return defaultValue;
 	}
@@ -149,14 +152,14 @@ inline T PropertyGet(const PropertyTable &in, const std::string &name, const T &
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline T PropertyGet(const PropertyTable &in, const std::string &name, bool &result, bool useTemplate = false) {
-	const Property *prop = in.Get(name);
+inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &result, bool useTemplate = false) {
+	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
 		if (!useTemplate) {
 			result = false;
 			return T();
 		}
-		const PropertyTable *templ = in.TemplateProps();
+		const PropertyTable *templ = in->TemplateProps();
 		if (nullptr == templ) {
 			result = false;
 			return T();

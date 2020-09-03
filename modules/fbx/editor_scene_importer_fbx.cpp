@@ -103,58 +103,75 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 	ERR_FAIL_COND_V(!f, NULL);
 
-	PoolByteArray data;
-	// broadphase tokenizing pass in which we identify the core
-	// syntax elements of FBX (brackets, commas, key:value mappings)
-	Assimp::FBX::TokenList tokens;
+	{
 
-	bool is_binary = false;
-	data.resize(f->get_len());
-	f->get_buffer(data.write().ptr(), data.size());
-	PoolByteArray fbx_header;
-	fbx_header.resize(64);
-	for (int32_t byte_i = 0; byte_i < 64; byte_i++) {
-		fbx_header.write()[byte_i] = data.read()[byte_i];
-	}
+		PoolByteArray data;
+		// broadphase tokenizing pass in which we identify the core
+		// syntax elements of FBX (brackets, commas, key:value mappings)
+		Assimp::FBX::TokenList tokens;
 
-	String fbx_header_string;
-	if (fbx_header.size() >= 0) {
-		PoolByteArray::Read r = fbx_header.read();
-		fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
-	}
+		bool is_binary = false;
+		data.resize(f->get_len());
+		f->get_buffer(data.write().ptr(), data.size());
+		PoolByteArray fbx_header;
+		fbx_header.resize(64);
+		for (int32_t byte_i = 0; byte_i < 64; byte_i++) {
+			fbx_header.write()[byte_i] = data.read()[byte_i];
+		}
 
-	print_verbose("[doc] opening fbx file: " + p_path);
-	print_verbose("[doc] fbx header: " + fbx_header_string);
+		String fbx_header_string;
+		if (fbx_header.size() >= 0) {
+			PoolByteArray::Read r = fbx_header.read();
+			fbx_header_string.parse_utf8((const char *)r.ptr(), fbx_header.size());
+		}
 
-	// safer to check this way as there can be different formatted headers
-	if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
-		is_binary = true;
-		print_verbose("[doc] is binary");
-		Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());
-	} else {
-		print_verbose("[doc] is ascii");
-		Assimp::FBX::Tokenize(tokens, (const char *)data.write().ptr());
-	}
+		print_verbose("[doc] opening fbx file: " + p_path);
+		print_verbose("[doc] fbx header: " + fbx_header_string);
 
-	// use this information to construct a very rudimentary
-	// parse-tree representing the FBX scope structure
-	Assimp::FBX::Parser parser(tokens, is_binary);
-	Assimp::FBX::ImportSettings settings;
+		// safer to check this way as there can be different formatted headers
+		if (fbx_header_string.find("Kaydara FBX Binary", 0) != -1) {
+			is_binary = true;
+			print_verbose("[doc] is binary");
+			Assimp::FBX::TokenizeBinary(tokens, (const char *)data.write().ptr(), (size_t)data.size());
+		} else {
+			print_verbose("[doc] is ascii");
+			Assimp::FBX::Tokenize(tokens, (const char *)data.write().ptr());
+		}
 
-	// 'strict' mode is dangerous this causes more fun asserts to crash engine, so don't enable it.
-	settings.strictMode = false;
+		// The import process explained:
+		// 1. Tokens are made, these are then taken into the 'parser' below
+		// 2. The parser constructs 'Elements' and all 'real' FBX Types.
+		// 3. This creates a problem: shared_ptr ownership, should Elements later 'take ownership'
+		// 4. No, it shouldn't so we should either a.) use weak ref for elements; but this is not correct.
 
-	// take the raw parse-tree and convert it to a FBX DOM
-	Assimp::FBX::Document doc(parser, settings);
+		// use this information to construct a very rudimentary
+		// parse-tree representing the FBX scope structure
+		Assimp::FBX::Parser parser(tokens, is_binary);
+		Assimp::FBX::ImportSettings settings;
+		settings.strictMode = false;
 
-	// yeah so closing the file is a good idea (prevents readonly states)
-	f->close();
+		// this function leaks a lot
+		Assimp::FBX::Document doc(parser, settings);
 
-	// safety for version handling
-	if (doc.IsSafeToImport()) {
-		return _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
-	} else {
-		print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
+		// yeah so closing the file is a good idea (prevents readonly states)
+		f->close();
+
+		// safety for version handling
+		if (doc.IsSafeToImport()) {
+			Spatial * spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+
+			for( Assimp::FBX::TokenPtr token : tokens)
+			{
+				if(token) {
+					delete token;
+					token = nullptr;
+				}
+			}
+
+			return spatial;
+		} else {
+			print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
+		}
 	}
 
 	return memnew(Spatial);
@@ -410,9 +427,9 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			const Assimp::FBX::FbxPose *active_skin = lazy_skin->Get<Assimp::FBX::FbxPose>();
 
 			if (active_skin) {
-				const std::vector<std::shared_ptr<Assimp::FBX::FbxPoseNode> > &bind_poses = active_skin->GetBindPoses();
+				const std::vector<Assimp::FBX::FbxPoseNode*> &bind_poses = active_skin->GetBindPoses();
 
-				for (std::shared_ptr<Assimp::FBX::FbxPoseNode> pose_node : bind_poses) {
+				for (Assimp::FBX::FbxPoseNode* pose_node : bind_poses) {
 					Transform t = pose_node->GetBindPose();
 					uint64_t fbx_node_id = pose_node->GetNodeID();
 					if (state.fbx_bone_map.has(fbx_node_id)) {
@@ -814,7 +831,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						uint64_t target_id = target->ID();
 						String target_name = ImportUtils::FBXNodeToName(target->Name());
 
-						const Assimp::FBX::PropertyTable &properties = curve_node->Props();
+						const Assimp::FBX::PropertyTable *properties = curve_node->Props();
 						bool got_x = false, got_y = false, got_z = false;
 						float offset_x = Assimp::FBX::PropertyGet<float>(properties, "d|X", got_x);
 						float offset_y = Assimp::FBX::PropertyGet<float>(properties, "d|Y", got_y);
@@ -971,7 +988,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 						Ref<FBXNode> target_node = state.fbx_target_map[target_id];
 						const Assimp::FBX::Model *model = target_node->fbx_model;
-						const Assimp::FBX::PropertyTable &props = model->Props();
+						const Assimp::FBX::PropertyTable *props = model->Props();
 
 						Map<StringName, FBXTrack> &track_data = track->value();
 						FBXTrack &translation_keys = track_data[StringName("T")];

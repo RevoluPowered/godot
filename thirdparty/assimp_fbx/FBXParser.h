@@ -65,14 +65,16 @@ class Scope;
 class Parser;
 class Element;
 
-// XXX should use C++11's unique_ptr - but assimp's need to keep working with 03
-typedef std::vector<Scope *> ScopeList;
-typedef std::multimap<std::string, Element *> ElementMap;
+typedef Element* ElementPtr;
+typedef Scope* ScopePtr;
 
+typedef std::vector<ScopePtr> ScopeList;
+typedef std::multimap<std::string, ElementPtr> ElementMap;
 typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> ElementCollection;
 
 #define new_Scope new Scope
 #define new_Element new Element
+
 
 /** FBX data entity that consists of a key:value tuple.
  *
@@ -87,14 +89,14 @@ typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> Elemen
  *  as their trailing member.  **/
 class Element {
 public:
-	Element(const TokenPtr key_token, Parser &parser);
+	Element(TokenPtr key_token, Parser &parser);
 	~Element();
 
-	const Scope *Compound() const {
-		return compound.get();
+	ScopePtr Compound() const {
+		return compound;
 	}
 
-	const TokenPtr KeyToken() const {
+	TokenPtr KeyToken() const {
 		return key_token;
 	}
 
@@ -103,9 +105,10 @@ public:
 	}
 
 private:
-	const TokenPtr key_token;
 	TokenList tokens;
-	std::shared_ptr<Scope> compound = nullptr;
+	ScopePtr compound = nullptr;
+	std::vector<ScopePtr> compound_scope;
+	TokenPtr key_token = nullptr;
 };
 
 /** FBX data entity that consists of a 'scope', a collection
@@ -124,17 +127,19 @@ public:
 	Scope(Parser &parser, bool topLevel = false);
 	~Scope();
 
-	const Element *GetElement(const std::string &index) const {
+	ElementPtr GetElement(const std::string &index) const {
 		ElementMap::const_iterator it = elements.find(index);
 		return it == elements.end() ? nullptr : (*it).second;
 	}
 
-	const Element *FindElementCaseInsensitive(const std::string &elementName) const {
+	ElementPtr FindElementCaseInsensitive(const std::string &elementName) const {
 		for (auto element = elements.begin(); element != elements.end(); ++element) {
 			if (element->first.compare(elementName)) {
 				return element->second;
 			}
 		}
+
+		// nothing to reference / expired.
 		return nullptr;
 	}
 
@@ -159,8 +164,8 @@ public:
 	Parser(const TokenList &tokens, bool is_binary);
 	~Parser();
 
-	const Scope &GetRootScope() const {
-		return *root.get();
+	const ScopePtr GetRootScope() const {
+		return root;
 	}
 
 	bool IsBinary() const {
@@ -176,11 +181,12 @@ private:
 	TokenPtr CurrentToken() const;
 
 private:
-	const TokenList &tokens;
+	ScopeList scopes;
+	const TokenList& tokens;
 
 	TokenPtr last = nullptr, current = nullptr;
 	TokenList::const_iterator cursor;
-	std::shared_ptr<Scope> root = nullptr;
+	ScopePtr root = nullptr;
 
 	const bool is_binary;
 };
@@ -202,28 +208,29 @@ int64_t ParseTokenAsInt64(const TokenPtr t);
 std::string ParseTokenAsString(const TokenPtr t);
 
 /* read data arrays */
-void ParseVectorDataArray(std::vector<Vector3> &out, const Element *el);
-void ParseVectorDataArray(std::vector<Color> &out, const Element *el);
-void ParseVectorDataArray(std::vector<Vector2> &out, const Element *el);
-void ParseVectorDataArray(std::vector<int> &out, const Element *el);
-void ParseVectorDataArray(std::vector<float> &out, const Element *el);
-void ParseVectorDataArray(std::vector<unsigned int> &out, const Element *el);
-void ParseVectorDataArray(std::vector<uint64_t> &out, const Element *ep);
-void ParseVectorDataArray(std::vector<int64_t> &out, const Element *el);
-bool HasElement(const Scope *sc, const std::string &index);
+void ParseVectorDataArray(std::vector<Vector3> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<Color> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<Vector2> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<int> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<float> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<float> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<unsigned int> &out, const ElementPtr el);
+void ParseVectorDataArray(std::vector<uint64_t> &out, const ElementPtr ep);
+void ParseVectorDataArray(std::vector<int64_t> &out, const ElementPtr el);
+bool HasElement(const ScopePtr sc, const std::string &index);
 
 // extract a required element from a scope, abort if the element cannot be found
-const Element *GetRequiredElement(const Scope *sc, const std::string &index, const Element *element = nullptr);
-const Scope *GetRequiredScope(const Element *el); // New in 2020. (less likely to destroy application)
-const Element *GetOptionalElement(const Scope *sc, const std::string &index, const Element *element = nullptr);
+const ElementPtr GetRequiredElement(const ScopePtr sc, const std::string &index, const ElementPtr element = nullptr);
+const ScopePtr GetRequiredScope(const ElementPtr el); // New in 2020. (less likely to destroy application)
+const ElementPtr GetOptionalElement(const ScopePtr sc, const std::string &index, const ElementPtr element = nullptr);
 // extract required compound scope
-const Scope *GetRequiredScope(const Element *el);
+const ScopePtr GetRequiredScope(const ElementPtr el);
 // get token at a particular index
-TokenPtr GetRequiredToken(const Element *el, unsigned int index);
+TokenPtr GetRequiredToken(const ElementPtr el, unsigned int index);
 
 // ------------------------------------------------------------------------------------------------
 // read a 4x4 matrix from an array of 16 floats
-Transform ReadMatrix(const Element *element);
+Transform ReadMatrix(const ElementPtr element);
 
 } // namespace FBX
 } // namespace Assimp

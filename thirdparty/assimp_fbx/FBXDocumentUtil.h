@@ -55,37 +55,43 @@ namespace Assimp {
 namespace FBX {
 namespace Util {
 
-/* DOM/Parse error reporting - does not return */
-void DOMError(const std::string &message, const Token &token);
-void DOMError(const std::string &message, const Element *element = NULL);
+// Parser errors
+void DOMError(const std::string &message);
+void DOMError(const std::string &message, const Token *token);
+void DOMError(const std::string &message, const Element *element);
+void DOMError(const std::string &message, const std::shared_ptr<Element> element);
+void DOMError(const std::string &message, const std::shared_ptr<Token> token);
 
-// does return
-void DOMWarning(const std::string &message, const Token &token);
-void DOMWarning(const std::string &message, const Element *element = NULL);
+// Parser warnings
+void DOMWarning(const std::string &message);
+void DOMWarning(const std::string &message, const Token *token);
+void DOMWarning(const std::string &message, const Element *element);
+void DOMWarning(const std::string &message, const std::shared_ptr<Token> token);
+void DOMWarning(const std::string &message, const std::shared_ptr<Element> element);
 
 // fetch a property table and the corresponding property template
-std::shared_ptr<const PropertyTable> GetPropertyTable(const Document &doc,
+const PropertyTable* GetPropertyTable(const Document &doc,
 		const std::string &templateName,
-		const Element &element,
-		const Scope &sc,
+		const ElementPtr element,
+		const ScopePtr sc,
 		bool no_warn = false);
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-inline const T *ProcessSimpleConnection(const Connection &con,
+const T* ProcessSimpleConnection(const Connection &con,
 		bool is_object_property_conn,
 		const char *name,
-		const Element &element,
+		const ElementPtr element,
 		const char **propNameOut = nullptr) {
 	if (is_object_property_conn && !con.PropertyName().length()) {
 		DOMWarning("expected incoming " + std::string(name) +
 						   " link to be an object-object connection, ignoring",
-				&element);
+				element);
 		return nullptr;
 	} else if (!is_object_property_conn && con.PropertyName().length()) {
 		DOMWarning("expected incoming " + std::string(name) +
 						   " link to be an object-property connection, ignoring",
-				&element);
+				element);
 		return nullptr;
 	}
 
@@ -95,15 +101,10 @@ inline const T *ProcessSimpleConnection(const Connection &con,
 		*propNameOut = con.PropertyName().c_str();
 	}
 
-	const Object *const ob = con.SourceObject();
-	if (!ob) {
-		// DOMWarning("failed to read source object for incoming " + std::string(name) +
-		//     " link, ignoring",
-		//     &element);
-		return nullptr;
-	}
-
-	return dynamic_cast<const T *>(ob);
+	// Cast Object to AnimationPlayer for example using safe functions, which return nullptr etc
+	Object* ob = con.SourceObject();
+	ERR_FAIL_COND_V_MSG(!ob, nullptr,"Failed to load object from SourceObject ptr");
+	return dynamic_cast<const T*>(ob);
 }
 
 } // namespace Util

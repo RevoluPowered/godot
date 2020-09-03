@@ -94,6 +94,7 @@ struct PivotTransform : Reference, ModelAbstraction {
 	void set_parent(Ref<PivotTransform> p_parent) {
 		parent_transform = p_parent;
 	}
+
 	bool computed_global_xform = false;
 	Ref<PivotTransform> parent_transform = Ref<PivotTransform>();
 	//Transform chain[TransformationComp_MAXIMUM];

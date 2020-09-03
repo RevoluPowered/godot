@@ -51,6 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace Assimp {
 namespace FBX {
@@ -145,10 +146,10 @@ private:
 };
 
 // Fixed leak by using shared_ptr for tokens
-typedef std::shared_ptr<Token> TokenPtr;
+typedef Token * TokenPtr;
 typedef std::vector<TokenPtr> TokenList;
 
-#define new_Token std::make_shared<Token>
+#define new_Token new Token
 
 /** Main FBX tokenizer function. Transform input buffer into a list of preprocessed tokens.
  *
