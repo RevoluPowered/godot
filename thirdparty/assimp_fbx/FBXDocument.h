@@ -104,9 +104,9 @@ public:
 	 * with lock() keyword to prevent leaking memory
 	 */
 	template <typename T>
-	std::weak_ptr<T> Get() {
+	const T* Get() {
 		ObjectWeakPtr ob = LoadObject();
-		return std::dynamic_pointer_cast<T>(ob.lock());
+		return dynamic_cast<const T*>(ob.lock().get());
 	}
 
 	uint64_t ID() const {
@@ -121,7 +121,7 @@ public:
 		return (flags & FAILED_TO_CONSTRUCT) != 0;
 	}
 
-	const ElementWeakPtr GetElement() const {
+	const ElementPtr GetElement() const {
 		return element;
 	}
 
@@ -150,16 +150,7 @@ public:
 
 	virtual ~Object();
 
-	/* Casting weak pointers to their templated type safely and preserving ref counting and safety
- * with lock() keyword to prevent leaking memory
- */
-	template <typename T>
-	std::weak_ptr<T> Get() {
-		ObjectWeakPtr ob = LoadObject();
-		return std::dynamic_pointer_cast<T>(ob.lock());
-	}
-
-	const ElementWeakPtr SourceElement() const {
+	const ElementPtr SourceElement() const {
 		return element;
 	}
 
@@ -172,7 +163,7 @@ public:
 	}
 
 protected:
-	const ElementWeakPtr element;
+	const ElementPtr element;
 	const std::string name;
 	const uint64_t id = 0;
 };
@@ -260,7 +251,7 @@ public:
 		transform = ReadMatrix(Transform);
 
 		// get node id this pose node is for
-		const ElementPtr NodeId = sc->GetElement("Node").lock();
+		const ElementPtr NodeId = sc->GetElement("Node");
 		if (NodeId) {
 			target_id = ParseTokenAsInt64(GetRequiredToken(NodeId, 0));
 		}
@@ -380,6 +371,12 @@ public:
 	fbx_simple_property(BottomBarnDoor, float, 20.0f);
 	fbx_simple_property(EnableBarnDoor, bool, true);
 };
+
+class Model;
+
+typedef std::shared_ptr<Model> ModelPtr;
+typedef std::weak_ptr<Model> ModelWeakPtr;
+#define new_Model
 
 /** DOM base class for FBX models (even though its semantics are more "node" than "model" */
 class Model : public Object {
@@ -787,8 +784,11 @@ private:
 /* Typedef for pointers for the animation handler */
 typedef std::shared_ptr<AnimationCurve> AnimationCurvePtr;
 typedef std::weak_ptr<AnimationCurve> AnimationCurveWeakPtr;
-typedef std::map<std::string, AnimationCurveWeakPtr> AnimationMap;
+typedef std::map<std::string,const AnimationCurve*> AnimationMap;
 
+/* Animation Curve node ptr */
+typedef std::shared_ptr<AnimationCurveNode> AnimationCurveNodePtr;
+typedef std::weak_ptr<AnimationCurveNode> AnimationCurveNodeWeakPtr;
 
 /** Represents a FBX animation curve (i.e. a mapping from single animation curves to nodes) */
 class AnimationCurveNode : public Object {
@@ -805,21 +805,21 @@ public:
 		return props;
 	}
 
-	const AnimationMap &Curves();
+	const AnimationMap &Curves() const;
 
 	/** Object the curve is assigned to, this can be NULL if the
      *  target object has no DOM representation or could not
      *  be read for other reasons.*/
-	ObjectWeakPtr Target() const {
+	Object* Target() const {
 		return target;
 	}
 
-	std::weak_ptr<Model> TargetAsModel() const {
-		return std::dynamic_pointer_cast<Model>(target.lock());
+	Model* TargetAsModel() const {
+		return dynamic_cast<Model*>(target);
 	}
 
-	std::weak_ptr<NodeAttribute> TargetAsNodeAttribute() const {
-		return std::dynamic_pointer_cast<NodeAttribute>(target.lock());
+	NodeAttribute* TargetAsNodeAttribute() const {
+		return dynamic_cast<NodeAttribute*>(target);
 	}
 
 	/** Property of Target() that is being animated*/
@@ -828,14 +828,18 @@ public:
 	}
 
 private:
-	ObjectWeakPtr target;
+	Object* target = nullptr;
 	const PropertyTable* props;
-	AnimationMap curves;
+	mutable AnimationMap curves;
 	std::string prop;
 	const Document &doc;
 };
 
-typedef std::vector<const AnimationCurveNode *> AnimationCurveNodeList;
+typedef std::vector<const AnimationCurveNode*> AnimationCurveNodeList;
+
+typedef std::shared_ptr<AnimationLayer> AnimationLayerPtr;
+typedef std::weak_ptr<AnimationLayer> AnimationLayerWeakPtr;
+typedef std::vector<const AnimationLayer*> AnimationLayerList;
 
 /** Represents a FBX animation layer (i.e. a list of node animations) */
 class AnimationLayer : public Object {
@@ -851,14 +855,13 @@ public:
 	/* the optional white list specifies a list of property names for which the caller
     wants animations for. Curves not matching this list will not be added to the
     animation layer. */
-	AnimationCurveNodeList Nodes(const char *const *target_prop_whitelist = nullptr, size_t whitelist_size = 0) const;
+	const AnimationCurveNodeList Nodes(const char *const *target_prop_whitelist = nullptr, size_t whitelist_size = 0) const;
 
 private:
 	const PropertyTable* props;
 	const Document &doc;
 };
 
-typedef std::vector<const AnimationLayer *> AnimationLayerList;
 
 /** Represents a FBX animation stack (i.e. a list of animation layers) */
 class AnimationStack : public Object {
@@ -1059,8 +1062,8 @@ public:
 	// note: a connection ensures that the source and dest objects exist, but
 	// not that they have DOM representations, so the return value of one of
 	// these functions can still be NULL.
-	ObjectWeakPtr SourceObject() const;
-	ObjectWeakPtr DestinationObject() const;
+	Object* SourceObject() const;
+	Object* DestinationObject() const;
 
 	// these, however, are always guaranteed to be valid
 	LazyObject &LazySourceObject() const;
@@ -1242,7 +1245,7 @@ public:
 			const char *const *classnames,
 			size_t count) const;
 
-	const std::vector<std::weak_ptr<AnimationStack>> &AnimationStacks() const;
+	const std::vector<const AnimationStack*> &AnimationStacks() const;
 	const std::vector<uint64_t> &GetAnimationStackIDs() const {
 		return animationStacks;
 	}
@@ -1291,7 +1294,7 @@ private:
 	// constraints aren't in the tree / at least they are not easy to access.
 	std::vector<uint64_t> constraints;
 	std::vector<uint64_t> materials;
-	mutable std::vector<std::weak_ptr<AnimationStack>> animationStacksResolved;
+	mutable std::vector<const AnimationStack*> animationStacksResolved;
 	std::shared_ptr<FileGlobalSettings> globals = nullptr;
 };
 

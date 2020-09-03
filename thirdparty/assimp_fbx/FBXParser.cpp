@@ -121,6 +121,7 @@ Element::Element(const TokenPtr key_token, Parser &parser) :
 
 		if (n && n->Type() == TokenType_OPEN_BRACKET) {
 			compound = new_Scope(parser);
+			parser.scopes.push_back(compound);
 
 			// current token should be a TOK_CLOSE_BRACKET
 			n = parser.CurrentToken();
@@ -137,11 +138,6 @@ Element::Element(const TokenPtr key_token, Parser &parser) :
 
 // ------------------------------------------------------------------------------------------------
 Element::~Element() {
-	key_token.reset();
-	for(TokenPtr token : tokens)
-	{
-		token.reset();
-	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -184,22 +180,27 @@ Scope::Scope(Parser &parser, bool topLevel) {
 // ------------------------------------------------------------------------------------------------
 Scope::~Scope() {
 	for (ElementMap::value_type &v : elements) {
-		v.second.reset();
+		delete v.second;
+		v.second = nullptr;
 	}
+
+	elements.clear();
 }
 
 // ------------------------------------------------------------------------------------------------
 Parser::Parser(const TokenList &tokens, bool is_binary) :
 		tokens(tokens), last(), current(), cursor(tokens.begin()), is_binary(is_binary) {
 	root = new_Scope(*this, true);
+	scopes.push_back(root);
 }
 
 // ------------------------------------------------------------------------------------------------
 Parser::~Parser() {
-	// empty
-	last.reset();
-	current.reset();
-	root.reset();
+	for(ScopePtr scope : scopes)
+	{
+		delete scope;
+		scope= nullptr;
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -471,7 +472,7 @@ namespace {
 // read the type code and element count of a binary data array and stop there
 void ReadBinaryDataArrayHead(const char *&data, const char *end, char &type, uint32_t &count,
 		const ElementPtr el) {
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 	if (static_cast<size_t>(end - data) < 5) {
 		print_error("binary data array is too short, need five (5) bytes for type signature and element count: " + String(token->StringContents().c_str()));
 	}
@@ -573,7 +574,7 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const ElementPtr el) {
 	out.resize(0);
 
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 	if (tok.empty()) {
 		print_error("unexpected empty element" + String(token->StringContents().c_str()));
 	}
@@ -659,7 +660,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
 
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 
 	if (tok.empty()) {
 		print_error("unexpected empty element" + String(token->StringContents().c_str()));
@@ -737,7 +738,7 @@ void ParseVectorDataArray(std::vector<Color> &out, const ElementPtr el) {
 void ParseVectorDataArray(std::vector<Vector2> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 	if (tok.empty()) {
 		print_error("unexpected empty element" + String(token->StringContents().c_str()));
 	}
@@ -810,7 +811,7 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const ElementPtr el) {
 void ParseVectorDataArray(std::vector<int> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 	if (tok.empty()) {
 		print_error("unexpected empty element" + String(token->StringContents().c_str()));
 	}
@@ -867,7 +868,7 @@ void ParseVectorDataArray(std::vector<int> &out, const ElementPtr el) {
 void ParseVectorDataArray(std::vector<float> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
 	if (tok.empty()) {
 		print_error("unexpected empty element: " + String(token->StringContents().c_str()));
 	}
@@ -927,7 +928,10 @@ void ParseVectorDataArray(std::vector<float> &out, const ElementPtr el) {
 void ParseVectorDataArray(std::vector<unsigned int> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	const TokenPtr token = el->KeyToken();
+
+	ERR_FAIL_COND_MSG(!token, "invalid ParseVectorDataArrat token invalid");
+
 	if (tok.empty()) {
 		print_error("unexpected empty element: " + String(token->StringContents().c_str()));
 	}
@@ -991,7 +995,9 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const ElementPtr el) {
 	out.resize(0);
 
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
+	ERR_FAIL_COND(!token);
+
 	if (tok.empty()) {
 		print_error("unexpected empty element " + String(token->StringContents().c_str()));
 	}
@@ -1049,7 +1055,8 @@ void ParseVectorDataArray(std::vector<uint64_t> &out, const ElementPtr el) {
 void ParseVectorDataArray(std::vector<int64_t> &out, const ElementPtr el) {
 	out.resize(0);
 	const TokenList &tok = el->Tokens();
-	TokenPtr token = el->KeyToken().lock();
+	TokenPtr token = el->KeyToken();
+	ERR_FAIL_COND(!token);
 	if (tok.empty()) {
 		print_error("unexpected empty element: " + String(token->StringContents().c_str()));
 	}
@@ -1140,6 +1147,7 @@ Transform ReadMatrix(const ElementPtr element) {
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsString() with print_error handling
 std::string ParseTokenAsString(const TokenPtr t) {
+	ERR_FAIL_COND_V(!t, "");
 	const char *err;
 	const std::string &i = ParseTokenAsString(t, err);
 	if (err) {
@@ -1151,8 +1159,9 @@ std::string ParseTokenAsString(const TokenPtr t) {
 // ------------------------------------------------------------------------------------------------
 // extract a required element from a scope, abort if the element cannot be found
 const ElementPtr GetRequiredElement(const ScopePtr sc, const std::string &index, const ElementPtr element /*= NULL*/) {
-	const ElementPtr el = sc->GetElement(index).lock();
-	TokenPtr token = el->KeyToken().lock();
+	const ElementPtr el = sc->GetElement(index);
+	TokenPtr token = el->KeyToken();
+	ERR_FAIL_COND_V(!token, nullptr);
 	if (!el) {
 		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(token->StringContents().c_str()));
 	}
@@ -1160,7 +1169,7 @@ const ElementPtr GetRequiredElement(const ScopePtr sc, const std::string &index,
 }
 
 bool HasElement(const ScopePtr sc, const std::string &index) {
-	const ElementPtr el = sc->GetElement(index).lock();
+	const ElementPtr el = sc->GetElement(index);
 	if (nullptr == el) {
 		return false;
 	}
@@ -1171,7 +1180,7 @@ bool HasElement(const ScopePtr sc, const std::string &index) {
 // ------------------------------------------------------------------------------------------------
 // extract a required element from a scope, abort if the element cannot be found
 const ElementPtr GetOptionalElement(const ScopePtr sc, const std::string &index, const ElementPtr element /*= NULL*/) {
-	const ElementPtr el = sc->GetElement(index).lock();
+	const ElementPtr el = sc->GetElement(index);
 	return el;
 }
 
@@ -1179,8 +1188,9 @@ const ElementPtr GetOptionalElement(const ScopePtr sc, const std::string &index,
 // extract required compound scope
 const ScopePtr GetRequiredScope(const ElementPtr el) {
 	if(el) {
-		ScopePtr s = el->Compound().lock();
-		TokenPtr token = el->KeyToken().lock();
+		ScopePtr s = el->Compound();
+		TokenPtr token = el->KeyToken();
+		ERR_FAIL_COND_V(!token, nullptr);
 		if (s) {
 			return s;
 		}
@@ -1197,7 +1207,9 @@ const ScopePtr GetRequiredScope(const ElementPtr el) {
 TokenPtr GetRequiredToken(const ElementPtr el, unsigned int index) {
 	if(el) {
 		const TokenList& x = el->Tokens();
-		TokenPtr token = el->KeyToken().lock();
+		TokenPtr token = el->KeyToken();
+
+		ERR_FAIL_COND_V(!token, nullptr);
 
 		if (index >= x.size()) {
 			ERR_FAIL_V_MSG(nullptr,"missing token at index: " + itos(index) + " " + String(token->StringContents().c_str()));

@@ -95,8 +95,8 @@ private:
 	T value;
 };
 
-#define new_Property std::make_shared<Property>
-typedef std::shared_ptr<Property> PropertyPtr;
+#define new_Property new Property
+typedef Property* PropertyPtr;
 typedef std::map<std::string, PropertyPtr > DirectPropertyMap;
 typedef std::map<std::string, PropertyPtr > PropertyMap;
 typedef std::map<std::string, ElementPtr> LazyPropertyMap;
@@ -130,7 +130,7 @@ private:
 	LazyPropertyMap lazyProps;
 	mutable PropertyMap props;
 	const PropertyTable* templateProps = nullptr;
-	ElementPtr element = nullptr;
+	const ElementPtr element = nullptr;
 };
 
 // ------------------------------------------------------------------------------------------------

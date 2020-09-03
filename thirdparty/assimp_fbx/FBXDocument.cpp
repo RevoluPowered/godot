@@ -71,7 +71,6 @@ LazyObject::LazyObject(uint64_t id, const ElementPtr element, const Document &do
 
 // ------------------------------------------------------------------------------------------------
 LazyObject::~LazyObject() {
-	element.reset();
 	object.reset();
 }
 
@@ -84,7 +83,8 @@ ObjectWeakPtr LazyObject::LoadObject() {
 		return object;
 	}
 
-	TokenPtr key = element->KeyToken().lock();
+	TokenPtr key = element->KeyToken();
+	ERR_FAIL_COND_V(!key, std::weak_ptr<Object>());
 	const TokenList &tokens = element->Tokens();
 
 	if (tokens.size() < 3) {
@@ -209,9 +209,10 @@ FileGlobalSettings::FileGlobalSettings(const Document &doc, const PropertyTable*
 
 // ------------------------------------------------------------------------------------------------
 FileGlobalSettings::~FileGlobalSettings() {
-	// empty
-	delete props;
-	props = nullptr;
+	if(props != nullptr) {
+		delete props;
+		props = nullptr;
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -263,12 +264,12 @@ static const unsigned int UpperSupportedVersion = 7700;
 bool Document::ReadHeader() {
 	// Read ID objects from "Objects" section
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension").lock();
-	if (!ehead || !ehead->Compound().lock()) {
+	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension");
+	if (!ehead || !ehead->Compound()) {
 		DOMError("no FBXHeaderExtension dictionary found");
 	}
 
-	const ScopePtr shead = ehead->Compound().lock();
+	const ScopePtr shead = ehead->Compound();
 	fbxVersion = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(shead, "FBXVersion", ehead), 0));
 
 	// While we may have some success with newer files, we don't support
@@ -282,14 +283,14 @@ bool Document::ReadHeader() {
 				   " trying to read it nevertheless");
 	}
 
-	const ElementPtr ecreator = shead->GetElement("Creator").lock();
+	const ElementPtr ecreator = shead->GetElement("Creator");
 	if (ecreator) {
 		creator = ParseTokenAsString(GetRequiredToken(ecreator, 0));
 	}
 
-	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp").lock();
-	if (etimestamp && etimestamp->Compound().lock()) {
-		const ScopePtr stimestamp = etimestamp->Compound().lock();
+	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp");
+	if (etimestamp && etimestamp->Compound()) {
+		const ScopePtr stimestamp = etimestamp->Compound();
 		creationTimeStamp[0] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Year"), 0));
 		creationTimeStamp[1] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Month"), 0));
 		creationTimeStamp[2] = ParseTokenAsInt(GetRequiredToken(GetRequiredElement(stimestamp, "Day"), 0));
@@ -307,16 +308,16 @@ void Document::ReadGlobalSettings() {
 	ERR_FAIL_COND_MSG(globals != nullptr, "Global settings is already setup this is a serious error and should be reported");
 
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr ehead = sc->GetElement("GlobalSettings").lock();
-	if (nullptr == ehead || !ehead->Compound().lock()) {
+	const ElementPtr ehead = sc->GetElement("GlobalSettings");
+	if (nullptr == ehead || !ehead->Compound()) {
 		DOMWarning("no GlobalSettings dictionary found");
 		globals = std::make_shared<FileGlobalSettings>(*this, new PropertyTable());
 		return;
 	}
 
-	const PropertyTable* props = GetPropertyTable(*this, "", ehead, ehead->Compound().lock(), true);
+	const PropertyTable* props = GetPropertyTable(*this, "", ehead, ehead->Compound(), true);
 
-	//double v = PropertyGet<float>( *props.get(), std::string("UnitScaleFactor"), 1.0 );
+	//double v = PropertyGet<float>( *props, std::string("UnitScaleFactor"), 1.0 );
 
 	if (!props) {
 		DOMError("GlobalSettings dictionary contains no property table");
@@ -329,8 +330,8 @@ void Document::ReadGlobalSettings() {
 void Document::ReadObjects() {
 	// read ID objects from "Objects" section
 	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr  eobjects = sc->GetElement("Objects").lock();
-	if (!eobjects || !eobjects->Compound().lock()) {
+	const ElementPtr  eobjects = sc->GetElement("Objects");
+	if (!eobjects || !eobjects->Compound()) {
 		DOMError("no Objects dictionary found");
 	}
 
@@ -338,7 +339,7 @@ void Document::ReadObjects() {
 	// which is only indirectly defined in the input file
 	objects[0] = new LazyObject(0L, eobjects, *this);
 
-	const ScopePtr sobjects = eobjects->Compound().lock();
+	const ScopePtr sobjects = eobjects->Compound();
 	for (const ElementMap::value_type iter : sobjects->Elements()) {
 
 		// extract ID
@@ -382,17 +383,17 @@ void Document::ReadObjects() {
 void Document::ReadPropertyTemplates() {
 	const ScopePtr sc = parser.GetRootScope();
 	// read property templates from "Definitions" section
-	const ElementPtr edefs = sc->GetElement("Definitions").lock();
-	if (!edefs || !edefs->Compound().lock()) {
+	const ElementPtr edefs = sc->GetElement("Definitions");
+	if (!edefs || !edefs->Compound()) {
 		DOMWarning("no Definitions dictionary found");
 		return;
 	}
 
-	const ScopePtr sdefs = edefs->Compound().lock();
+	const ScopePtr sdefs = edefs->Compound();
 	const ElementCollection otypes = sdefs->GetCollection("ObjectType");
 	for (ElementMap::const_iterator it = otypes.first; it != otypes.second; ++it) {
 		const ElementPtr el = (*it).second;
-		const ScopePtr sc_2 = el->Compound().lock();
+		const ScopePtr sc_2 = el->Compound();
 		if (!sc_2) {
 			DOMWarning("expected nested scope in ObjectType, ignoring", el);
 			continue;
@@ -409,7 +410,7 @@ void Document::ReadPropertyTemplates() {
 		const ElementCollection templs = sc_2->GetCollection("PropertyTemplate");
 		for (ElementMap::const_iterator iter = templs.first; iter != templs.second; ++iter) {
 			const ElementPtr el_2 = (*iter).second;
-			const ScopePtr sc_3 = el_2->Compound().lock();
+			const ScopePtr sc_3 = el_2->Compound();
 			if (!sc_3) {
 				DOMWarning("expected nested scope in PropertyTemplate, ignoring", el);
 				continue;
@@ -423,7 +424,7 @@ void Document::ReadPropertyTemplates() {
 
 			const std::string &pname = ParseTokenAsString(tok_2[0]);
 
-			const ElementPtr Properties70 = sc_3->GetElement("Properties70").lock();
+			const ElementPtr Properties70 = sc_3->GetElement("Properties70");
 			if (Properties70) {
 				// PropertyTable(const ElementPtr element, const PropertyTable* templateProps);
 				const PropertyTable* props = new PropertyTable(Properties70, nullptr);
@@ -439,13 +440,13 @@ void Document::ReadConnections() {
 	const ScopePtr sc = parser.GetRootScope();
 
 	// read property templates from "Definitions" section
-	const ElementPtr econns = sc->GetElement("Connections").lock();
-	if (!econns || !econns->Compound().lock()) {
+	const ElementPtr econns = sc->GetElement("Connections");
+	if (!econns || !econns->Compound()) {
 		DOMError("no Connections dictionary found");
 	}
 
 	uint64_t insertionOrder = 0l;
-	const ScopePtr sconns = econns->Compound().lock();
+	const ScopePtr sconns = econns->Compound();
 	const ElementCollection conns = sconns->GetCollection("C");
 	for (ElementMap::const_iterator it = conns.first; it != conns.second; ++it) {
 		const ElementPtr el = (*it).second;
@@ -483,7 +484,7 @@ void Document::ReadConnections() {
 }
 
 // ------------------------------------------------------------------------------------------------
-const std::vector<std::weak_ptr<AnimationStack>> &Document::AnimationStacks() const {
+const std::vector<const AnimationStack*> &Document::AnimationStacks() const {
 	if (!animationStacksResolved.empty() || animationStacks.empty()) {
 		return animationStacksResolved;
 	}
@@ -496,10 +497,8 @@ const std::vector<std::weak_ptr<AnimationStack>> &Document::AnimationStacks() co
 		// We cast internally an Object PTR to an Animation Stack PTR
 		// We return invalid weak_ptrs for objects which are invalid
 
-		std::weak_ptr<AnimationStack> stack = lazy->Get<AnimationStack>();
-		std::shared_ptr<AnimationStack> anim_stack = stack.lock();
-		ERR_CONTINUE_MSG(!lazy, "invalid ObjectPtr from FBX Parser");
-		ERR_CONTINUE_MSG(!anim_stack, "invalid weak_ptr to AnimationStack - conversion failure");
+		const AnimationStack* stack = lazy->Get<AnimationStack>();
+		ERR_CONTINUE_MSG(!stack, "invalid ptr to AnimationStack - conversion failure");
 
 		// We push back the weak reference :) to keep things simple, as ownership is on the parser side so it wont be cleaned up.
 		animationStacksResolved.push_back(stack);
@@ -557,7 +556,7 @@ std::vector<const Connection *> Document::GetConnectionsSequenced(uint64_t id, b
 
 	temp.reserve(std::distance(range.first, range.second));
 	for (ConnectionMap::const_iterator it = range.first; it != range.second; ++it) {
-		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement().lock()->KeyToken().lock();
+		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement()->KeyToken();
 
 		const char *obtype = key->begin();
 
@@ -648,17 +647,17 @@ LazyObject &Connection::LazyDestinationObject() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-ObjectWeakPtr Connection::SourceObject() const {
+Object * Connection::SourceObject() const {
 	LazyObject * lazy = doc.GetObject(src);
 	//ai_assert(lazy);
-	return lazy->LoadObject();
+	return lazy->LoadObject().lock().get();
 }
 
 // ------------------------------------------------------------------------------------------------
-ObjectWeakPtr Connection::DestinationObject() const {
+Object * Connection::DestinationObject() const {
 	LazyObject * lazy = doc.GetObject(dest);
 	//ai_assert(lazy);
-	return lazy->LoadObject();
+	return lazy->LoadObject().lock().get();
 }
 
 } // namespace FBX

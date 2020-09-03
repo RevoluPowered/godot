@@ -78,7 +78,7 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 
 // ------------------------------------------------------------------------------------------------
 template <typename T>
-std::weak_ptr<T> ProcessSimpleConnection(const Connection &con,
+const T* ProcessSimpleConnection(const Connection &con,
 		bool is_object_property_conn,
 		const char *name,
 		const ElementPtr element,
@@ -102,9 +102,9 @@ std::weak_ptr<T> ProcessSimpleConnection(const Connection &con,
 	}
 
 	// Cast Object to AnimationPlayer for example using safe functions, which return nullptr etc
-	ObjectPtr ob = con.SourceObject().lock();
-	ERR_FAIL_COND_V_MSG(ob, std::weak_ptr<T>(), "Failed to load object from SourceObject ptr");
-	return std::dynamic_pointer_cast<T>(ob);
+	Object* ob = con.SourceObject();
+	ERR_FAIL_COND_V_MSG(!ob, nullptr,"Failed to load object from SourceObject ptr");
+	return dynamic_cast<const T*>(ob);
 }
 
 } // namespace Util

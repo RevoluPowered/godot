@@ -99,10 +99,10 @@ Cluster::Cluster(uint64_t id, const ElementPtr element, const Document &doc, con
 	//    element: Version
 	//    element: Weights
 
-	const ElementPtr Indexes = sc->GetElement("Indexes").lock();
-	const ElementPtr Weights = sc->GetElement("Weights").lock();
+	const ElementPtr Indexes = sc->GetElement("Indexes");
+	const ElementPtr Weights = sc->GetElement("Weights");
 
-	const ElementPtr TransformAssociateModel = sc->GetElement("TransformAssociateModel").lock();
+	const ElementPtr TransformAssociateModel = sc->GetElement("TransformAssociateModel");
 	if (TransformAssociateModel != nullptr) {
 		//Transform t = ReadMatrix(*TransformAssociateModel);
 		link_mode = SkinLinkMode_Additive;
@@ -138,7 +138,7 @@ Cluster::Cluster(uint64_t id, const ElementPtr element, const Document &doc, con
 	// read assigned node
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Model");
 	for (const Connection *con : conns) {
-		const Model *const mod = ProcessSimpleConnection<Model>(*con, false, "Model -> Cluster", element);
+		const Model* mod = ProcessSimpleConnection<Model>(*con, false, "Model -> Cluster", element);
 		if (mod) {
 			node = mod;
 			break;
@@ -165,12 +165,12 @@ Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std
 	// 	std::cout << "skin element: " << element.first << std::endl;
 	// }
 
-	const ElementPtr Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy").lock();
+	const ElementPtr Link_DeformAcuracy = sc->GetElement("Link_DeformAcuracy");
 	if (Link_DeformAcuracy) {
 		accuracy = ParseTokenAsFloat(GetRequiredToken(Link_DeformAcuracy, 0));
 	}
 
-	const ElementPtr SkinType = sc->GetElement("SkinningType").lock();
+	const ElementPtr SkinType = sc->GetElement("SkinningType");
 
 	if (SkinType) {
 		std::string skin_type = ParseTokenAsString(GetRequiredToken(SkinType, 0));
@@ -195,8 +195,7 @@ Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std
 
 	clusters.reserve(conns.size());
 	for (const Connection *con : conns) {
-
-		const Cluster *cluster = ProcessSimpleConnection<Cluster>(*con, false, "Cluster -> Skin", element);
+		const Cluster* cluster = ProcessSimpleConnection<Cluster>(*con, false, "Cluster -> Skin", element);
 		if (cluster) {
 			clusters.push_back(cluster);
 			continue;
@@ -213,7 +212,7 @@ BlendShape::BlendShape(uint64_t id, const ElementPtr element, const Document &do
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Deformer");
 	blendShapeChannels.reserve(conns.size());
 	for (const Connection *con : conns) {
-		const BlendShapeChannel *const bspc = ProcessSimpleConnection<BlendShapeChannel>(*con, false, "BlendShapeChannel -> BlendShape", element);
+		const BlendShapeChannel * bspc = ProcessSimpleConnection<BlendShapeChannel>(*con, false, "BlendShapeChannel -> BlendShape", element);
 		if (bspc) {
 			blendShapeChannels.push_back(bspc);
 			continue;
@@ -227,11 +226,11 @@ BlendShape::~BlendShape() {
 BlendShapeChannel::BlendShapeChannel(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Deformer(id, element, doc, name) {
 	const ScopePtr sc = GetRequiredScope(element);
-	const ElementPtr DeformPercent = sc->GetElement("DeformPercent").lock();
+	const ElementPtr DeformPercent = sc->GetElement("DeformPercent");
 	if (DeformPercent) {
 		percent = ParseTokenAsFloat(GetRequiredToken(DeformPercent, 0));
 	}
-	const ElementPtr FullWeights = sc->GetElement("FullWeights").lock();
+	const ElementPtr FullWeights = sc->GetElement("FullWeights");
 	if (FullWeights) {
 		ParseVectorDataArray(fullWeights, FullWeights);
 	}

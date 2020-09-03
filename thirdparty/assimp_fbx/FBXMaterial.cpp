@@ -63,8 +63,8 @@ Material::Material(uint64_t id, const ElementPtr element, const Document &doc, c
 		Object(id, element, name) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	const ElementPtr ShadingModel = sc->GetElement("ShadingModel").lock();
-	const ElementPtr MultiLayer = sc->GetElement("MultiLayer").lock();
+	const ElementPtr ShadingModel = sc->GetElement("ShadingModel");
+	const ElementPtr MultiLayer = sc->GetElement("MultiLayer");
 
 	if (MultiLayer) {
 		multilayer = !!ParseTokenAsInt(GetRequiredToken(MultiLayer, 0));
@@ -98,26 +98,28 @@ Material::Material(uint64_t id, const ElementPtr element, const Document &doc, c
 			continue;
 		}
 
-		const Object *const ob = con->SourceObject();
+		Object* ob = con->SourceObject();
 		if (!ob) {
 			DOMWarning("failed to read source object for texture link, ignoring", element);
 			continue;
 		}
 
-		const Texture *const tex = dynamic_cast<const Texture *>(ob);
+		const Texture* tex = dynamic_cast<const Texture*>(ob);
 		if (!tex) {
-			const LayeredTexture *const layeredTexture = dynamic_cast<const LayeredTexture *>(ob);
+			LayeredTexture* layeredTexture = dynamic_cast<LayeredTexture *>(ob);
+
 			if (!layeredTexture) {
 				DOMWarning("source object for texture link is not a texture or layered texture, ignoring", element);
 				continue;
 			}
+
 			const std::string &prop = con->PropertyName();
 			if (layeredTextures.find(prop) != layeredTextures.end()) {
 				DOMWarning("duplicate layered texture link: " + prop, element);
 			}
 
 			layeredTextures[prop] = layeredTexture;
-			((LayeredTexture *)layeredTexture)->fillTexture(doc);
+			layeredTexture->fillTexture(doc);
 		} else {
 			const std::string &prop = con->PropertyName();
 			if (textures.find(prop) != textures.end()) {
@@ -131,6 +133,10 @@ Material::Material(uint64_t id, const ElementPtr element, const Document &doc, c
 
 // ------------------------------------------------------------------------------------------------
 Material::~Material() {
+	if(props != nullptr) {
+		delete props;
+		props = nullptr;
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -138,13 +144,13 @@ Texture::Texture(uint64_t id, const ElementPtr element, const Document &doc, con
 		Object(id, element, name), uvScaling(1.0f, 1.0f), media(0) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	const ElementPtr Type = sc->GetElement("Type").lock();
-	const ElementPtr FileName = sc->GetElement("FileName").lock();
-	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename").lock();
-	const ElementPtr ModelUVTranslation = sc->GetElement("ModelUVTranslation").lock();
-	const ElementPtr ModelUVScaling = sc->GetElement("ModelUVScaling").lock();
-	const ElementPtr Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source").lock();
-	const ElementPtr Cropping = sc->GetElement("Cropping").lock();
+	const ElementPtr Type = sc->GetElement("Type");
+	const ElementPtr FileName = sc->GetElement("FileName");
+	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
+	const ElementPtr ModelUVTranslation = sc->GetElement("ModelUVTranslation");
+	const ElementPtr ModelUVScaling = sc->GetElement("ModelUVScaling");
+	const ElementPtr Texture_Alpha_Source = sc->GetElement("Texture_Alpha_Source");
+	const ElementPtr Cropping = sc->GetElement("Cropping");
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));
@@ -218,14 +224,18 @@ Texture::Texture(uint64_t id, const ElementPtr element, const Document &doc, con
 }
 
 Texture::~Texture() {
+	if(props != nullptr) {
+		delete props;
+		props = nullptr;
+	}
 }
 
 LayeredTexture::LayeredTexture(uint64_t id, const ElementPtr element, const Document & /*doc*/, const std::string &name) :
 		Object(id, element, name), blendMode(BlendMode_Modulate), alpha(1) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	ElementPtr BlendModes = sc->GetElement("BlendModes").lock();
-	ElementPtr Alphas = sc->GetElement("Alphas").lock();
+	ElementPtr BlendModes = sc->GetElement("BlendModes");
+	ElementPtr Alphas = sc->GetElement("Alphas");
 
 	if (BlendModes != 0) {
 		blendMode = (BlendMode)ParseTokenAsInt(GetRequiredToken(BlendModes, 0));
@@ -245,7 +255,7 @@ void LayeredTexture::fillTexture(const Document &doc) {
 
 		const Object *const ob = con->SourceObject();
 		if (!ob) {
-			DOMWarning("failed to read source object for texture link, ignoring", element.lock());
+			DOMWarning("failed to read source object for texture link, ignoring", element);
 			continue;
 		}
 
@@ -260,7 +270,7 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 		Object(id, element, name), contentLength(0), content(0) {
 	const ScopePtr sc = GetRequiredScope(element);
 
-	const ElementPtr Type = sc->GetElement("Type").lock();
+	const ElementPtr Type = sc->GetElement("Type");
 	// File Version 7500 Crashes if this is not checked fully.
 	// As of writing this comment 7700 exists, in August 2020
 	ElementPtr FileName = nullptr;
@@ -276,8 +286,8 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 		print_error("file has invalid video material returning...");
 		return;
 	}
-	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename").lock();
-	const ElementPtr Content = sc->GetElement("Content").lock();
+	const ElementPtr RelativeFilename = sc->GetElement("RelativeFilename");
+	const ElementPtr Content = sc->GetElement("Content");
 
 	if (Type) {
 		type = ParseTokenAsString(GetRequiredToken(Type, 0));
@@ -294,7 +304,7 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 	if (Content && !Content->Tokens().empty()) {
 		//this field is omitted when the embedded texture is already loaded, let's ignore if it's not found
 		try {
-			const Token *token = GetRequiredToken(Content, 0).get();
+			const Token *token = GetRequiredToken(Content, 0);
 			const char *data = token->begin();
 			if (!token->IsBinary()) {
 				if (*data != '"') {
@@ -304,7 +314,7 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 					auto numTokens = Content->Tokens().size();
 					// First time compute size (it could be large like 64Gb and it is good to allocate it once)
 					for (uint32_t tokenIdx = 0; tokenIdx < numTokens; ++tokenIdx) {
-						const Token *dataToken = GetRequiredToken(Content, tokenIdx).get();
+						const Token *dataToken = GetRequiredToken(Content, tokenIdx);
 						size_t tokenLength = dataToken->end() - dataToken->begin() - 2; // ignore double quotes
 						const char *base64data = dataToken->begin() + 1;
 						const size_t outLength = Util::ComputeDecodedSizeBase64(base64data, tokenLength);
@@ -320,7 +330,8 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 					contentLength = static_cast<uint64_t>(targetLength);
 					size_t dst_offset = 0;
 					for (uint32_t tokenIdx = 0; tokenIdx < numTokens; ++tokenIdx) {
-						const Token *dataToken = GetRequiredToken(Content, tokenIdx).get();
+						const Token *dataToken = GetRequiredToken(Content, tokenIdx);
+						ERR_FAIL_COND(!dataToken);
 						size_t tokenLength = dataToken->end() - dataToken->begin() - 2; // ignore double quotes
 						const char *base64data = dataToken->begin() + 1;
 						dst_offset += Util::DecodeBase64(base64data, tokenLength, content + dst_offset, targetLength - dst_offset);
@@ -359,6 +370,11 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 Video::~Video() {
 	if (content) {
 		delete[] content;
+	}
+
+	if(props != nullptr) {
+		delete props;
+		props = nullptr;
 	}
 }
 

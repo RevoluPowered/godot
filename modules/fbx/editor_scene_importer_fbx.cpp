@@ -158,7 +158,17 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 		// safety for version handling
 		if (doc.IsSafeToImport()) {
-			return _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+			Spatial * spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+
+			for( Assimp::FBX::TokenPtr token : tokens)
+			{
+				if(token) {
+					delete token;
+					token = nullptr;
+				}
+			}
+
+			return spatial;
 		} else {
 			print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
 		}
@@ -771,7 +781,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				const std::vector<const Assimp::FBX::AnimationLayer *> &layers = stack->Layers();
 				print_verbose("FBX Animation layers: " + itos(layers.size()));
 				for (const Assimp::FBX::AnimationLayer *layer : layers) {
-					std::vector<const Assimp::FBX::AnimationCurveNode *> node_list = layer->Nodes();
+					const std::vector<const Assimp::FBX::AnimationCurveNode *> node_list = layer->Nodes();
 					print_verbose("Layer: " + ImportUtils::FBXNodeToName(layer->Name()) + ", " + " AnimCurveNode count " + itos(node_list.size()));
 
 					// first thing to do here is that i need to first get the animcurvenode to a Vector3
@@ -802,7 +812,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						// We may need to do this but ideally we use Curves
 						// note: when you call this there might be a delay in opening it
 						// uses mutable type to 'cache' the response until the AnimationCurveNode is cleaned up.
-						std::map<std::string, const Assimp::FBX::AnimationCurve *> curves = curve_node->Curves();
+						const std::map<std::string, const Assimp::FBX::AnimationCurve *> curves = curve_node->Curves();
 						const Assimp::FBX::Object *object = curve_node->Target();
 						const Assimp::FBX::Model *target = curve_node->TargetAsModel();
 						if (target == nullptr) {
@@ -869,7 +879,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						// extra const required by C++11 colon/Range operator
 						// note: do not use C++17 syntax here for dicts.
 						// this is banned in Godot.
-						for (std::pair<const std::string, const Assimp::FBX::AnimationCurve *> &kvp : curves) {
+						for (const std::pair<const std::string, const Assimp::FBX::AnimationCurve *> &kvp : curves) {
 							String curve_element = ImportUtils::FBXNodeToName(kvp.first);
 							const Assimp::FBX::AnimationCurve *curve = kvp.second;
 							String curve_name = ImportUtils::FBXNodeToName(curve->Name());

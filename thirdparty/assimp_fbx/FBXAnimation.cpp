@@ -82,12 +82,12 @@ AnimationCurve::AnimationCurve(uint64_t id, const ElementPtr element, const std:
 		keyvalues[keys[x]] = values[x];
 	}
 
-	const ElementPtr KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat").lock();
+	const ElementPtr KeyAttrDataFloat = sc->GetElement("KeyAttrDataFloat");
 	if (KeyAttrDataFloat) {
 		ParseVectorDataArray(attributes, KeyAttrDataFloat);
 	}
 
-	const ElementPtr KeyAttrFlags = sc->GetElement("KeyAttrFlags").lock();
+	const ElementPtr KeyAttrFlags = sc->GetElement("KeyAttrFlags");
 	if (KeyAttrFlags) {
 		ParseVectorDataArray(flags, KeyAttrFlags);
 	}
@@ -116,8 +116,7 @@ AnimationCurveNode::AnimationCurveNode(uint64_t id, const ElementPtr element, co
 			continue;
 		}
 
-		ObjectWeakPtr ptr = con->DestinationObject();
-		ObjectPtr object = ptr.lock();
+		Object* object = con->DestinationObject();
 
 		if (!object) {
 			DOMWarning("failed to read destination object for AnimationCurveNode->Model link, ignoring", element);
@@ -138,7 +137,7 @@ AnimationCurveNode::~AnimationCurveNode() {
 }
 
 // ------------------------------------------------------------------------------------------------
-const AnimationMap &AnimationCurveNode::Curves() {
+const AnimationMap &AnimationCurveNode::Curves() const {
 	/* Lazy loaded animation curves, will only load if required */
 	if (curves.empty()) {
 		// resolve attached animation curves
@@ -147,10 +146,8 @@ const AnimationMap &AnimationCurveNode::Curves() {
 		for (const Connection *con : conns) {
 			// So the advantage of having this STL boilerplate is that it's dead simple once you get it.
 			// The other advantage is casting is guaranteed to be safe and nullptr will be returned in the last step if it fails.
-			ObjectWeakPtr ob = con->SourceObject();
-			AnimationCurveWeakPtr anim_curve_w_ptr = std::dynamic_pointer_cast<AnimationCurve>(ob.lock());
-			AnimationCurvePtr anim_curve = anim_curve_w_ptr.lock();
-
+			Object* ob = con->SourceObject();
+			AnimationCurve* anim_curve = dynamic_cast<AnimationCurve*>(ob);
 			ERR_CONTINUE_MSG(!anim_curve, "Failed to convert animation curve from object");
 
 			curves.insert(std::make_pair(con->PropertyName(), anim_curve));
@@ -175,7 +172,7 @@ AnimationLayer::~AnimationLayer() {
 }
 
 // ------------------------------------------------------------------------------------------------
-AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whitelist /*= NULL*/,
+const AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whitelist,
 		size_t whitelist_size /*= 0*/) const {
 	AnimationCurveNodeList nodes;
 
@@ -190,16 +187,16 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 			continue;
 		}
 
-		ObjectPtr ob = con->SourceObject().lock();
+		Object* ob = con->SourceObject();
 
 		if (!ob) {
-			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", element.lock());
+			DOMWarning("failed to read source object for AnimationCurveNode->AnimationLayer link, ignoring", element);
 			continue;
 		}
 
-		std::weak_ptr<AnimationCurveNode> * anim = dynamic_cast<const AnimationCurveNode *>(ob.get());
-		if (!anim) {
-			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element.lock());
+		const AnimationCurveNode * anim = dynamic_cast<AnimationCurveNode*>(ob);
+		if (anim) {
+			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element);
 			continue;
 		}
 
@@ -219,7 +216,7 @@ AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_prop_whit
 		nodes.push_back(anim);
 	}
 
-	return nodes; // pray for NRVO
+	return nodes;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -241,17 +238,19 @@ AnimationStack::AnimationStack(uint64_t id, const ElementPtr element, const std:
 			continue;
 		}
 
-		const Object *const ob = con->SourceObject();
+		Object* ob = con->SourceObject();
 		if (!ob) {
 			DOMWarning("failed to read source object for AnimationLayer->AnimationStack link, ignoring", element);
 			continue;
 		}
 
-		const AnimationLayer *const anim = dynamic_cast<const AnimationLayer *>(ob);
+		const AnimationLayer* anim = dynamic_cast<const AnimationLayer*>(ob);
+
 		if (!anim) {
 			DOMWarning("source object for ->AnimationStack link is not an AnimationLayer", element);
 			continue;
 		}
+
 		layers.push_back(anim);
 	}
 }

@@ -65,18 +65,15 @@ class Scope;
 class Parser;
 class Element;
 
-// XXX should use C++11's unique_ptr - but assimp's need to keep working with 03
-typedef std::shared_ptr<Element> ElementPtr;
-typedef std::weak_ptr<Element> ElementWeakPtr;
-typedef std::shared_ptr<Scope> ScopePtr;
-typedef std::weak_ptr<Scope> ScopeWeakPtr;
+typedef Element* ElementPtr;
+typedef Scope* ScopePtr;
 
 typedef std::vector<ScopePtr> ScopeList;
 typedef std::multimap<std::string, ElementPtr> ElementMap;
 typedef std::pair<ElementMap::const_iterator, ElementMap::const_iterator> ElementCollection;
 
-#define new_Scope std::make_shared<Scope>
-#define new_Element std::make_shared<Element>
+#define new_Scope new Scope
+#define new_Element new Element
 
 
 /** FBX data entity that consists of a key:value tuple.
@@ -95,11 +92,11 @@ public:
 	Element(TokenPtr key_token, Parser &parser);
 	~Element();
 
-	ScopeWeakPtr Compound() const {
+	ScopePtr Compound() const {
 		return compound;
 	}
 
-	WeakTokenPtr KeyToken() const {
+	TokenPtr KeyToken() const {
 		return key_token;
 	}
 
@@ -108,9 +105,10 @@ public:
 	}
 
 private:
-	WeakTokenPtr key_token;
 	TokenList tokens;
 	ScopePtr compound = nullptr;
+	std::vector<ScopePtr> compound_scope;
+	TokenPtr key_token = nullptr;
 };
 
 /** FBX data entity that consists of a 'scope', a collection
@@ -129,12 +127,12 @@ public:
 	Scope(Parser &parser, bool topLevel = false);
 	~Scope();
 
-	ElementWeakPtr GetElement(const std::string &index) const {
+	ElementPtr GetElement(const std::string &index) const {
 		ElementMap::const_iterator it = elements.find(index);
 		return it == elements.end() ? nullptr : (*it).second;
 	}
 
-	ElementWeakPtr FindElementCaseInsensitive(const std::string &elementName) const {
+	ElementPtr FindElementCaseInsensitive(const std::string &elementName) const {
 		for (auto element = elements.begin(); element != elements.end(); ++element) {
 			if (element->first.compare(elementName)) {
 				return element->second;
@@ -142,7 +140,7 @@ public:
 		}
 
 		// nothing to reference / expired.
-		return ElementWeakPtr();
+		return nullptr;
 	}
 
 	ElementCollection GetCollection(const std::string &index) const {
@@ -183,9 +181,10 @@ private:
 	TokenPtr CurrentToken() const;
 
 private:
-	const TokenList &tokens;
+	ScopeList scopes;
+	const TokenList& tokens;
 
-	TokenPtr last, current;
+	TokenPtr last = nullptr, current = nullptr;
 	TokenList::const_iterator cursor;
 	ScopePtr root = nullptr;
 

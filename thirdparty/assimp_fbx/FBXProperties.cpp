@@ -124,7 +124,7 @@ PropertyTable::PropertyTable() :
 PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* templateProps) :
 		templateProps(templateProps), element(element) {
 	const ScopePtr scope = GetRequiredScope(element);
-
+	ERR_FAIL_COND(!scope);
 	for (const ElementMap::value_type &v : scope->Elements()) {
 		if (v.first != "P") {
 			DOMWarning("expected only P elements in property table", v.second);
@@ -151,13 +151,8 @@ PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* temp
 // ------------------------------------------------------------------------------------------------
 PropertyTable::~PropertyTable() {
 	for (PropertyMap::value_type &v : props) {
-		v.second.reset();
+		delete v.second;
 	}
-    for (LazyPropertyMap::value_type &v : lazyProps) {
-        v.second.reset();
-    }
-
-	element.reset();
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -207,7 +202,7 @@ DirectPropertyMap PropertyTable::GetUnparsedProperties() const {
 		// Read the element's value.
 		// Wrap the naked pointer (since the call site is required to acquire ownership)
 		// std::unique_ptr from C++11 would be preferred both as a wrapper and a return value.
-		std::shared_ptr<Property> prop = std::shared_ptr<Property>(ReadTypedProperty(*element.second));
+		Property* prop = ReadTypedProperty(*element.second);
 
 		// Element could not be read. Skip it.
 		if (!prop) continue;

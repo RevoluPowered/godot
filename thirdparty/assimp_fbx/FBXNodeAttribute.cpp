@@ -77,9 +77,9 @@ NodeAttribute::~NodeAttribute() {
 CameraSwitcher::CameraSwitcher(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		NodeAttribute(id, element, doc, name) {
 	const ScopePtr sc = GetRequiredScope(element);
-	const ElementPtr CameraId = sc->GetElement("CameraId").lock();
-	const ElementPtr CameraName = sc->GetElement("CameraName").lock();
-	const ElementPtr CameraIndexName = sc->GetElement("CameraIndexName").lock();
+	const ElementPtr CameraId = sc->GetElement("CameraId");
+	const ElementPtr CameraName = sc->GetElement("CameraName");
+	const ElementPtr CameraIndexName = sc->GetElement("CameraIndexName");
 
 	if (CameraId) {
 		cameraId = ParseTokenAsInt(GetRequiredToken(CameraId, 0));

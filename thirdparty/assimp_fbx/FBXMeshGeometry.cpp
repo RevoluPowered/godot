@@ -62,11 +62,11 @@ Geometry::Geometry(uint64_t id, const ElementPtr element, const std::string &nam
 		Object(id, element, name), skin() {
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Deformer");
 	for (const Connection *con : conns) {
-		const Skin *const sk = ProcessSimpleConnection<Skin>(*con, false, "Skin -> Geometry", element);
+		const Skin * sk = ProcessSimpleConnection<Skin>(*con, false, "Skin -> Geometry", element);
 		if (sk) {
 			skin = sk;
 		}
-		const BlendShape *const bsp = ProcessSimpleConnection<BlendShape>(*con, false, "BlendShape -> Geometry",
+		const BlendShape * bsp = ProcessSimpleConnection<BlendShape>(*con, false, "BlendShape -> Geometry",
 				element);
 		if (bsp) {
 			blendShapes.push_back(bsp);
@@ -94,7 +94,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const ElementPtr element, const std::str
 		Geometry(id, element, name, doc) {
 	print_verbose("mesh name: " + String(name.c_str()) );
 
-	ScopePtr sc = element->Compound().lock();
+	ScopePtr sc = element->Compound();
 	ERR_FAIL_COND_MSG(sc == nullptr, "failed to read geometry, prevented crash");
 	ERR_FAIL_COND_MSG(!HasElement(sc, "Vertices"), "Detected mesh with no vertexes, didn't populate the mesh");
 
@@ -366,7 +366,7 @@ MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
 // ------------------------------------------------------------------------------------------------
 ShapeGeometry::ShapeGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const ScopePtr sc = element->Compound().lock();
+	const ScopePtr sc = element->Compound();
 	if (nullptr == sc) {
 		DOMError("failed to read Geometry object (class: Shape), no data scope found");
 	}
@@ -397,7 +397,7 @@ const std::vector<unsigned int> &ShapeGeometry::GetIndices() const {
 // ------------------------------------------------------------------------------------------------
 LineGeometry::LineGeometry(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc) :
 		Geometry(id, element, name, doc) {
-	const ScopePtr sc = element->Compound().lock();
+	const ScopePtr sc = element->Compound();
 	if (!sc) {
 		DOMError("failed to read Geometry object (class: Line), no data scope found");
 	}

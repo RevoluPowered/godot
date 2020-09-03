@@ -69,14 +69,14 @@ void DOMError(const std::string &message, const std::shared_ptr<Token> token) {
 
 void DOMError(const std::string &message, const Element *element /*= NULL*/) {
 	if (element) {
-		DOMError(message, element->KeyToken().lock());
+		DOMError(message, element->KeyToken());
 	}
 	print_error("[FBX-DOM] " + String(message.c_str()));
 }
 
 void DOMError(const std::string &message, const std::shared_ptr<Element> element /*= NULL*/) {
 	if (element) {
-		DOMError(message, element->KeyToken().lock());
+		DOMError(message, element->KeyToken());
 	}
 	print_error("[FBX-DOM] " + String(message.c_str()));
 }
@@ -91,7 +91,7 @@ void DOMWarning(const std::string &message, const Token *token) {
 
 void DOMWarning(const std::string &message, const Element *element /*= NULL*/) {
 	if (element) {
-		DOMWarning(message, element->KeyToken().lock());
+		DOMWarning(message, element->KeyToken());
 		return;
 	}
 	print_verbose("[FBX-DOM] warning:" + String(message.c_str()));
@@ -103,7 +103,7 @@ void DOMWarning(const std::string &message, const std::shared_ptr<Token> token) 
 
 void DOMWarning(const std::string &message, const std::shared_ptr<Element> element /*= NULL*/) {
 	if (element) {
-		DOMWarning(message, element->KeyToken().lock());
+		DOMWarning(message, element->KeyToken());
 		return;
 	}
 	print_verbose("[FBX-DOM] warning:" + String(message.c_str()));
@@ -117,7 +117,7 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 		const ScopePtr sc,
 		bool no_warn /*= false*/) {
 	// todo: make this an abstraction
-	const ElementPtr Properties70 = sc->GetElement("Properties70").lock();
+	const ElementPtr Properties70 = sc->GetElement("Properties70");
 	const PropertyTable* templateProps = static_cast<const PropertyTable *>(nullptr);
 
 	if (templateName.length()) {
@@ -127,7 +127,7 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 		}
 	}
 
-	if (!Properties70 || !Properties70->Compound().lock()) {
+	if (!Properties70 || !Properties70->Compound()) {
 		if (!no_warn) {
 			DOMWarning("property table (Properties70) not found", element);
 		}
@@ -135,7 +135,6 @@ const PropertyTable* GetPropertyTable(const Document &doc,
 			return templateProps;
 		} else {
 			return new const PropertyTable();
-			//return std::make_shared<const PropertyTable>();
 		}
 	}
 

@@ -58,8 +58,8 @@ using namespace Util;
 Model::Model(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
 		Object(id, element, name), shading("Y") {
 	const ScopePtr sc = GetRequiredScope(element);
-	const ElementPtr Shading = sc->GetElement("Shading").lock();
-	const ElementPtr Culling = sc->GetElement("Culling").lock();
+	const ElementPtr Shading = sc->GetElement("Shading");
+	const ElementPtr Culling = sc->GetElement("Culling");
 
 	if (Shading) {
 		shading = GetRequiredToken(Shading, 0)->StringContents();
@@ -75,6 +75,10 @@ Model::Model(uint64_t id, const ElementPtr element, const Document &doc, const s
 
 // ------------------------------------------------------------------------------------------------
 Model::~Model() {
+	if(props != nullptr) {
+		delete props;
+		props = nullptr;
+	}
 }
 
 LimbNodeMaya::LimbNodeMaya(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
