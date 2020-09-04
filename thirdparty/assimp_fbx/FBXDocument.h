@@ -373,9 +373,8 @@ public:
 
 class Model;
 
-typedef std::shared_ptr<Model> ModelPtr;
-typedef std::weak_ptr<Model> ModelWeakPtr;
-#define new_Model
+typedef Model* ModelPtr;
+#define new_Model new Model
 
 /** DOM base class for FBX models (even though its semantics are more "node" than "model" */
 class Model : public Object {

@@ -188,6 +188,9 @@ ObjectPtr LazyObject::LoadObject() {
 	} else {
 		ERR_FAIL_V_MSG(nullptr, "FBX contains unsupported object: " + String(obtype));
 	}
+
+	flags &= ~BEING_CONSTRUCTED;
+
 	return object.get();
 }
 
