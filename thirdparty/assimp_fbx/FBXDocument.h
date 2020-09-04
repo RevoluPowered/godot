@@ -575,7 +575,7 @@ private:
 	std::string alphaSource;
 	const PropertyTable* props = nullptr;
 
-	unsigned int crop[4];
+	unsigned int crop[4] = {0};
 
 	const Video *media = nullptr;
 };

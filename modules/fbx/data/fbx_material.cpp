@@ -233,12 +233,10 @@ FBXMaterial::MaterialInfo FBXMaterial::extract_material_info(const Assimp::FBX::
 }
 
 template <class T>
-T extract_from_prop(Assimp::FBX::PropertyPtr prop, const T &p_default, const std::string &p_name, const String &p_type) {
-	const Assimp::FBX::TypedProperty<T> *val = prop->As<Assimp::FBX::TypedProperty<T> >();
-	if (val == nullptr) {
-		return p_default;
-	}
-	//ERR_FAIL_COND_V_MSG(val == nullptr, p_default, "The FBX is corrupted, the property `" + String(p_name.c_str()) + "` is a `" + String(typeid(*prop).name()) + "` but should be a " + p_type);
+T extract_from_prop(Assimp::FBX::PropertyPtr prop, const T& p_default, const std::string &p_name, const String &p_type) {
+	//const Assimp::FBX::TypedProperty<T> *val = dynamic_cast<const T*>(prop);
+	const Assimp::FBX::TypedProperty<T>* val = dynamic_cast<const Assimp::FBX::TypedProperty<T>*>(prop);
+	ERR_FAIL_COND_V_MSG(val == nullptr, p_default, "The FBX is corrupted, the property `" + String(p_name.c_str()) + "` is a `" + String(typeid(*prop).name()) + "` but should be a " + p_type);
 	// Make sure to not lost any eventual opacity.
 	return val->Value();
 }
@@ -261,33 +259,41 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 	MaterialInfo material_info = extract_material_info(material);
 
 	// Extract other parameters info.
-	const std::vector<std::string> properties_name = material->Props()->get_properties_name();
-	for (std::string name : properties_name) {
+	for (Assimp::FBX::LazyPropertyMap::value_type iter : material->Props()->GetLazyProperties()) {
+		const std::string name = iter.first;
+		//const Assimp::FBX::ElementPtr element = iter.second;
+
 		if (name.empty()) {
 			continue;
 		}
+
 		PropertyDesc desc = PROPERTY_DESC_NOT_FOUND;
 		if (fbx_properties_desc.count(name) > 0) {
 			desc = fbx_properties_desc.at(name);
 		}
 
 		if (desc == PROPERTY_DESC_IGNORE) {
-			//print_verbose("The FBX material parameter: `" + String(name.c_str()) + "` is ignored.");
+			print_verbose("The FBX material parameter: `" + String(name.c_str()) + "` is ignored.");
 			continue;
+		} else
+		{
+			print_verbose("FBX Material parameter: " + String(name.c_str()));
 		}
 
 		if (desc == PROPERTY_DESC_NOT_FOUND) {
 			continue;
 		}
 
-		//ERR_CONTINUE_MSG(desc == PROPERTY_DESC_NOT_FOUND, "The FBX material parameter: `" + String(name.c_str()) + "` was not recognized. Please open an issue so we can add the support to it.");
+		ERR_CONTINUE_MSG(desc == PROPERTY_DESC_NOT_FOUND, "The FBX material parameter: `" + String(name.c_str()) + "` was not recognized. Please open an issue so we can add the support to it.");
 
 		Assimp::FBX::PropertyPtr prop = material->Props()->Get(name);
+
+		//Assimp::FBX::PropertyPtr prop = prop.second.
 
 		if (prop == nullptr) {
 			continue;
 		}
-		//ERR_CONTINUE_MSG(prop == nullptr, "This file may be corrupted because is not possible to extract the material parameter: " + String(name.c_str()));
+		ERR_CONTINUE_MSG(prop == nullptr, "This file may be corrupted because is not possible to extract the material parameter: " + String(name.c_str()));
 
 		if (spatial_material.is_null()) {
 			// Done here so if no data no material is created.

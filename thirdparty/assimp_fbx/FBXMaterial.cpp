@@ -141,7 +141,7 @@ Material::~Material() {
 
 // ------------------------------------------------------------------------------------------------
 Texture::Texture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name) :
-		Object(id, element, name), uvScaling(1.0f, 1.0f), media(0) {
+		Object(id, element, name), uvScaling(1.0f, 1.0f), media(nullptr) {
 	const ScopePtr sc = GetRequiredScope(element);
 
 	const ElementPtr Type = sc->GetElement("Type");

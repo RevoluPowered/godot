@@ -82,7 +82,7 @@ public:
 template <typename T>
 class TypedProperty : public Property {
 public:
-	explicit TypedProperty(const T &value) :
+	explicit TypedProperty(const T& value) :
 			value(value) {
 		// empty
 	}
@@ -118,11 +118,19 @@ public:
 		return element;
 	}
 
+	const PropertyMap& GetProperties() const
+	{
+		return props;
+	}
+
+	const LazyPropertyMap & GetLazyProperties() const
+	{
+		return lazyProps;
+	}
+
 	const PropertyTable *TemplateProps() const {
 		return templateProps;
 	}
-
-	const std::vector<std::string> get_properties_name() const;
 
 	DirectPropertyMap GetUnparsedProperties() const;
 

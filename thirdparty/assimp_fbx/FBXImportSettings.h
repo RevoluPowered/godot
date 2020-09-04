@@ -52,7 +52,7 @@ namespace FBX {
 /** FBX import settings, parts of which are publicly accessible via their corresponding AI_CONFIG constants */
 struct ImportSettings {
 	ImportSettings() :
-			strictMode(true), readAllLayers(true), readAllMaterials(false), readMaterials(true), readTextures(true), readCameras(true), readLights(true), readAnimations(true), readWeights(true), preservePivots(true), optimizeEmptyAnimationCurves(true), useLegacyEmbeddedTextureNaming(false), removeEmptyBones(true), convertToMeters(false) {
+			strictMode(true), readAllLayers(true), readAllMaterials(true), readMaterials(true), readTextures(true), readCameras(true), readLights(true), readAnimations(true), readWeights(true), preservePivots(true), optimizeEmptyAnimationCurves(true), useLegacyEmbeddedTextureNaming(false), removeEmptyBones(true), convertToMeters(false) {
 		// empty
 	}
 

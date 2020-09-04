@@ -60,8 +60,8 @@ struct FBXNode;
 struct FBXSkeleton;
 
 struct ImportState {
-	bool enable_material_import = false;
-	bool enable_animation_import = false;
+	bool enable_material_import = true;
+	bool enable_animation_import = true;
 
 	Map<StringName, Ref<Texture> > cached_image_searches;
 	Map<uint64_t, Ref<SpatialMaterial> > cached_materials;

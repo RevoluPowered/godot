@@ -66,24 +66,24 @@ namespace {
 
 // ------------------------------------------------------------------------------------------------
 // read a typed property out of a FBX element. The return value is NULL if the property cannot be read.
-PropertyPtr ReadTypedProperty(const Element &element) {
+PropertyPtr ReadTypedProperty(const ElementPtr element) {
 	//ai_assert(element.KeyToken().StringContents() == "P");
 
-	const TokenList &tok = element.Tokens();
+	const TokenList &tok = element->Tokens();
 	//ai_assert(tok.size() >= 5);
 
 	const std::string &s = ParseTokenAsString(tok[1]);
 	const char *const cs = s.c_str();
 	if (!strcmp(cs, "KString")) {
-		return new_Property(TypedProperty<std::string>(ParseTokenAsString(tok[4])));
+		return new TypedProperty<std::string>(ParseTokenAsString(tok[4]));
 	} else if (!strcmp(cs, "bool") || !strcmp(cs, "Bool")) {
-		return new_Property(TypedProperty<bool>(ParseTokenAsInt(tok[4]) != 0));
+		return new TypedProperty<bool>(ParseTokenAsInt(tok[4]) != 0);
 	} else if (!strcmp(cs, "int") || !strcmp(cs, "Int") || !strcmp(cs, "enum") || !strcmp(cs, "Enum")) {
-		return new_Property(TypedProperty<int>(ParseTokenAsInt(tok[4])));
+		return new TypedProperty<int>(ParseTokenAsInt(tok[4]));
 	} else if (!strcmp(cs, "ULongLong")) {
-		return new_Property(TypedProperty<uint64_t>(ParseTokenAsID(tok[4])));
+		return new TypedProperty<uint64_t>(ParseTokenAsID(tok[4]));
 	} else if (!strcmp(cs, "KTime")) {
-		return new_Property(TypedProperty<int64_t>(ParseTokenAsInt64(tok[4])));
+		return new TypedProperty<int64_t>(ParseTokenAsInt64(tok[4]));
 	} else if (!strcmp(cs, "Vector3D") ||
 			   !strcmp(cs, "ColorRGB") ||
 			   !strcmp(cs, "Vector") ||
@@ -91,13 +91,14 @@ PropertyPtr ReadTypedProperty(const Element &element) {
 			   !strcmp(cs, "Lcl Translation") ||
 			   !strcmp(cs, "Lcl Rotation") ||
 			   !strcmp(cs, "Lcl Scaling")) {
-		return new_Property(TypedProperty<Vector3>(Vector3(
+		return new TypedProperty<Vector3>(Vector3(
 				ParseTokenAsFloat(tok[4]),
 				ParseTokenAsFloat(tok[5]),
-				ParseTokenAsFloat(tok[6]))));
+				ParseTokenAsFloat(tok[6])));
 	} else if (!strcmp(cs, "double") || !strcmp(cs, "Number") || !strcmp(cs, "Float") || !strcmp(cs, "FieldOfView") || !strcmp(cs, "UnitScaleFactor")) {
-		return new_Property(TypedProperty<float>(ParseTokenAsFloat(tok[4])));
+		return new TypedProperty<float>(ParseTokenAsFloat(tok[4]));
 	}
+
 	return nullptr;
 }
 
@@ -144,7 +145,7 @@ PropertyTable::PropertyTable(const ElementPtr element, const PropertyTable* temp
 		}
 
 		// since the above checks for duplicates we can be sure to insert the only match here.
-		lazyProps.insert(std::pair<std::string, ElementPtr>(name, v.second));
+		lazyProps[name] = v.second;
 	}
 }
 
@@ -162,7 +163,7 @@ PropertyPtr PropertyTable::Get(const std::string &name) const {
 		// hasn't been parsed yet?
 		LazyPropertyMap::const_iterator lit = lazyProps.find(name);
 		if (lit != lazyProps.end()) {
-			props[name] = ReadTypedProperty(*(*lit).second);
+			props[name] = ReadTypedProperty(lit->second);
 			it = props.find(name);
 
 			//ai_assert(it != props.end());
@@ -181,14 +182,6 @@ PropertyPtr PropertyTable::Get(const std::string &name) const {
 	return (*it).second;
 }
 
-const std::vector<std::string> PropertyTable::get_properties_name() const {
-	std::vector<std::string> properties;
-	properties.resize(lazyProps.size());
-	for (auto it = lazyProps.begin(); it != lazyProps.end(); it++) {
-		properties.push_back((*it).first.c_str());
-	}
-	return properties;
-}
 
 DirectPropertyMap PropertyTable::GetUnparsedProperties() const {
 	DirectPropertyMap result;
@@ -202,7 +195,7 @@ DirectPropertyMap PropertyTable::GetUnparsedProperties() const {
 		// Read the element's value.
 		// Wrap the naked pointer (since the call site is required to acquire ownership)
 		// std::unique_ptr from C++11 would be preferred both as a wrapper and a return value.
-		Property* prop = ReadTypedProperty(*element.second);
+		Property* prop = ReadTypedProperty(element.second);
 
 		// Element could not be read. Skip it.
 		if (!prop) continue;
