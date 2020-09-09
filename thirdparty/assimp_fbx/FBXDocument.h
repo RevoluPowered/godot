@@ -514,11 +514,11 @@ private:
 	const PropertyTable* props = nullptr;
 };
 
-class LimbNodeMaya : public Model {
+class ModelLimbNode : public Model {
 public:
-	LimbNodeMaya(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
+	ModelLimbNode(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~LimbNodeMaya();
+	virtual ~ModelLimbNode();
 };
 
 /** DOM class for generic FBX textures */
@@ -1064,8 +1064,8 @@ public:
 	Object* DestinationObject() const;
 
 	// these, however, are always guaranteed to be valid
-	LazyObject &LazySourceObject() const;
-	LazyObject &LazyDestinationObject() const;
+	LazyObject *LazySourceObject() const;
+	LazyObject *LazyDestinationObject() const;
 
 	/** return the name of the property the connection is attached to.
       * this is an empty string for object to object (OO) connections. */
@@ -1260,6 +1260,10 @@ public:
 		return materials;
 	};
 
+	const std::vector<uint64_t> &GetSkinIDs() const {
+		return skins;
+	}
+
 private:
 	std::vector<const Connection *> GetConnectionsSequenced(uint64_t id, const ConnectionMap &) const;
 	std::vector<const Connection *> GetConnectionsSequenced(uint64_t id, bool is_src,
@@ -1292,6 +1296,7 @@ private:
 	// constraints aren't in the tree / at least they are not easy to access.
 	std::vector<uint64_t> constraints;
 	std::vector<uint64_t> materials;
+	std::vector<uint64_t> skins;
 	mutable std::vector<const AnimationStack*> animationStacksResolved;
 	std::shared_ptr<FileGlobalSettings> globals = nullptr;
 };

@@ -156,6 +156,7 @@ ObjectPtr LazyObject::LoadObject() {
 		if (!strcmp(classtag.c_str(), "Cluster")) {
 			object.reset(new Cluster(id, element, doc, name));
 		} else if (!strcmp(classtag.c_str(), "Skin")) {
+
 			object.reset(new Skin(id, element, doc, name));
 		} else if (!strcmp(classtag.c_str(), "BlendShape")) {
 			object.reset(new BlendShape(id, element, doc, name));
@@ -163,8 +164,13 @@ ObjectPtr LazyObject::LoadObject() {
 			object.reset(new BlendShapeChannel(id, element, doc, name));
 		}
 	} else if (!strncmp(obtype, "Model", length)) {
+		// Model is normal node
+
+		// LimbNode model is a 'bone' node.
 		if (!strcmp(classtag.c_str(), "LimbNode")) {
-			object.reset(new LimbNodeMaya(id, element, doc, name));
+			object.reset(new ModelLimbNode(id, element, doc, name));
+
+
 		} else if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
 			// FK and IK effectors are not supporte
 			object.reset(new Model(id, element, doc, name));
@@ -378,6 +384,21 @@ void Document::ReadObjects() {
 			bind_poses.push_back(id);
 		} else if (!strcmp(iter.first.c_str(), "Material")) {
 			materials.push_back(id);
+		} else if(!strcmp(iter.first.c_str(), "Deformer")) {
+			TokenPtr key = iter.second->KeyToken();
+			ERR_CONTINUE_MSG(!key, "[parser bug] invalid token key for deformer");
+			const TokenList &tokens = iter.second->Tokens();
+			const std::string class_tag = ParseTokenAsString(tokens[2], err);
+
+			if (err) {
+				DOMError(err, iter.second);
+			}
+
+			if(class_tag == "Skin")
+			{
+				print_error("registered skin:" + itos(id));
+				skins.push_back(id);
+			}
 		}
 	}
 }
@@ -542,10 +563,6 @@ std::vector<const Connection *> Document::GetConnectionsSequenced(uint64_t id, b
 		size_t count) const
 
 {
-	//ai_assert(classnames);
-	//ai_assert(count != 0);
-	//ai_assert(count <= MAX_CLASSNAMES);
-
 	size_t lengths[MAX_CLASSNAMES];
 
 	const size_t c = count;
@@ -559,7 +576,7 @@ std::vector<const Connection *> Document::GetConnectionsSequenced(uint64_t id, b
 
 	temp.reserve(std::distance(range.first, range.second));
 	for (ConnectionMap::const_iterator it = range.first; it != range.second; ++it) {
-		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject()).GetElement()->KeyToken();
+		TokenPtr key = (is_src ? (*it).second->LazyDestinationObject() : (*it).second->LazySourceObject())->GetElement()->KeyToken();
 
 		const char *obtype = key->begin();
 
@@ -613,21 +630,14 @@ std::vector<const Connection *> Document::GetConnectionsByDestinationSequenced(u
 
 // ------------------------------------------------------------------------------------------------
 std::vector<const Connection *> Document::GetConnectionsByDestinationSequenced(uint64_t dest,
-		const char *const *classnames, size_t count) const
-
-{
+		const char *const *classnames, size_t count) const {
 	return GetConnectionsSequenced(dest, false, ConnectionsByDestination(), classnames, count);
 }
 
 // ------------------------------------------------------------------------------------------------
 Connection::Connection(uint64_t insertionOrder, uint64_t src, uint64_t dest, const std::string &prop,
-		const Document &doc)
-
-		:
+		const Document &doc) :
 		insertionOrder(insertionOrder), prop(prop), src(src), dest(dest), doc(doc) {
-	//ai_assert(doc.Objects().find(src) != doc.Objects().end());
-	// dest may be 0 (root node)
-	//ai_assert(!dest || doc.Objects().find(dest) != doc.Objects().end());
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -636,17 +646,15 @@ Connection::~Connection() {
 }
 
 // ------------------------------------------------------------------------------------------------
-LazyObject &Connection::LazySourceObject() const {
+LazyObject *Connection::LazySourceObject() const {
 	LazyObject *const lazy = doc.GetObject(src);
-	//ai_assert(lazy);
-	return *lazy;
+	return lazy;
 }
 
 // ------------------------------------------------------------------------------------------------
-LazyObject &Connection::LazyDestinationObject() const {
+LazyObject *Connection::LazyDestinationObject() const {
 	LazyObject *const lazy = doc.GetObject(dest);
-	//ai_assert(lazy);
-	return *lazy;
+	return lazy;
 }
 
 // ------------------------------------------------------------------------------------------------

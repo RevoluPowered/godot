@@ -74,9 +74,10 @@ struct FBXBone : public Reference {
 	Transform vertex_transform_matrix;
 	Transform local_cluster_matrix; // set_bone_pose
 
-	mutable const Assimp::FBX::Deformer *skin = nullptr; // let's stop copying data
+	mutable const Assimp::FBX::Deformer *skin = nullptr;
 	mutable const Assimp::FBX::Cluster *cluster = nullptr;
 	mutable const Assimp::FBX::Geometry *geometry = nullptr;
+	mutable const Assimp::FBX::ModelLimbNode *limb_node = nullptr;
 
 	void set_pivot_xform(Ref<PivotTransform> p_pivot_xform) {
 		pivot_xform = p_pivot_xform;

@@ -160,6 +160,7 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 		if (doc.IsSafeToImport()) {
 			Spatial * spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
 
+			// todo: move to document shutdown (will need to be validated after moving; this code has been validated already)
 			for( Assimp::FBX::TokenPtr token : tokens)
 			{
 				if(token) {
@@ -380,10 +381,96 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 	// cache basic node information from FBX document
 	// grabs all FBX bones
-	CacheNodeInformation(Ref<FBXBone>(), state, p_document, 0L);
-	BuildDocumentNodes(nullptr, state, p_document, 0L, NULL);
+	BuildDocumentBones(Ref<FBXBone>(), state, p_document, 0L);
+	BuildDocumentNodes(nullptr, state, p_document, 0L, nullptr);
 
-	//print_verbose("[doc] debug fbx_bone_map size: " + itos(state.fbx_bone_map.size()));
+	// Build document skinning information
+	for(uint64_t skin_id : p_document->GetSkinIDs())
+	{
+		Assimp::FBX::LazyObject * lazy_skin = p_document->GetObject(skin_id);
+		const Assimp::FBX::Skin *skin = lazy_skin->Get<Assimp::FBX::Skin>();
+		const std::vector<const Assimp::FBX::Connection *> source_to_destination = p_document->GetConnectionsBySourceSequenced(skin_id);
+		const std::vector<const Assimp::FBX::Connection *> destination_to_source = p_document->GetConnectionsByDestinationSequenced(skin_id);
+
+		// Most likely only contains the mesh link for the skin
+		// The mesh geometry.
+		for( const Assimp::FBX::Connection * con : source_to_destination)
+		{
+			// do something
+			print_verbose( "src: " + itos(con->src) );
+			Assimp::FBX::Object * ob = con->DestinationObject();
+			const Assimp::FBX::MeshGeometry * mesh = dynamic_cast<const Assimp::FBX::MeshGeometry*>(ob);
+
+			if(mesh)
+			{
+
+			}
+		}
+
+		for( const Assimp::FBX::Connection * con : destination_to_source)
+		{
+			Assimp::FBX::Object * ob = con->SourceObject();
+			// cluster contains vertex weights
+			const Assimp::FBX::Cluster * bone = dynamic_cast<const Assimp::FBX::Cluster*>(ob);
+
+			if(bone)
+			{
+
+			}
+		}
+
+		if(skin && lazy_skin)
+		{
+
+		}
+
+	}
+
+	// apply the vertex weight information
+	/*
+	const std::vector<unsigned int> &indexes = deformer->GetIndices();
+	const std::vector<float> &weights = deformer->GetWeights();
+	mesh_vertex_data->armature_id = bone_element->armature_id;
+	mesh_vertex_data->valid_armature_id = true;
+
+	//print_verbose("storing mesh vertex data for mesh to use later");
+	ERR_FAIL_COND_MSG(indexes.size() != weights.size(), "[doc] error mismatch between weight info");
+
+	for (size_t idx = 0; idx < indexes.size(); idx++) {
+
+		const size_t vertex_index = indexes[idx];
+		const real_t influence_weight = weights[idx];
+
+		VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
+		vm.weights.push_back(influence_weight);
+		vm.bones.push_back(0);
+		vm.bones_ref.push_back(bone_element);
+	}
+
+	for (   const int *vertex_index = mesh_vertex_data->vertex_weights.next(nullptr);
+			vertex_index != nullptr;
+			vertex_index = mesh_vertex_data->vertex_weights.next(vertex_index)) {
+		VertexMapping *vm = mesh_vertex_data->vertex_weights.getptr(*vertex_index);
+		const int influence_count = vm->weights.size();
+		if (influence_count > mesh_vertex_data->max_weight_count) {
+			mesh_vertex_data->max_weight_count = influence_count;
+			mesh_vertex_data->valid_weight_count = true;
+		}
+	}
+
+	if (mesh_vertex_data->max_weight_count > 4) {
+		if (mesh_vertex_data->max_weight_count > 8) {
+			ERR_PRINT("[doc] Serious: maximum bone influences is 8 in this branch.");
+		}
+		// Clamp to 8 bone vertex influences.
+		mesh_vertex_data->max_weight_count = 8;
+		print_verbose("[doc] Using 8 vertex bone influences configuration.");
+	} else {
+		mesh_vertex_data->max_weight_count = 4;
+		print_verbose("[doc] Using 4 vertex bone influences configuration.");
+	}
+
+	//print_verbose("[doc] debug fbx_bone_map size: " + itos(state.fbx_bone_map.size()));*/
 
 	// do we globally allow for import of materials
 	// (prevents overwrite of materials; so you can handle them explicitly)
@@ -515,7 +602,7 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 						continue;
 
 					const Assimp::FBX::MeshGeometry *mesh_geometry = dynamic_cast<const Assimp::FBX::MeshGeometry *>(mesh);
-					if (mesh_geometry != NULL) {
+					if (mesh_geometry) {
 						uint64_t mesh_id = mesh_geometry->ID();
 
 						// this data will pre-exist if vertex weight information is found
@@ -582,6 +669,9 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 		bool valid_armature = mesh->valid_armature_id;
 		uint64_t armature = mesh->armature_id;
 
+
+		ERR_CONTINUE_MSG(!valid_armature, "[doc] fbx armature is missing");
+
 		if (mesh_weights > 0 && valid_armature) {
 			if (state.skeleton_map.has(armature)) {
 				skeleton = state.skeleton_map[armature];
@@ -590,17 +680,18 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				print_error("[doc] unable to find armature mapping");
 			}
 
-			if (mesh_instance && skeleton.is_valid()) {
-				mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
-				print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
+			ERR_CONTINUE_MSG(!mesh_instance, "[doc] invalid mesh mapping for skeleton assignment");
+			ERR_CONTINUE_MSG(skeleton.is_null(), "[doc] unable to resolve the correct skeleton but we have weights!");
 
-				// do we have a mesh skin for this mesh
-				if (state.MeshSkins.has(mesh->mesh_id)) {
-					Ref<Skin> mesh_skin = state.MeshSkins[mesh->mesh_id];
-					if (mesh_skin.is_valid()) {
-						print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
-						mesh_instance->set_skin(mesh_skin);
-					}
+			mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
+			print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
+
+			// do we have a mesh skin for this mesh
+			if (state.MeshSkins.has(mesh->mesh_id)) {
+				Ref<Skin> mesh_skin = state.MeshSkins[mesh->mesh_id];
+				if (mesh_skin.is_valid()) {
+					print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
+					mesh_instance->set_skin(mesh_skin);
 				}
 			}
 		}
@@ -1213,7 +1304,7 @@ void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref
 	}
 }
 
-void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
+void EditorSceneImporterFBX::BuildDocumentBones(Ref<FBXBone> p_parent_bone,
 		ImportState &state, const Assimp::FBX::Document *p_doc,
 		uint64_t p_id) {
 	const std::vector<const Assimp::FBX::Connection *> &conns = p_doc->GetConnectionsByDestinationSequenced(p_id, "Model");
@@ -1221,8 +1312,8 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 	// Model -> SubDeformer (bone) -> Deformer (skin pose)
 	// This is important because we need to somehow link skin back to bone id in skeleton :)
 	// The rules are:
-	// A subdeformer will exist if 'limbnode' classtag present
-	// The subdeformer will not neccisarily have a deformer as joints do not have one
+	// A subdeformer will exist if 'limbnode' class tag present
+	// The subdeformer will not necessarily have a deformer as joints do not have one
 	for (const Assimp::FBX::Connection *con : conns) {
 		// goto: bone creation
 		//print_verbose("con: " + String(con->PropertyName().c_str()));
@@ -1250,160 +1341,72 @@ void EditorSceneImporterFBX::CacheNodeInformation(Ref<FBXBone> p_parent_bone,
 		Ref<FBXBone> bone_element;
 
 		if (model != nullptr) {
-			const Assimp::FBX::LimbNodeMaya *const limb_node = dynamic_cast<const Assimp::FBX::LimbNodeMaya *>(model);
+			// model marked with limb node / casted.
+			const Assimp::FBX::ModelLimbNode *const limb_node = dynamic_cast<const Assimp::FBX::ModelLimbNode *>(model);
 			if (limb_node != nullptr) {
 				// Write bone into bone list for FBX
-				if (!state.fbx_bone_map.has(limb_node->ID())) {
-					bool parent_is_bone = state.fbx_bone_map.find(p_id);
-					bone_element.instance();
 
-					// used to build the bone hierarchy in the skeleton
-					bone_element->parent_bone_id = parent_is_bone ? p_id : 0;
-					bone_element->valid_parent = parent_is_bone;
+				ERR_FAIL_COND_MSG(state.fbx_bone_map.has(limb_node->ID()), "duplicate LimbNode detected");
 
-					// armature handling
+				bool parent_is_bone = state.fbx_bone_map.find(p_id);
+				bone_element.instance();
 
-					// parent is a node and this is the first bone
-					if (!parent_is_bone) {
-						uint64_t armature_id = p_id;
+				// used to build the bone hierarchy in the skeleton
+				bone_element->parent_bone_id = parent_is_bone ? p_id : 0;
+				bone_element->valid_parent = parent_is_bone;
+				bone_element->limb_node = limb_node;
 
+				// parent is a node and this is the first bone
+				if (!parent_is_bone) {
+					uint64_t armature_id = p_id;
+					bone_element->valid_armature_id = true;
+					bone_element->armature_id = armature_id;
+					print_verbose("[doc] valid armature has been configured for first child: " + itos(armature_id));
+				} else if (p_parent_bone.is_valid()) {
+					if (p_parent_bone->valid_armature_id) {
 						bone_element->valid_armature_id = true;
-						bone_element->armature_id = armature_id;
-						print_verbose("[doc] valid armature has been configured for first child: " + itos(armature_id));
-					} else if (p_parent_bone.is_valid()) {
-						if (p_parent_bone->valid_armature_id) {
-							bone_element->valid_armature_id = true;
-							bone_element->armature_id = p_parent_bone->armature_id;
-							print_verbose("[doc] bone has valid armature id:" + itos(bone_element->armature_id));
-						} else {
-							print_error("[doc] unassigned armature id: " + String(limb_node->Name().c_str()));
-						}
+						bone_element->armature_id = p_parent_bone->armature_id;
+						print_verbose("[doc] bone has valid armature id:" + itos(bone_element->armature_id));
 					} else {
-						print_error("[doc] error is this a bone? " + String(limb_node->Name().c_str()));
+						print_error("[doc] unassigned armature id: " + String(limb_node->Name().c_str()));
 					}
-
-					if (!parent_is_bone) {
-						print_verbose("[doc] Root bone: " + bone_element->bone_name);
-					}
-
-					// ;Deformer::, Geometry::
-					// C: "OO",2188874359888,2190730951072
-					uint64_t limb_id = limb_node->ID();
-
-					// Model "limb node" to SubDeformer to Deformer (skin)
-					const Assimp::FBX::Cluster *deformer = ProcessDOMConnection<Assimp::FBX::Cluster>(p_doc, "Deformer", limb_id);
-
-					bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
-					bone_element->parent_bone = p_parent_bone;
-
-					if (deformer != nullptr) {
-						uint64_t mesh_target_id = 0;
-
-						// inverse lookup of mesh from skin, this is because we like to reduce information down so we can re-use skins.
-						const Assimp::FBX::Skin *skin = ProcessDOMConnection<Assimp::FBX::Skin>(p_doc, "Skin", deformer->ID());
-						if (skin) {
-							bone_element->skin = skin; // do not copy info out
-							//print_verbose("[doc] valid skin found! searching for geometry that this skin applies to");
-							const Assimp::FBX::Geometry *geo = ProcessDOMConnection<Assimp::FBX::Geometry>(p_doc, "Mesh", skin->ID());
-							if (geo) {
-								bone_element->geometry = geo;
-								//print_verbose("[doc] valid mesh found!");
-								mesh_target_id = geo->ID();
-							} else {
-								print_error("skin element is not assigned properly to mesh - unsupported");
-							}
-
-						} else {
-							print_error("invalid skin layout / unsupported fbx file");
-						}
-
-						print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
-						print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
-
-						// assign FBX animation bind pose compensation data;
-						// TODO Do I need scale this?
-						bone_element->transform_link = deformer->TransformLink();
-						bone_element->transform_matrix = deformer->GetTransform();
-						bone_element->cluster = deformer;
-
-						// skin configures target node ID.
-						bone_element->target_node_id = deformer->TargetNode()->ID();
-						bone_element->valid_target = true;
-						bone_element->bone_id = limb_id;
-
-						// apply the vertex weight information
-						const std::vector<unsigned int> &indexes = deformer->GetIndices();
-						const std::vector<float> &weights = deformer->GetWeights();
-
-						// Pipeline to move vertex weight information
-						// to the renderer
-						Ref<FBXMeshData> mesh_vertex_data;
-						if (state.renderer_mesh_data.has(mesh_target_id)) {
-							mesh_vertex_data = state.renderer_mesh_data[mesh_target_id];
-						} else {
-							mesh_vertex_data.instance();
-							state.renderer_mesh_data.insert(mesh_target_id, mesh_vertex_data);
-						}
-
-						// Mesh vertex data retrieved now to stream this deformer
-						// data into the internal mesh storage.
-						if (mesh_vertex_data.is_valid()) {
-							// tell the mesh what Armature it should use
-							mesh_vertex_data->armature_id = bone_element->armature_id;
-							mesh_vertex_data->valid_armature_id = true;
-
-							//print_verbose("storing mesh vertex data for mesh to use later");
-							ERR_FAIL_COND_MSG(indexes.size() != weights.size(), "[doc] error mismatch between weight info");
-
-							for (size_t idx = 0; idx < indexes.size(); idx++) {
-
-								const size_t vertex_index = indexes[idx];
-								//print_verbose("vertex index: " + itos(vertex_index));
-
-								const real_t influence_weight = weights[idx];
-
-								VertexMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
-								vm.weights.push_back(influence_weight);
-								vm.bones.push_back(0);
-								vm.bones_ref.push_back(bone_element);
-								//print_verbose("Weight debug: " + rtos(influence_weight) + " bone id:" + bone_element->bone_name);
-							}
-
-							for (
-									const int *vertex_index = mesh_vertex_data->vertex_weights.next(nullptr);
-									vertex_index != nullptr;
-									vertex_index = mesh_vertex_data->vertex_weights.next(vertex_index)) {
-								VertexMapping *vm = mesh_vertex_data->vertex_weights.getptr(*vertex_index);
-								const int influence_count = vm->weights.size();
-								if (influence_count > mesh_vertex_data->max_weight_count) {
-									mesh_vertex_data->max_weight_count = influence_count;
-									mesh_vertex_data->valid_weight_count = true;
-								}
-							}
-
-							if (mesh_vertex_data->max_weight_count > 4) {
-								if (mesh_vertex_data->max_weight_count > 8) {
-									ERR_PRINT("[doc] Serious: maximum bone influences is 8 in this branch.");
-								}
-								// Clamp to 8 bone vertex influences.
-								mesh_vertex_data->max_weight_count = 8;
-								print_verbose("[doc] Using 8 vertex bone influences configuration.");
-							} else {
-								mesh_vertex_data->max_weight_count = 4;
-								print_verbose("[doc] Using 4 vertex bone influences configuration.");
-							}
-						}
-					} else {
-						print_verbose("[doc] warning: no skin for the deformer found: " + bone_element->bone_name);
-					}
-
-					// insert limb by ID into list.
-					state.fbx_bone_map.insert(limb_node->ID(), bone_element);
+				} else {
+					print_error("[doc] error is this a bone? " + String(limb_node->Name().c_str()));
 				}
+
+				if (!parent_is_bone) {
+					print_verbose("[doc] Root bone: " + bone_element->bone_name);
+				}
+
+				uint64_t limb_id = limb_node->ID();
+				const Assimp::FBX::Cluster *deformer = ProcessDOMConnection<Assimp::FBX::Cluster>(p_doc, "Cluster", limb_id);
+
+				bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
+				bone_element->parent_bone = p_parent_bone;
+
+				if (deformer != nullptr) {
+
+					print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
+					print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
+
+					// assign FBX animation bind pose compensation data;
+					bone_element->transform_link = deformer->TransformLink();
+					bone_element->transform_matrix = deformer->GetTransform();
+					bone_element->cluster = deformer;
+
+					// skin configures target node ID.
+					bone_element->target_node_id = deformer->TargetNode()->ID();
+					bone_element->valid_target = true;
+					bone_element->bone_id = limb_id;
+				}
+
+				// insert limb by ID into list.
+				state.fbx_bone_map.insert(limb_node->ID(), bone_element);
 			}
 
+
 			// recursion call - child nodes
-			CacheNodeInformation(bone_element, state, p_doc, model->ID());
+			BuildDocumentBones(bone_element, state, p_doc, model->ID());
 		}
 	}
 }
