@@ -396,7 +396,7 @@ void Document::ReadObjects() {
 
 			if(class_tag == "Skin")
 			{
-				print_error("registered skin:" + itos(id));
+				//print_verbose("registered skin:" + itos(id));
 				skins.push_back(id);
 			}
 		}

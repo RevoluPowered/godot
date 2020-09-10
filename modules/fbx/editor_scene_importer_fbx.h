@@ -71,11 +71,10 @@ private:
 	template <typename T>
 	const T *ProcessDOMConnection(
 			const Assimp::FBX::Document *doc,
-			const char *element_to_find,
 			uint64_t current_element,
-			bool reverse = false) {
+			bool reverse_lookup = false) {
 
-		const std::vector<const Assimp::FBX::Connection *> &conns = reverse ? doc->GetConnectionsByDestinationSequenced(current_element) : doc->GetConnectionsBySourceSequenced(current_element);
+		const std::vector<const Assimp::FBX::Connection *> &conns = reverse_lookup ? doc->GetConnectionsByDestinationSequenced(current_element) : doc->GetConnectionsBySourceSequenced(current_element);
 		//print_verbose("[doc] looking for " + String(element_to_find));
 		// using the temp pattern here so we can debug before it returns
 		// in some cases we return too early, with 'deformer object base class' in wrong place
@@ -83,11 +82,11 @@ private:
 		const T *return_obj = nullptr;
 
 		for (const Assimp::FBX::Connection *con : conns) {
-			const Assimp::FBX::Object *source_object = reverse ? con->DestinationObject() : con->SourceObject();
-			const Assimp::FBX::Object *dest_object = reverse ? con->SourceObject() : con->DestinationObject();
+			const Assimp::FBX::Object *source_object = con->SourceObject();
+			const Assimp::FBX::Object *dest_object = con->DestinationObject();
 			if (source_object && dest_object != nullptr) {
 				//print_verbose("[doc] connection name: " + String(source_object->Name().c_str()) + ", dest: " + String(dest_object->Name().c_str()));
-				const T *temp = dynamic_cast<const T *>(reverse ? source_object : dest_object);
+				const T *temp = dynamic_cast<const T *>(reverse_lookup ? source_object : dest_object);
 				if (temp) {
 					return_obj = temp;
 				}
