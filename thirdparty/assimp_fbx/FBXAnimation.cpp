@@ -195,7 +195,7 @@ const AnimationCurveNodeList AnimationLayer::Nodes(const char *const *target_pro
 		}
 
 		const AnimationCurveNode * anim = dynamic_cast<AnimationCurveNode*>(ob);
-		if (anim) {
+		if (!anim) {
 			DOMWarning("source object for ->AnimationLayer link is not an AnimationCurveNode", element);
 			continue;
 		}
