@@ -454,26 +454,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			//
 
 			// Cache Weight Information into bone for later usage if you want the raw data.
-			bone_element->limb_node = limb_node;
-
-			if (deformer != nullptr) {
-				print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
-				print_verbose("fbx node: debug name: " + String(limb_node->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
-
-				// assign FBX animation bind pose compensation data;
-				bone_element->transform_link = deformer->TransformLink();
-				bone_element->transform_matrix = deformer->GetTransform();
-				bone_element->cluster = deformer;
-
-				// skin configures target node ID.
-				bone_element->target_node_id = deformer->TargetNode()->ID();
-				bone_element->valid_target = true;
-
-				// We use model_id since this is the node in the scene, it will always exist
-				// remember a bone might not have a skinned bone so we need to also populate non skinned bones too.
-				bone_element->bone_id = model_id;
-			}
-
 			const std::vector<unsigned int> &indexes = deformer->GetIndices();
 			const std::vector<float> &weights = deformer->GetWeights();
 			Ref<FBXMeshData> mesh_vertex_data;
