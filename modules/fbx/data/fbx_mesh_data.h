@@ -234,7 +234,6 @@ struct FBXMeshData : Reference {
 	/* mesh maximum weight count */
 	bool valid_weight_count = false;
 	int max_weight_count = 0;
-	uint64_t mesh_id = 0; // fbx mesh id
 	uint64_t armature_id = 0;
 	bool valid_armature_id = false;
 	MeshInstance *godot_mesh_instance = nullptr;

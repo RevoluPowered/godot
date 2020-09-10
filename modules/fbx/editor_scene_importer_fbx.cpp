@@ -387,15 +387,19 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	// Build document skinning information
 	for(uint64_t skin_id : p_document->GetSkinIDs())
 	{
+		// Validate the parser
 		Assimp::FBX::LazyObject *lazy_skin = p_document->GetObject(skin_id);
 		ERR_CONTINUE_MSG(lazy_skin == nullptr, "invalid lazy object [serious parser bug]");
 
+		// Validate the parser
 		const Assimp::FBX::Skin *skin = lazy_skin->Get<Assimp::FBX::Skin>();
 		ERR_CONTINUE_MSG(skin == nullptr, "invalid skin added to skin list [parser bug]");
 
 		const std::vector<const Assimp::FBX::Connection *> source_to_destination = p_document->GetConnectionsBySourceSequenced(skin_id);
 		const std::vector<const Assimp::FBX::Connection *> destination_to_source = p_document->GetConnectionsByDestinationSequenced(skin_id);
 		Assimp::FBX::MeshGeometry * mesh = nullptr;
+		uint64_t mesh_id = 0;
+
 		// Most likely only contains the mesh link for the skin
 		// The mesh geometry.
 		for( const Assimp::FBX::Connection * con : source_to_destination)
@@ -407,11 +411,15 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 			if(mesh)
 			{
+				mesh_id = mesh->ID();
 				break;
 			}
 		}
 
-		// NOTE: this will ONLY work on skinned bones
+		// Validate the mesh exists and was retrieved
+		ERR_CONTINUE_MSG(mesh_id == 0, "mesh id is invalid");
+
+		// NOTE: this will ONLY work on skinned bones (it is by design.)
 		// A cluster is a skinned bone so SKINS won't contain unskinned bones so we need to pre-add all bones and parent them in a step beforehand.
 		for( const Assimp::FBX::Connection * con : destination_to_source)
 		{
@@ -440,7 +448,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 
 			// new bone instance
 			Ref<FBXBone> bone_element = state.fbx_bone_map[model_id];
-			Ref<FBXBone> p_parent_bone = bone_element->parent_bone;
 
 			//
 			// Bone Weight Information Configuration
@@ -471,7 +478,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			const std::vector<float> &weights = deformer->GetWeights();
 			Ref<FBXMeshData> mesh_vertex_data;
 
-			uint64_t mesh_id = mesh->ID();
 			// this data will pre-exist if vertex weight information is found
 			if (state.renderer_mesh_data.has(mesh_id)) {
 				mesh_vertex_data = state.renderer_mesh_data[mesh_id];
@@ -518,12 +524,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 				mesh_vertex_data->max_weight_count = 4;
 				print_verbose("[doc] Using 4 vertex bone influences configuration.");
 			}
-
-		}
-
-		if(skin && lazy_skin)
-		{
-
 		}
 	}
 
@@ -713,44 +713,73 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	}
 
 	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
-		create_mesh_data_skin(state, skin_mesh->value(), skin_mesh->key());
+		const uint64_t mesh_id = skin_mesh->key();
+		Ref<FBXNode> fbx_node = skin_mesh->value();
+
+		ERR_CONTINUE_MSG(state.MeshSkins.has(skin_mesh->key()), "invalid skin already exists for this mesh?");
+		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
+		Ref<Skin> skin;
+		skin.instance();
+
+		for (Map<uint64_t, Ref<FBXBone> >::Element *elem = state.fbx_bone_map.front(); elem; elem = elem->next()) {
+			Ref<FBXBone> bone = elem->value();
+			Transform ignore_t;
+			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
+			Ref<FBXNode> bone_link = bone->get_link(state);
+			ERR_CONTINUE_MSG(bone_link.is_null(), "invalid skin pose bone link");
+
+			bool valid_bind = false;
+
+			Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
+			ERR_CONTINUE_MSG(!valid_bind, "invalid bind");
+
+			skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind, state.scale));
+		}
+
+		state.MeshSkins.insert(mesh_id, skin);
 	}
 
 	// mesh data iteration for populating skeleton mapping
 	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
 		Ref<FBXMeshData> mesh = mesh_data->value();
+		const uint64_t mesh_id = mesh_data->key();
 		MeshInstance *mesh_instance = mesh->godot_mesh_instance;
-		int mesh_weights = mesh->max_weight_count;
+		const int mesh_weights = mesh->max_weight_count;
 		Ref<FBXSkeleton> skeleton;
-		bool valid_armature = mesh->valid_armature_id;
-		uint64_t armature = mesh->armature_id;
+		const bool valid_armature = mesh->valid_armature_id;
+		const uint64_t armature = mesh->armature_id;
 
-
-		ERR_CONTINUE_MSG(!valid_armature, "[doc] fbx armature is missing");
-
-		if (mesh_weights > 0 && valid_armature) {
-			if (state.skeleton_map.has(armature)) {
-				skeleton = state.skeleton_map[armature];
-				print_verbose("[doc] armature mesh to skeleton mapping has been allocated");
-			} else {
-				print_error("[doc] unable to find armature mapping");
-			}
-
-			ERR_CONTINUE_MSG(!mesh_instance, "[doc] invalid mesh mapping for skeleton assignment");
-			ERR_CONTINUE_MSG(skeleton.is_null(), "[doc] unable to resolve the correct skeleton but we have weights!");
-
-			mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
-			print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
-
-			// do we have a mesh skin for this mesh
-			if (state.MeshSkins.has(mesh->mesh_id)) {
-				Ref<Skin> mesh_skin = state.MeshSkins[mesh->mesh_id];
-				if (mesh_skin.is_valid()) {
-					print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
-					mesh_instance->set_skin(mesh_skin);
-				}
-			}
+		if(mesh_weights > 0)
+		{
+			// this is a bug, it means the weights were found but the skeleton wasn't
+			ERR_CONTINUE_MSG(!valid_armature, "[doc] fbx armature is missing");
 		}
+		else
+		{
+			continue; // safe to continue not a bug just a normal mesh
+		}
+
+		if (state.skeleton_map.has(armature)) {
+			skeleton = state.skeleton_map[armature];
+			print_verbose("[doc] armature mesh to skeleton mapping has been allocated");
+		} else {
+			print_error("[doc] unable to find armature mapping");
+		}
+
+		ERR_CONTINUE_MSG(!mesh_instance, "[doc] invalid mesh mapping for skeleton assignment");
+		ERR_CONTINUE_MSG(skeleton.is_null(), "[doc] unable to resolve the correct skeleton but we have weights!");
+
+		mesh_instance->set_skeleton_path(mesh_instance->get_path_to(skeleton->skeleton));
+		print_verbose("[doc] allocated skeleton to mesh " + mesh_instance->get_name());
+
+		// do we have a mesh skin for this mesh
+		ERR_CONTINUE_MSG(!state.MeshSkins.has(mesh_id), "no skin found for mesh");
+
+		Ref<Skin> mesh_skin = state.MeshSkins[mesh_id];
+
+		ERR_CONTINUE_MSG(mesh_skin.is_null(), "invalid skin stored in map");
+		print_verbose("[doc] allocated skin to mesh " + mesh_instance->get_name());
+		mesh_instance->set_skin(mesh_skin);
 	}
 
 	// build skin and skeleton information
@@ -1336,28 +1365,6 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 	state.fbx_root_node.unref();
 
 	return scene_root;
-}
-void EditorSceneImporterFBX::create_mesh_data_skin(ImportState &state, const Ref<FBXNode> &fbx_node, uint64_t mesh_id) {
-	if (!state.MeshSkins.has(mesh_id)) {
-		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
-		Ref<Skin> skin;
-		skin.instance();
-
-		for (Map<uint64_t, Ref<FBXBone> >::Element *elem = state.fbx_bone_map.front(); elem; elem = elem->next()) {
-			Ref<FBXBone> bone = elem->value();
-			Transform ignore_t;
-			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
-
-			if (bone->get_link(state).is_valid()) {
-				bool valid_bind = false;
-				Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
-				if (valid_bind) {
-					skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind, state.scale));
-				}
-			}
-		}
-		state.MeshSkins[mesh_id] = skin;
-	}
 }
 
 void EditorSceneImporterFBX::BuildDocumentBones(Ref<FBXBone> p_parent_bone,
