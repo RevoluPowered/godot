@@ -725,6 +725,12 @@ EditorSceneImporterFBX::_generate_scene(const String &p_path,
 			Ref<FBXBone> bone = elem->value();
 			Transform ignore_t;
 			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
+
+			if(!bone->cluster)
+			{
+				continue; // some bones have no skin this is OK.
+			}
+
 			Ref<FBXNode> bone_link = bone->get_link(state);
 			ERR_CONTINUE_MSG(bone_link.is_null(), "invalid skin pose bone link");
 
