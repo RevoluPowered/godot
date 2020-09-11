@@ -322,10 +322,10 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				}
 			} break;
 			case PROPERTY_DESC_METALLIC: {
-				spatial_material->set_metallic(extract_from_prop(prop, 1.0f, name, "float"));
+				spatial_material->set_metallic( std::min(1.0f, extract_from_prop(prop, 1.0f, name, "float")));
 			} break;
 			case PROPERTY_DESC_ROUGHNESS: {
-				spatial_material->set_roughness(extract_from_prop(prop, 1.0f, name, "float"));
+				spatial_material->set_roughness(std::min(1.0f, extract_from_prop(prop, 1.0f, name, "float")));
 			} break;
 			case PROPERTY_DESC_COAT: {
 				spatial_material->set_clearcoat(extract_from_prop(prop, 1.0f, name, "float"));
