@@ -149,6 +149,8 @@ struct FBXMaterial : public Reference {
 		{ "Maya|SpecularTexture|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
 
 		/* Roughness */
+		// Arnold Roughness Map
+		{ "Maya|specularRoughness", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 
 		{ "3dsMax|Parameters|roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
 		{ "Maya|TEX_roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
@@ -169,7 +171,6 @@ struct FBXMaterial : public Reference {
 
 		//{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::UNSUPPORTED },
-		//{ "Maya|specularRoughness", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "ShininessExponent", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "ReflectionFactor", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "TransparentColor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA },
@@ -185,7 +186,6 @@ struct FBXMaterial : public Reference {
 		PROPERTY_DESC_ROUGHNESS,
 		PROPERTY_DESC_SPECULAR,
 		PROPERTY_DESC_SPECULAR_COLOR,
-		PROPERTY_DESC_SPECULAR_ROUGHNESS,
 		PROPERTY_DESC_SHINYNESS,
 		PROPERTY_DESC_COAT,
 		PROPERTY_DESC_COAT_ROUGHNESS,
@@ -203,8 +203,8 @@ struct FBXMaterial : public Reference {
 		{ "Maya|specular", PROPERTY_DESC_SPECULAR },
 		{ "Maya|specularColor", PROPERTY_DESC_SPECULAR_COLOR },
 
-		/* Specular roughness */
-		{ "Maya|specularRoughness", PROPERTY_DESC_SPECULAR_ROUGHNESS },
+		/* Specular roughness - arnold roughness map */
+		{ "Maya|specularRoughness", PROPERTY_DESC_ROUGHNESS },
 
 		/* Transparent */
 		{ "Opacity", PROPERTY_DESC_TRANSPARENT },
@@ -221,10 +221,10 @@ struct FBXMaterial : public Reference {
 		{ "Maya|roughness", PROPERTY_DESC_ROUGHNESS },
 
 		/* Coat */
-		{ "Maya|coat", PROPERTY_DESC_COAT },
+		//{ "Maya|coat", PROPERTY_DESC_COAT },
 
 		/* Coat roughness */
-		{ "Maya|coatRoughness", PROPERTY_DESC_COAT_ROUGHNESS },
+		//{ "Maya|coatRoughness", PROPERTY_DESC_COAT_ROUGHNESS },
 
 		/* Emissive */
 		{ "Maya|emission", PROPERTY_DESC_EMISSIVE },

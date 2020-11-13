@@ -499,9 +499,22 @@ void FBXMeshData::reorganize_vertices(
 		// Take the normal and see if we need to duplicate this polygon.
 		if (r_normals_raw.has(index)) {
 			const HashMap<PolygonId, Vector3> *nrml_arr = r_normals_raw.getptr(index);
+
 			if (nrml_arr->has(polygon_index)) {
 				this_vert_poly_normal = nrml_arr->get(polygon_index);
+			} else if (nrml_arr->has(-1)) {
+				this_vert_poly_normal = nrml_arr->get(-1);
+			} else {
+				print_error("invalid normal detected: " + itos(index) + " polygon index: " + itos(polygon_index));
+				for (const PolygonId *pid = nrml_arr->next(nullptr); pid != nullptr; pid = nrml_arr->next(pid)) {
+					print_verbose("debug contents key: " + itos(*pid));
+
+					if (nrml_arr->has(*pid)) {
+						print_verbose("contents valid: " + nrml_arr->get(*pid));
+					}
+				}
 			}
+
 			// Now, check if we need to duplicate it.
 			for (const PolygonId *pid = nrml_arr->next(nullptr); pid != nullptr; pid = nrml_arr->next(pid)) {
 				if (*pid == polygon_index) {
@@ -895,14 +908,14 @@ void FBXMeshData::gen_weight_info(Ref<SurfaceTool> st, Vertex vertex_id) const {
 		const VertexWeightMapping *vm = vertex_weights.getptr(vertex_id);
 		st->add_weights(vm->weights);
 		st->add_bones(vm->bones);
-		print_verbose("[doc] Triangle added weights to mesh for bones");
+		//print_verbose("[doc] Triangle added weights to mesh for bones");
 	} else {
 		// This vertex doesn't have any bone info, while the model is using the
 		// bones.
 		// So nothing more to do.
 	}
 
-	print_verbose("[doc] Triangle added weights to mesh for bones");
+	//print_verbose("[doc] Triangle added weights to mesh for bones");
 }
 
 int FBXMeshData::get_vertex_from_polygon_vertex(const std::vector<int> &p_polygon_indices, int p_index) const {

@@ -286,7 +286,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 		}
 
 		if (desc == PROPERTY_DESC_IGNORE) {
-			WARN_PRINT("[Ignored] The FBX material parameter: `" + String(name.c_str()) + "` is ignored.");
+			//WARN_PRINT("[Ignored] The FBX material parameter: `" + String(name.c_str()) + "` is ignored.");
 			continue;
 		} else {
 			print_verbose("FBX Material parameter: " + String(name.c_str()));
@@ -313,8 +313,26 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 		const FBXDocParser::TypedProperty<Vector3> *vector_value = dynamic_cast<const FBXDocParser::TypedProperty<Vector3> *>(prop);
 
 		if (!real_value && !vector_value) {
-			WARN_PRINT("unsupported datatype in property: " + String(name.c_str()));
+			//WARN_PRINT("unsupported datatype in property: " + String(name.c_str()));
 			continue;
+		}
+
+		//
+		// Zero / default value properties
+		// TODO: implement fields correctly tomorrow so we check 'has x mapping' before 'read x mapping' etc.
+
+		//		if(real_value)
+		//		{
+		//			if(real_value->Value() == 0 && !vector_value)
+		//			{
+		//				continue;
+		//			}
+		//		}
+
+		if (vector_value && !real_value) {
+			if (vector_value->Value() == Vector3(0, 0, 0) && !real_value) {
+				continue;
+			}
 		}
 
 		switch (desc) {
@@ -322,11 +340,14 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				if (vector_value) {
 					const Vector3 &color = vector_value->Value();
 					// Make sure to not lost any eventual opacity.
-					Color c = spatial_material->get_albedo();
-					c[0] = color[0];
-					c[1] = color[1];
-					c[2] = color[2];
-					spatial_material->set_albedo(c);
+					if (color != Vector3(0, 0, 0)) {
+						Color c = Color();
+						c[0] = color[0];
+						c[1] = color[1];
+						c[2] = color[2];
+						spatial_material->set_albedo(c);
+					}
+
 				} else if (real_value) {
 					print_error("albedo is unsupported format?");
 				}
@@ -336,7 +357,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 					const real_t opacity = real_value->Value();
 					if (opacity < (1.0 - CMP_EPSILON)) {
 						Color c = spatial_material->get_albedo();
-						c[3] = opacity;
+						c.a = opacity;
 						spatial_material->set_albedo(c);
 						material_info.features.push_back(SpatialMaterial::Feature::FEATURE_TRANSPARENT);
 						spatial_material->set_depth_draw_mode(SpatialMaterial::DEPTH_DRAW_ALPHA_OPAQUE_PREPASS);
@@ -355,16 +376,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 					print_error("unsupported specular vector value: " + vector_value->Value());
 				}
 			} break;
-			case PROPERTY_DESC_SPECULAR_ROUGHNESS: {
-				if (real_value) {
-					print_verbose("specular roughness value:" + rtos(real_value->Value()));
-					spatial_material->set_roughness(MIN(1.0f, real_value->Value()));
-				}
 
-				if (vector_value) {
-					print_error("unsupported specular roughness color: " + vector_value->Value());
-				}
-			} break;
 			case PROPERTY_DESC_SPECULAR_COLOR: {
 				if (vector_value) {
 					print_error("unsupported specular color: " + vector_value->Value());
@@ -401,7 +413,8 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				}
 			} break;
 			case PROPERTY_DESC_COAT_ROUGHNESS: {
-				if (real_value) {
+				// meaning is that approx equal to zero is disabled not actually zero. ;)
+				if (real_value && Math::is_equal_approx(real_value->Value(), 0.0f)) {
 					print_verbose("clearcoat real value: " + rtos(real_value->Value()));
 					spatial_material->set_clearcoat_gloss(1.0 - real_value->Value());
 
@@ -411,11 +424,11 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				}
 			} break;
 			case PROPERTY_DESC_EMISSIVE: {
-				if (real_value) {
+				if (real_value && Math::is_equal_approx(real_value->Value(), 0.0f)) {
 					print_verbose("Emissive real value: " + rtos(real_value->Value()));
 					spatial_material->set_emission_energy(real_value->Value());
 					material_info.features.push_back(SpatialMaterial::Feature::FEATURE_EMISSION);
-				} else {
+				} else if (vector_value && !vector_value->Value().is_equal_approx(Vector3(0, 0, 0))) {
 					const Vector3 &color = vector_value->Value();
 					Color c;
 					c[0] = color[0];
@@ -426,7 +439,7 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 				}
 			} break;
 			case PROPERTY_DESC_EMISSIVE_COLOR: {
-				if (vector_value) {
+				if (vector_value && !vector_value->Value().is_equal_approx(Vector3(0, 0, 0))) {
 					const Vector3 &color = vector_value->Value();
 					Color c;
 					c[0] = color[0];
@@ -497,9 +510,9 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 
 				} else if (extension == "TGA") {
 
-					// The stored file is a TGA.
-					image = Image::_tga_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
-					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded TGA image load fail.");
+					//					// The stored file is a TGA.
+					//					image = Image::_tga_mem_loader_func(mapping.texture->Media()->Content(), mapping.texture->Media()->ContentLength());
+					//					ERR_CONTINUE_MSG(image.is_valid() == false, "FBX Embedded TGA image load fail.");
 
 				} else if (extension == "WEBP") {
 
