@@ -2026,7 +2026,7 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 				geom->gi_probes_dirty = false;
 			}
 
-			ins->depth = near_plane.distance_to(ins->transform.origin);
+			ins->depth = near_plane.distance_to(ins->transformed_aabb.position);
 			ins->depth_layer = CLAMP(int(ins->depth * 16 / z_far), 0, 15);
 		}
 
