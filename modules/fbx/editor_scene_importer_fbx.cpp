@@ -356,6 +356,38 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	// Size relative to cm.
 	const real_t fbx_unit_scale = p_document->GlobalSettingsPtr()->UnitScaleFactor();
 
+	//const FBXDocParser::PropertyPtr app_vendor = p_document->GlobalSettingsPtr()->Props()
+	//	p_document->Creator()
+	const FBXDocParser::PropertyTable *import_props = p_document->GetMetadataProperties();
+	const FBXDocParser::PropertyPtr app_name = import_props->Get("Original|ApplicationName");
+	const FBXDocParser::PropertyPtr app_vendor = import_props->Get("Original|ApplicationVendor");
+	const FBXDocParser::PropertyPtr app_version = import_props->Get("Original|ApplicationVersion");
+	//
+	if (app_name) {
+		const FBXDocParser::TypedProperty<std::string> *app_name_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_name);
+		if (app_name_string) {
+			print_verbose("FBX App Name: " + String(app_name_string->Value().c_str()));
+		}
+	}
+
+	if (app_vendor) {
+		const FBXDocParser::TypedProperty<std::string> *app_vendor_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_vendor);
+		if (app_vendor_string) {
+			print_verbose("FBX App Vendor: " + String(app_vendor_string->Value().c_str()));
+		}
+	}
+
+	if (app_version) {
+		const FBXDocParser::TypedProperty<std::string> *app_version_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_version);
+		if (app_version_string) {
+			print_verbose("FBX App Version: " + String(app_version_string->Value().c_str()));
+		}
+	}
+
+	//FBXDocParser::PropertyPtr datestamp = p_document->GlobalSettingsPtr()->Props()->Get("Original|DateTime_GMT");
+
+	//print_verbose("FBX package exported from: " + p_document->GlobalSettingsPtr()->)
+	print_verbose("FBX unit scale import value: " + rtos(fbx_unit_scale));
 	// Set FBX file scale is relative to CM must be converted to M
 	state.scale = fbx_unit_scale / 100.0;
 	print_verbose("FBX unit scale is: " + rtos(state.scale));
@@ -366,6 +398,11 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	state.enable_animation_import = true;
 	Ref<FBXNode> root_node;
 	root_node.instance();
+
+	// make sure fake noFBXDocParser::PropertyPtr ptrde always has a transform too ;)
+	Ref<PivotTransform> pivot_transform;
+	pivot_transform.instance();
+	root_node->pivot_transform = pivot_transform;
 	root_node->node_name = "root node";
 	root_node->current_node_id = 0;
 	root_node->godot_node = state.root;
@@ -376,7 +413,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	// cache basic node information from FBX document
 	// grabs all FBX bones
 	BuildDocumentBones(Ref<FBXBone>(), state, p_document, 0L);
-	BuildDocumentNodes(nullptr, state, p_document, 0L, nullptr);
+	BuildDocumentNodes(Ref<PivotTransform>(), state, p_document, 0L, nullptr);
 
 	// Build document skinning information
 	for (uint64_t skin_id : p_document->GetSkinIDs()) {
@@ -531,31 +568,6 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		// we opted to merge the entire scene onto one skeleton for now
 		// if we need to change this we have an archive of the old code.
 
-		const std::vector<uint64_t> &bind_pose_ids = p_document->GetBindPoseIDs();
-
-		for (uint64_t skin_id : bind_pose_ids) {
-
-			FBXDocParser::LazyObject *lazy_skin = p_document->GetObject(skin_id);
-			const FBXDocParser::FbxPose *active_skin = lazy_skin->Get<FBXDocParser::FbxPose>();
-
-			if (active_skin) {
-				const std::vector<FBXDocParser::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
-
-				for (FBXDocParser::FbxPoseNode *pose_node : bind_poses) {
-					Transform t = pose_node->GetBindPose();
-					uint64_t fbx_node_id = pose_node->GetNodeID();
-					if (state.fbx_bone_map.has(fbx_node_id)) {
-						Ref<FBXBone> bone = state.fbx_bone_map[fbx_node_id];
-						if (bone.is_valid()) {
-							print_verbose("assigned skin pose from the file for bone " + bone->bone_name + ", transform: " + t);
-							bone->pose_node = t;
-							bone->assigned_pose_node = true;
-						}
-					}
-				}
-			}
-		}
-
 		// bind pose normally only has 1 per mesh but can have more than one
 		// this is the point of skins
 		// in FBX first bind pose is the master for the first skin
@@ -586,15 +598,22 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 			// now populate bone on the armature node list
 			fbx_skeleton_inst->skeleton_bones.push_back(bone);
 
+			CRASH_COND_MSG(!state.fbx_target_map.has(armature_id), "invalid armature [serious]");
+
+			Ref<FBXNode> node = state.fbx_target_map[armature_id];
+
+			CRASH_COND_MSG(node.is_null(), "invalid node [serious]");
+			CRASH_COND_MSG(node->pivot_transform.is_null(), "invalid pivot transform [serious]");
+			fbx_skeleton_inst->fbx_node = node;
+
+			ERR_CONTINUE_MSG(fbx_skeleton_inst->fbx_node.is_null(), "invalid skeleton node [serious]");
+
 			// we need to have a valid armature id and the model configured for the bone to be assigned fully.
 			// happens once per skeleton
-			if (state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
-				Ref<FBXNode> node = state.fbx_target_map[armature_id];
 
-				fbx_skeleton_inst->set_model(node->get_model());
-				fbx_skeleton_inst->fbx_node = node;
-				print_verbose("allocated fbx skeleton primary / armature node for the level: " + node->node_name);
-			} else if (!state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->has_model()) {
+			if (state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->fbx_node->has_model()) {
+				print_verbose("allocated fbx skeleton primary / armature node for the level: " + fbx_skeleton_inst->fbx_node->node_name);
+			} else if (!state.fbx_target_map.has(armature_id) && !fbx_skeleton_inst->fbx_node->has_model()) {
 				print_error("bones are not mapped to an armature node for armature id: " + itos(armature_id) + " bone: " + bone->bone_name);
 				// this means bone will be removed and not used, which is safe actually and no skeleton will be created.
 			}
@@ -602,7 +621,10 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 		// setup skeleton instances if required :)
 		for (Map<uint64_t, Ref<FBXSkeleton> >::Element *skeleton_node = state.skeleton_map.front(); skeleton_node; skeleton_node = skeleton_node->next()) {
-			skeleton_node->value()->init_skeleton(state);
+			Ref<FBXSkeleton> &skeleton = skeleton_node->value();
+			skeleton->init_skeleton(state);
+
+			ERR_CONTINUE_MSG(skeleton->fbx_node.is_null(), "invalid fbx target map, missing skeleton");
 		}
 	}
 
@@ -681,34 +703,109 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		}
 	}
 
-	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
-		const uint64_t mesh_id = skin_mesh->key();
-		Ref<FBXNode> fbx_node = skin_mesh->value();
-
-		ERR_CONTINUE_MSG(state.MeshSkins.has(skin_mesh->key()), "invalid skin already exists for this mesh?");
-		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
-		Ref<Skin> skin;
-		skin.instance();
-
-		for (Map<uint64_t, Ref<FBXBone> >::Element *elem = state.fbx_bone_map.front(); elem; elem = elem->next()) {
-			Ref<FBXBone> bone = elem->value();
-			Transform ignore_t;
-			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
-			// grab the skin bind
-			bool valid_bind = false;
-			Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
-
-			ERR_CONTINUE_MSG(!valid_bind, "invalid bind");
-
-			if (bind.basis.determinant() == 0) {
-				bind = Transform(Basis(), bind.origin);
-			}
-
-			skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind, state.scale));
-		}
-
-		state.MeshSkins.insert(mesh_id, skin);
-	}
+	//	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
+	//		const uint64_t mesh_id = skin_mesh->key();
+	//		Ref<FBXNode> fbx_node = skin_mesh->value();
+	//
+	//		ERR_CONTINUE_MSG(state.MeshSkins.has(skin_mesh->key()), "invalid skin already exists for this mesh?");
+	//		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
+	//		Ref<Skin> skin;
+	//		skin.instance();
+	//
+	//		for (Map<uint64_t, Ref<FBXBone> >::Element *elem = state.fbx_bone_map.front(); elem; elem = elem->next()) {
+	//			Ref<FBXBone> bone = elem->value();
+	//			Transform ignore_t;
+	//			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
+	//			// grab the skin bind
+	//			bool valid_bind = false;
+	//			Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
+	//
+	//			ERR_CONTINUE_MSG(!valid_bind, "invalid bind");
+	//			//ERR_CONTINUE_MSG(!bone->assigned_pose_node, "invalid pose node");
+	//
+	//			if (bind.basis.determinant() == 0) {
+	//				bind = Transform(Basis(), bind.origin);
+	//			}
+	//
+	//			// FIXME: fixing work in progress
+	////			const std::vector<uint64_t> &bind_pose_ids = p_document->GetBindPoseIDs();
+	////
+	////			bool found_pose_node = false;
+	////			Transform pose_node_xform;
+	//
+	//			//
+	//			// Mesh skin nodes
+	//			//
+	//
+	////			// Skin has a list of the bind poses
+	////			for (uint64_t skin_id : bind_pose_ids) {
+	////				FBXDocParser::LazyObject *lazy_skin = p_document->GetObject(skin_id);
+	////				const FBXDocParser::FbxPose *active_skin = lazy_skin->Get<FBXDocParser::FbxPose>();
+	////
+	////				ERR_CONTINUE_MSG(active_skin == nullptr, "unable to load skin data [serious]");
+	////
+	////				const std::vector<FBXDocParser::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
+	////
+	////				for (const FBXDocParser::FbxPoseNode *pose_node : bind_poses) {
+	////					const Transform t = pose_node->GetBindPose();
+	////					const uint64_t fbx_node_id = pose_node->GetNodeID();
+	////
+	////					// skip
+	////					if(fbx_node_id != bone->bone_id) continue;
+	////
+	////					if (state.fbx_bone_map.has(fbx_node_id)) {
+	////						const Ref<FBXBone> skin_bone = state.fbx_bone_map[fbx_node_id];
+	////
+	////						if(bone != skin_bone)
+	////						{
+	////							print_error("invalid skin bone: [" + itos(fbx_node_id) + "] " + skin_bone->bone_name + " actual bone should be [" + itos(bone->bone_id) + "] " + bone->bone_name);
+	////						}
+	////
+	////						ERR_CONTINUE_MSG(skin_bone.is_null(), "[serious] bone is invalid on skin pose");
+	////						ERR_CONTINUE_MSG(bone != skin_bone, "[serious] skin bone doesn't match");
+	////
+	////						found_pose_node = true;
+	////						pose_node_xform = t;
+	////						print_verbose("assigned skin pose from the file for bone " + skin_bone->bone_name + ", transform: " + t);
+	////					}
+	////				}
+	////			}
+	//
+	//			// We have these to consider:
+	//			// - bone->transform_link;
+	//			// - bone->pose_node
+	//
+	//			// If there is no mesh then return the node global xform.
+	//			// if there is no skin for the mesh return the global xform.
+	//
+	//			// Loop over skinCluster items
+	//			// if [ link == bone node ] return the cluster transform link matrix.
+	//			// otherwise just return the normal pivot xform.
+	//
+	//			const int bone_id = bone->godot_bone_id;
+	//
+	//
+	//			//
+	//			// Rest Data
+	//			//
+	//
+	//
+	//			Transform rest_pose = bone->transform_link;
+	//			skeleton->skeleton->set_bone_rest(bone_id, rest_pose);
+	//
+	//
+	//			//skeleton->skeleton->set_bone_rest(bone->godot_bone_id, skeleton->fbx_node->pivot_transform->GlobalTransform.affine_inverse() * bone->pose_node);
+	//			//skeleton->skeleton->set_bone_pose(bone->godot_bone_id, bone->pose_node.affine_inverse());
+	//
+	//			// The original formula was just the pivot xform local xform.
+	//
+	//			//skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind,state.scale));
+	//		}
+	//
+	//
+	//
+	//		//state.MeshSkins.insert(mesh_id, skin);
+	//	}
 
 	// mesh data iteration for populating skeleton mapping
 	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
@@ -1403,11 +1500,14 @@ void EditorSceneImporterFBX::BuildDocumentNodes(
 				new_node->set_parent(state.fbx_root_node);
 			}
 
+			CRASH_COND_MSG(new_node->pivot_transform.is_null(), "invalid fbx target map pivot transform [serious]");
+
 			// populate lookup tables with references
 			// [fbx_node_id, fbx_node]
 
 			state.fbx_node_list.push_back(new_node);
 			if (!state.fbx_target_map.has(new_node->current_node_id)) {
+
 				state.fbx_target_map[new_node->current_node_id] = new_node;
 			}
 

@@ -114,6 +114,20 @@ Transform PivotTransform::ComputeLocalTransform(Vector3 p_translation, Quat p_ro
 	return T * Roff * Rp * Rpre * R * Rpost.affine_inverse() * Rp.affine_inverse() * Soff * Sp * S * Sp.affine_inverse();
 }
 
+Transform PivotTransform::ComputeGlobalTransform(Transform t) const {
+	Vector3 pos = t.origin;
+	Vector3 scale = t.basis.get_scale();
+	Quat rot = t.basis.get_rotation_quat();
+	return ComputeGlobalTransform(pos, rot, scale);
+}
+
+Transform PivotTransform::ComputeLocalTransform(Transform t) const {
+	Vector3 pos = t.origin;
+	Vector3 scale = t.basis.get_scale();
+	Quat rot = t.basis.get_rotation_quat();
+	return ComputeLocalTransform(pos, rot, scale);
+}
+
 Transform PivotTransform::ComputeGlobalTransform(Vector3 p_translation, Quat p_rotation, Vector3 p_scaling) const {
 	Transform T, Roff, Rp, Soff, Sp, S;
 

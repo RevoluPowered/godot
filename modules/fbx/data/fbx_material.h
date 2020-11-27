@@ -38,6 +38,7 @@
 
 struct FBXMaterial : public Reference {
 	String material_name = String();
+	bool warning_non_pbr_material = false;
 	FBXDocParser::Material *material = nullptr;
 
 	/* Godot materials

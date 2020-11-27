@@ -288,6 +288,9 @@ Document::~Document() {
 		delete v.second;
 	}
 
+	if (metadata_properties != nullptr) {
+		delete metadata_properties;
+	}
 	// clear globals import pointer
 	globals.reset();
 }
@@ -321,6 +324,20 @@ bool Document::ReadHeader() {
 	const ElementPtr ecreator = shead->GetElement("Creator");
 	if (ecreator) {
 		creator = ParseTokenAsString(GetRequiredToken(ecreator, 0));
+	}
+
+	//
+	// Scene Info
+	//
+
+	const ElementPtr scene_info = shead->GetElement("SceneInfo");
+
+	if (scene_info) {
+		PropertyTable *fileExportProps = const_cast<PropertyTable *>(GetPropertyTable(*this, "", scene_info, scene_info->Compound(), true));
+
+		if (fileExportProps) {
+			metadata_properties = fileExportProps;
+		}
 	}
 
 	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp");

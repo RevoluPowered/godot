@@ -61,8 +61,8 @@ struct FBXBone : public Reference {
 	uint64_t armature_id = 0;
 
 	// Vertex Weight information
-	Transform transform_link; // todo remove
-	Transform transform_matrix; // todo remove
+	Transform transform_link;
+	Transform transform_matrix;
 
 	/* get associate model - the model can be invalid sometimes */
 	Ref<FBXBone> get_associate_model() const {
@@ -84,9 +84,6 @@ struct FBXBone : public Reference {
 		pivot_xform = p_pivot_xform;
 	}
 
-	// pose node / if assigned
-	Transform pose_node = Transform();
-	bool assigned_pose_node = false;
 	Ref<FBXBone> parent_bone = Ref<FBXBone>();
 	Ref<PivotTransform> pivot_xform = Ref<PivotTransform>();
 	Ref<FBXSkeleton> fbx_skeleton = Ref<FBXSkeleton>();

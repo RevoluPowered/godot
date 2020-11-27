@@ -29,9 +29,9 @@
 /*************************************************************************/
 
 #include "fbx_material.h"
-
 #include "scene/resources/material.h"
 #include "scene/resources/texture.h"
+#include "tools/validation_tools.h"
 
 String FBXMaterial::get_material_name() const {
 	return material_name;
@@ -290,6 +290,12 @@ Ref<SpatialMaterial> FBXMaterial::import_material(ImportState &state) {
 			continue;
 		} else {
 			print_verbose("FBX Material parameter: " + String(name.c_str()));
+
+			// Check for Diffuse material system / lambert materials / legacy basically
+			if (name == "Diffuse" && !warning_non_pbr_material) {
+				ValidationTracker::get_singleton()->add_validation_error(state.path, "Invalid material settings change to Ai Standard Surface shader, mat name: " + material_name.c_escape());
+				warning_non_pbr_material = true;
+			}
 		}
 
 		// DISABLE when adding support for all weird and wonderful material formats

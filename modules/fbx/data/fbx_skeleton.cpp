@@ -40,7 +40,6 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 	if (skeleton == nullptr && skeleton_bone_count > 0) {
 		skeleton = memnew(Skeleton);
 
-		Ref<FBXNode> skeleton_parent_node;
 		if (fbx_node.is_valid()) {
 			// cache skeleton attachment for later during node creation
 			// can't be done until after node hierarchy is built
@@ -100,11 +99,16 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 	ERR_FAIL_COND_MSG(skeleton->get_bone_count() != bone_count, "Not all bones got added, is the file corrupted?");
 
 	for (Map<int, Ref<FBXBone> >::Element *bone_element = bone_map.front(); bone_element; bone_element = bone_element->next()) {
-		Ref<FBXBone> bone = bone_element->value();
+		const Ref<FBXBone> bone = bone_element->value();
 		int bone_index = bone_element->key();
 		print_verbose("working on bone: " + itos(bone_index) + " bone name:" + bone->bone_name);
 
-		skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->pivot_xform->LocalTransform, state.scale));
+		// NOTE: important! transform_link only valid for meshed bones :) must be node xform otherwise.
+		if (bone->cluster != nullptr) {
+			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->transform_link, state.scale));
+		} else {
+			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->pivot_xform->GlobalTransform, state.scale));
+		}
 
 		// lookup parent ID
 		if (bone->valid_parent && state.fbx_bone_map.has(bone->parent_bone_id)) {
@@ -121,4 +125,6 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 			}
 		}
 	}
+
+	skeleton->localize_rests();
 }
