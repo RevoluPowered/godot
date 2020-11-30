@@ -151,17 +151,51 @@ Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flag
 
 		// safety for version handling
 		if (doc.IsSafeToImport()) {
-			Spatial *spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
-
-			// todo: move to document shutdown (will need to be validated after moving; this code has been validated already)
-			for (FBXDocParser::TokenPtr token : tokens) {
-				if (token) {
-					delete token;
-					token = nullptr;
+			bool is_blender_fbx = false;
+			//const FBXDocParser::PropertyPtr app_vendor = p_document->GlobalSettingsPtr()->Props()
+			//	p_document->Creator()
+			const FBXDocParser::PropertyTable *import_props = doc.GetMetadataProperties();
+			const FBXDocParser::PropertyPtr app_name = import_props->Get("Original|ApplicationName");
+			const FBXDocParser::PropertyPtr app_vendor = import_props->Get("Original|ApplicationVendor");
+			const FBXDocParser::PropertyPtr app_version = import_props->Get("Original|ApplicationVersion");
+			//
+			if (app_name) {
+				const FBXDocParser::TypedProperty<std::string> *app_name_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_name);
+				if (app_name_string) {
+					print_verbose("FBX App Name: " + String(app_name_string->Value().c_str()));
 				}
 			}
 
-			return spatial;
+			if (app_vendor) {
+				const FBXDocParser::TypedProperty<std::string> *app_vendor_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_vendor);
+				if (app_vendor_string) {
+					print_verbose("FBX App Vendor: " + String(app_vendor_string->Value().c_str()));
+					is_blender_fbx = app_vendor_string->Value().find("Blender") != std::string::npos;
+				}
+			}
+
+			if (app_version) {
+				const FBXDocParser::TypedProperty<std::string> *app_version_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_version);
+				if (app_version_string) {
+					print_verbose("FBX App Version: " + String(app_version_string->Value().c_str()));
+				}
+			}
+
+			if (!is_blender_fbx) {
+				Spatial *spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+				// todo: move to document shutdown (will need to be validated after moving; this code has been validated already)
+				for (FBXDocParser::TokenPtr token : tokens) {
+					if (token) {
+						delete token;
+						token = nullptr;
+					}
+				}
+
+				return spatial;
+			} else {
+				print_error("We can't import blender FBX files, they're not implemented correctly at export time and would require several hacks in the FBX importer which could break Maya imports.");
+			}
+
 		} else {
 			print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
 		}
@@ -355,36 +389,6 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 	// Size relative to cm.
 	const real_t fbx_unit_scale = p_document->GlobalSettingsPtr()->UnitScaleFactor();
-
-	//const FBXDocParser::PropertyPtr app_vendor = p_document->GlobalSettingsPtr()->Props()
-	//	p_document->Creator()
-	const FBXDocParser::PropertyTable *import_props = p_document->GetMetadataProperties();
-	const FBXDocParser::PropertyPtr app_name = import_props->Get("Original|ApplicationName");
-	const FBXDocParser::PropertyPtr app_vendor = import_props->Get("Original|ApplicationVendor");
-	const FBXDocParser::PropertyPtr app_version = import_props->Get("Original|ApplicationVersion");
-	//
-	if (app_name) {
-		const FBXDocParser::TypedProperty<std::string> *app_name_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_name);
-		if (app_name_string) {
-			print_verbose("FBX App Name: " + String(app_name_string->Value().c_str()));
-		}
-	}
-
-	if (app_vendor) {
-		const FBXDocParser::TypedProperty<std::string> *app_vendor_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_vendor);
-		if (app_vendor_string) {
-			print_verbose("FBX App Vendor: " + String(app_vendor_string->Value().c_str()));
-		}
-	}
-
-	if (app_version) {
-		const FBXDocParser::TypedProperty<std::string> *app_version_string = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(app_version);
-		if (app_version_string) {
-			print_verbose("FBX App Version: " + String(app_version_string->Value().c_str()));
-		}
-	}
-
-	//FBXDocParser::PropertyPtr datestamp = p_document->GlobalSettingsPtr()->Props()->Get("Original|DateTime_GMT");
 
 	//print_verbose("FBX package exported from: " + p_document->GlobalSettingsPtr()->)
 	print_verbose("FBX unit scale import value: " + rtos(fbx_unit_scale));
@@ -718,93 +722,20 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	//			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
 	//			// grab the skin bind
 	//			bool valid_bind = false;
-	//			Transform bind = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
+	//			Transform bind_pose = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
 	//
 	//			ERR_CONTINUE_MSG(!valid_bind, "invalid bind");
-	//			//ERR_CONTINUE_MSG(!bone->assigned_pose_node, "invalid pose node");
 	//
-	//			if (bind.basis.determinant() == 0) {
-	//				bind = Transform(Basis(), bind.origin);
+	//			if (bind_pose.basis.determinant() == 0) {
+	//				bind_pose = Transform(Basis(), bind_pose.origin);
 	//			}
 	//
-	//			// FIXME: fixing work in progress
-	////			const std::vector<uint64_t> &bind_pose_ids = p_document->GetBindPoseIDs();
-	////
-	////			bool found_pose_node = false;
-	////			Transform pose_node_xform;
-	//
-	//			//
-	//			// Mesh skin nodes
-	//			//
-	//
-	////			// Skin has a list of the bind poses
-	////			for (uint64_t skin_id : bind_pose_ids) {
-	////				FBXDocParser::LazyObject *lazy_skin = p_document->GetObject(skin_id);
-	////				const FBXDocParser::FbxPose *active_skin = lazy_skin->Get<FBXDocParser::FbxPose>();
-	////
-	////				ERR_CONTINUE_MSG(active_skin == nullptr, "unable to load skin data [serious]");
-	////
-	////				const std::vector<FBXDocParser::FbxPoseNode *> &bind_poses = active_skin->GetBindPoses();
-	////
-	////				for (const FBXDocParser::FbxPoseNode *pose_node : bind_poses) {
-	////					const Transform t = pose_node->GetBindPose();
-	////					const uint64_t fbx_node_id = pose_node->GetNodeID();
-	////
-	////					// skip
-	////					if(fbx_node_id != bone->bone_id) continue;
-	////
-	////					if (state.fbx_bone_map.has(fbx_node_id)) {
-	////						const Ref<FBXBone> skin_bone = state.fbx_bone_map[fbx_node_id];
-	////
-	////						if(bone != skin_bone)
-	////						{
-	////							print_error("invalid skin bone: [" + itos(fbx_node_id) + "] " + skin_bone->bone_name + " actual bone should be [" + itos(bone->bone_id) + "] " + bone->bone_name);
-	////						}
-	////
-	////						ERR_CONTINUE_MSG(skin_bone.is_null(), "[serious] bone is invalid on skin pose");
-	////						ERR_CONTINUE_MSG(bone != skin_bone, "[serious] skin bone doesn't match");
-	////
-	////						found_pose_node = true;
-	////						pose_node_xform = t;
-	////						print_verbose("assigned skin pose from the file for bone " + skin_bone->bone_name + ", transform: " + t);
-	////					}
-	////				}
-	////			}
-	//
-	//			// We have these to consider:
-	//			// - bone->transform_link;
-	//			// - bone->pose_node
-	//
-	//			// If there is no mesh then return the node global xform.
-	//			// if there is no skin for the mesh return the global xform.
-	//
-	//			// Loop over skinCluster items
-	//			// if [ link == bone node ] return the cluster transform link matrix.
-	//			// otherwise just return the normal pivot xform.
-	//
-	//			const int bone_id = bone->godot_bone_id;
-	//
-	//
-	//			//
-	//			// Rest Data
-	//			//
-	//
-	//
-	//			Transform rest_pose = bone->transform_link;
-	//			skeleton->skeleton->set_bone_rest(bone_id, rest_pose);
-	//
-	//
-	//			//skeleton->skeleton->set_bone_rest(bone->godot_bone_id, skeleton->fbx_node->pivot_transform->GlobalTransform.affine_inverse() * bone->pose_node);
-	//			//skeleton->skeleton->set_bone_pose(bone->godot_bone_id, bone->pose_node.affine_inverse());
-	//
-	//			// The original formula was just the pivot xform local xform.
-	//
-	//			//skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind,state.scale));
+	//			if( bind_pose_map.has(elem->key()) ) {
+	//				skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind_pose, state.scale));
+	//			}
 	//		}
 	//
-	//
-	//
-	//		//state.MeshSkins.insert(mesh_id, skin);
+	//		state.MeshSkins.insert(mesh_id, skin);
 	//	}
 
 	// mesh data iteration for populating skeleton mapping
@@ -1308,7 +1239,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	for (Map<uint64_t, Ref<FBXBone> >::Element *element = state.fbx_bone_map.front(); element; element = element->next()) {
 		Ref<FBXBone> bone = element->value();
 		bone->parent_bone.unref();
-		bone->pivot_xform.unref();
+		bone->node.unref();
 		bone->fbx_skeleton.unref();
 	}
 
@@ -1400,26 +1331,46 @@ void EditorSceneImporterFBX::BuildDocumentBones(Ref<FBXBone> p_parent_bone,
 				}
 
 				uint64_t limb_id = limb_node->ID();
-				const FBXDocParser::Cluster *deformer = ProcessDOMConnection<FBXDocParser::Cluster>(p_doc, limb_id);
+				bone_element->bone_id = limb_id;
+
+				//				//
+				//				// I assumed this was one to one mapping it's not.
+				//				//
+				//				std::vector<const FBXDocParser::Connection*> deformer_connections = p_doc->GetConnectionsBySourceSequenced(limb_id);
+				//
+				//
+				//				std::vector<const FBXDocParser::Cluster*> clusters;
+				//				Map<uint64_t, const FBXDocParser::Cluster*> skins;
+				//
+				//				for ( const FBXDocParser::Connection * connection : deformer_connections )
+				//				{
+				//					const FBXDocParser::Cluster * real_cluster = dynamic_cast<FBXDocParser::Cluster*>(connection->DestinationObject());
+				//					if(real_cluster)
+				//					{
+				//						print_verbose("Found cluster!");
+				//						clusters.push_back(real_cluster);
+				//						skins
+				//						//const FBXDocParser::Cluster *deformer = ProcessDOMConnection<FBXDocParser::Cluster>(p_doc, limb_id);
+				//						//if (deformer != nullptr) {
+				//						//print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
+				//						//print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
+				//
+				//						// assign FBX animation bind pose compensation data;
+				//						//bone_element->transform_link = deformer->TransformLink();
+				//						//bone_element->transform_matrix = deformer->GetTransform();
+				//						//bone_element->cluster = deformer;
+				//
+				//						// skin configures target node ID.
+				//						//bone_element->target_node_id = deformer->TargetNode()->ID();
+				//						//bone_element->valid_target = true;
+				//						//}
+				//					}
+				//				}
+				//
+				//				print_verbose("Actual cluster count: " + itos(clusters.size()));
 
 				bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
 				bone_element->parent_bone = p_parent_bone;
-
-				if (deformer != nullptr) {
-
-					print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
-					print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
-
-					// assign FBX animation bind pose compensation data;
-					bone_element->transform_link = deformer->TransformLink();
-					bone_element->transform_matrix = deformer->GetTransform();
-					bone_element->cluster = deformer;
-
-					// skin configures target node ID.
-					bone_element->target_node_id = deformer->TargetNode()->ID();
-					bone_element->valid_target = true;
-					bone_element->bone_id = limb_id;
-				}
 
 				// insert limb by ID into list.
 				state.fbx_bone_map.insert(limb_node->ID(), bone_element);
@@ -1486,7 +1437,7 @@ void EditorSceneImporterFBX::BuildDocumentNodes(
 			if (state.fbx_bone_map.has(current_node_id)) {
 				Ref<FBXBone> bone = state.fbx_bone_map[current_node_id];
 				if (bone.is_valid()) {
-					bone->set_pivot_xform(fbx_transform);
+					bone->set_node(new_node);
 					print_verbose("allocated bone data: " + bone->bone_name);
 				}
 			}

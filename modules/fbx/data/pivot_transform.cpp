@@ -80,14 +80,37 @@ void PivotTransform::ReadTransformChain() {
 	const Vector3 &GeometricScaling = ImportUtils::safe_import_vector3(FBXDocParser::PropertyGet<Vector3>(props, "GeometricScaling", ok));
 	if (ok) {
 		geometric_scaling = GeometricScaling;
+	} else {
+		geometric_scaling = Vector3(0, 0, 0);
 	}
+
 	const Vector3 &GeometricRotation = ImportUtils::safe_import_vector3(FBXDocParser::PropertyGet<Vector3>(props, "GeometricRotation", ok));
 	if (ok) {
 		geometric_rotation = ImportUtils::EulerToQuaternion(rot, ImportUtils::deg2rad(GeometricRotation));
+	} else {
+		geometric_rotation = Quat();
 	}
+
 	const Vector3 &GeometricTranslation = ImportUtils::safe_import_vector3(FBXDocParser::PropertyGet<Vector3>(props, "GeometricTranslation", ok));
 	if (ok) {
 		geometric_translation = ImportUtils::FixAxisConversions(GeometricTranslation);
+	} else {
+		geometric_translation = Vector3(0, 0, 0);
+	}
+
+	if (geometric_rotation != Quat()) {
+		print_error("geometric rotation is unsupported!");
+		//CRASH_COND(true);
+	}
+
+	if (!geometric_scaling.is_equal_approx(Vector3(1, 1, 1))) {
+		print_error("geometric scaling is unsupported!");
+		//CRASH_COND(true);
+	}
+
+	if (!geometric_translation.is_equal_approx(Vector3(0, 0, 0))) {
+		print_error("geometric translation is unsupported.");
+		//CRASH_COND(true);
 	}
 }
 

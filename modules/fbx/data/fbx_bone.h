@@ -49,9 +49,6 @@ struct FBXBone : public Reference {
 		return !valid_parent;
 	}
 
-	uint64_t target_node_id; // the node target id for the skeleton element
-	bool valid_target = false; // only applies to bones with a mesh / in the skin.
-
 	// Godot specific data
 	int godot_bone_id = -2; // godot internal bone id assigned after import
 
@@ -60,33 +57,35 @@ struct FBXBone : public Reference {
 	bool valid_armature_id = false;
 	uint64_t armature_id = 0;
 
-	// Vertex Weight information
-	Transform transform_link;
-	Transform transform_matrix;
+	/* link node is the parent bone */
+	mutable const FBXDocParser::Geometry *geometry = nullptr;
+	mutable const FBXDocParser::ModelLimbNode *limb_node = nullptr;
 
-	/* get associate model - the model can be invalid sometimes */
-	Ref<FBXBone> get_associate_model() const {
-		return parent_bone;
+	void set_node(Ref<FBXNode> p_node) {
+		node = p_node;
 	}
 
-	/* link node is the parent bone */
+	// Stores the pivot xform for this bone
+	Ref<FBXNode> node = nullptr;
+	Ref<FBXBone> parent_bone = nullptr;
+	Ref<FBXSkeleton> fbx_skeleton = nullptr;
+};
+
+struct FBXSkinDeformer : public Reference {
+	mutable const FBXDocParser::Deformer *skin = nullptr;
+	mutable const FBXDocParser::Cluster *cluster = nullptr;
+	Ref<FBXBone> bone;
+	uint64_t target_node_id; // the node target id for the skeleton element
+	bool valid_target = false; // only applies to bones with a mesh / in the skin.
+	/* get associate model - the model can be invalid sometimes */
+	Ref<FBXBone> get_associate_model() const {
+		return bone->parent_bone;
+	}
+
 	Ref<FBXNode> get_link(const ImportState &state) const;
 	Transform get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &valid);
 	Transform vertex_transform_matrix;
 	Transform local_cluster_matrix; // set_bone_pose
-
-	mutable const FBXDocParser::Deformer *skin = nullptr;
-	mutable const FBXDocParser::Cluster *cluster = nullptr;
-	mutable const FBXDocParser::Geometry *geometry = nullptr;
-	mutable const FBXDocParser::ModelLimbNode *limb_node = nullptr;
-
-	void set_pivot_xform(Ref<PivotTransform> p_pivot_xform) {
-		pivot_xform = p_pivot_xform;
-	}
-
-	Ref<FBXBone> parent_bone = Ref<FBXBone>();
-	Ref<PivotTransform> pivot_xform = Ref<PivotTransform>();
-	Ref<FBXSkeleton> fbx_skeleton = Ref<FBXSkeleton>();
 };
 
 #endif // FBX_BONE_H

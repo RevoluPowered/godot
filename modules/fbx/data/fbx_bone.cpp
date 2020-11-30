@@ -33,8 +33,15 @@
 #include "fbx_node.h"
 #include "import_state.h"
 
-Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
-	print_verbose("bone name: " + bone_name);
+// NOTE: important! transform_link only valid for meshed bones :) must be node xform otherwise.
+// FIXME: this needs added back in
+//		if (bone->cluster != nullptr) {
+//			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->transform_link, state.scale));
+//
+
+// TODO: Move to the Cluster deformer class
+Ref<FBXNode> FBXSkinDeformer::get_link(const ImportState &state) const {
+	print_verbose("bone name: " + bone->bone_name);
 
 	// safe for when deformers must be polyfilled when skin has different count of binds to bones in the scene ;)
 	if (!cluster) {
@@ -55,24 +62,25 @@ Ref<FBXNode> FBXBone::get_link(const ImportState &state) const {
 	return link_node;
 }
 
+// TODO: Move to the Cluster deformer class
 /* right now we just get single skin working and we can patch in the multiple tomorrow - per skin not per bone. */
 // this will work for multiple meshes :) awesomeness.
 // okay so these formula's are complex and need proper understanding of
 // shear, pivots, geometric pivots, pre rotation and post rotation
 // additionally DO NOT EDIT THIS if your blender file isn't working.
 // Contact RevoluPowered Gordon MacPherson if you are contemplating making edits to this.
-Transform FBXBone::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &r_valid_pose) {
+Transform FBXSkinDeformer::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &r_valid_pose) {
 	r_valid_pose = false;
-	print_verbose("get_vertex_skin_xform: " + bone_name);
+	print_verbose("get_vertex_skin_xform: " + bone->bone_name);
 
 	// safe to do, this means we have 'remove unused deformer' checked.
 	if (!cluster) {
-		print_verbose("bone [" + itos(bone_id) + "] " + bone_name + ": has no skin offset poly-filling the skin to make rasterizer happy with unused deformers not being skinned");
+		print_verbose("bone [" + itos(bone->bone_id) + "] " + bone->bone_name + ": has no skin offset poly-filling the skin to make rasterizer happy with unused deformers not being skinned");
 		r_valid_pose = true;
 		return Transform();
 	}
 
-	ERR_FAIL_COND_V_MSG(cluster == nullptr, Transform(), "[serious] unable to resolve the fbx cluster for this bone " + bone_name);
+	ERR_FAIL_COND_V_MSG(cluster == nullptr, Transform(), "[serious] unable to resolve the fbx cluster for this bone " + bone->bone_name);
 	// these methods will ONLY work for Maya.
 	if (cluster->TransformAssociateModelValid()) {
 		//print_error("additive skinning in use");

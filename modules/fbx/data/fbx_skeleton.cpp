@@ -103,12 +103,7 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 		int bone_index = bone_element->key();
 		print_verbose("working on bone: " + itos(bone_index) + " bone name:" + bone->bone_name);
 
-		// NOTE: important! transform_link only valid for meshed bones :) must be node xform otherwise.
-		if (bone->cluster != nullptr) {
-			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->transform_link, state.scale));
-		} else {
-			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->pivot_xform->GlobalTransform, state.scale));
-		}
+		skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->node->pivot_transform->LocalTransform, state.scale));
 
 		// lookup parent ID
 		if (bone->valid_parent && state.fbx_bone_map.has(bone->parent_bone_id)) {
@@ -125,6 +120,4 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 			}
 		}
 	}
-
-	skeleton->localize_rests();
 }
