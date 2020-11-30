@@ -420,6 +420,13 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	BuildDocumentNodes(Ref<PivotTransform>(), state, p_document, 0L, nullptr);
 
 	// Build document skinning information
+
+	// Algorithm is this:
+	// Get Deformer: object with "Skin" class.
+	// Deformer:: has link to Geometry:: (correct mesh for skin)
+	// Deformer:: has Source which is the SubDeformer:: (e.g. the Cluster)
+	// Notes at the end it configures the vertex weight mapping.
+
 	for (uint64_t skin_id : p_document->GetSkinIDs()) {
 		// Validate the parser
 		FBXDocParser::LazyObject *lazy_skin = p_document->GetObject(skin_id);
@@ -430,7 +437,6 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		ERR_CONTINUE_MSG(skin == nullptr, "invalid skin added to skin list [parser bug]");
 
 		const std::vector<const FBXDocParser::Connection *> source_to_destination = p_document->GetConnectionsBySourceSequenced(skin_id);
-		const std::vector<const FBXDocParser::Connection *> destination_to_source = p_document->GetConnectionsByDestinationSequenced(skin_id);
 		FBXDocParser::MeshGeometry *mesh = nullptr;
 		uint64_t mesh_id = 0;
 
@@ -450,21 +456,13 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 		// Validate the mesh exists and was retrieved
 		ERR_CONTINUE_MSG(mesh_id == 0, "mesh id is invalid");
+		const std::vector<const FBXDocParser::Cluster *> clusters = skin->Clusters();
 
 		// NOTE: this will ONLY work on skinned bones (it is by design.)
 		// A cluster is a skinned bone so SKINS won't contain unskinned bones so we need to pre-add all bones and parent them in a step beforehand.
-		for (const FBXDocParser::Connection *con : destination_to_source) {
-			FBXDocParser::Object *ob = con->SourceObject();
-
-			//
-			// Read the FBX Document bone information
-			//
-
-			// Get bone weight data
-			const FBXDocParser::Cluster *deformer = dynamic_cast<const FBXDocParser::Cluster *>(ob);
-			ERR_CONTINUE_MSG(deformer == nullptr, "invalid bone cluster");
-
-			const uint64_t deformer_id = deformer->ID();
+		for (const FBXDocParser::Cluster *cluster : clusters) {
+			ERR_CONTINUE_MSG(cluster == nullptr, "invalid bone cluster");
+			const uint64_t deformer_id = cluster->ID();
 			std::vector<const FBXDocParser::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(deformer_id);
 
 			// Weight data always has a node in the scene lets grab the limb's node in the scene :) (reverse set to true since it's the opposite way around)
@@ -485,8 +483,8 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 			//
 
 			// Cache Weight Information into bone for later usage if you want the raw data.
-			const std::vector<unsigned int> &indexes = deformer->GetIndices();
-			const std::vector<float> &weights = deformer->GetWeights();
+			const std::vector<unsigned int> &indexes = cluster->GetIndices();
+			const std::vector<float> &weights = cluster->GetWeights();
 			Ref<FBXMeshData> mesh_vertex_data;
 
 			// this data will pre-exist if vertex weight information is found
@@ -630,6 +628,10 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 			ERR_CONTINUE_MSG(skeleton->fbx_node.is_null(), "invalid fbx target map, missing skeleton");
 		}
+
+		// This list is not populated
+		for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
+		}
 	}
 
 	// build godot node tree
@@ -707,36 +709,41 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		}
 	}
 
-	//	for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
-	//		const uint64_t mesh_id = skin_mesh->key();
-	//		Ref<FBXNode> fbx_node = skin_mesh->value();
-	//
-	//		ERR_CONTINUE_MSG(state.MeshSkins.has(skin_mesh->key()), "invalid skin already exists for this mesh?");
-	//		print_verbose("[doc] caching skin for " + itos(mesh_id) + ", mesh node name: " + fbx_node->node_name);
-	//		Ref<Skin> skin;
-	//		skin.instance();
-	//
-	//		for (Map<uint64_t, Ref<FBXBone> >::Element *elem = state.fbx_bone_map.front(); elem; elem = elem->next()) {
-	//			Ref<FBXBone> bone = elem->value();
-	//			Transform ignore_t;
-	//			Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
-	//			// grab the skin bind
-	//			bool valid_bind = false;
-	//			Transform bind_pose = bone->get_vertex_skin_xform(state, fbx_node->pivot_transform->GlobalTransform, valid_bind);
-	//
-	//			ERR_CONTINUE_MSG(!valid_bind, "invalid bind");
-	//
-	//			if (bind_pose.basis.determinant() == 0) {
-	//				bind_pose = Transform(Basis(), bind_pose.origin);
-	//			}
-	//
-	//			if( bind_pose_map.has(elem->key()) ) {
-	//				skin->add_named_bind(bone->bone_name, get_unscaled_transform(bind_pose, state.scale));
-	//			}
-	//		}
-	//
-	//		state.MeshSkins.insert(mesh_id, skin);
-	//	}
+	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
+		const uint64_t mesh_id = mesh_data->key();
+		Ref<FBXMeshData> mesh = mesh_data->value();
+
+		const FBXDocParser::MeshGeometry *mesh_geometry = p_document->GetObject(mesh_id)->Get<FBXDocParser::MeshGeometry>();
+		const FBXDocParser::Skin *skin = mesh_geometry->DeformerSkin();
+
+		//
+		// Skin bone configuration
+		//
+
+		//
+		// Get Mesh Node Xform only
+		//
+		//		ERR_CONTINUE_MSG(!state.fbx_target_map.has(mesh_id), "invalid xform for the skin pose: " + itos(mesh_id));
+		//		Ref<FBXNode> mesh_node_xform_data = state.fbx_target_map[mesh_id];
+
+		for (const FBXDocParser::Cluster *cluster : skin->Clusters()) {
+			std::vector<const FBXDocParser::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(cluster->ID());
+
+			for (const FBXDocParser::Connection *connection : connections) {
+				FBXDocParser::ModelLimbNode *limbNode = dynamic_cast<FBXDocParser::ModelLimbNode *>(connection->SourceObject());
+				if (limbNode) {
+					ERR_BREAK_MSG(!state.fbx_bone_map.has(limbNode->ID()), "unable to find bone");
+
+					Ref<FBXBone> bone_element = state.fbx_bone_map[limbNode->ID()];
+
+					// Calculate the skin pose (was taken and separated out to decouple from the bone data (prevents misunderstanding about cluster relationships with bones)
+					FBXSkinDeformer skin_deformer(bone_element, cluster);
+					state.MeshSkins[mesh_id]->add_named_bind(bone_element->bone_name, skin_deformer.get_vertex_skin_xform(state, mesh_node_xform_data->pivot_transform->GlobalTransform));
+				}
+			}
+			// cluster->ID() (Source Object is the LIMBNODE)
+		}
+	}
 
 	// mesh data iteration for populating skeleton mapping
 	for (Map<uint64_t, Ref<FBXMeshData> >::Element *mesh_data = state.renderer_mesh_data.front(); mesh_data; mesh_data = mesh_data->next()) {
@@ -1332,43 +1339,6 @@ void EditorSceneImporterFBX::BuildDocumentBones(Ref<FBXBone> p_parent_bone,
 
 				uint64_t limb_id = limb_node->ID();
 				bone_element->bone_id = limb_id;
-
-				//				//
-				//				// I assumed this was one to one mapping it's not.
-				//				//
-				//				std::vector<const FBXDocParser::Connection*> deformer_connections = p_doc->GetConnectionsBySourceSequenced(limb_id);
-				//
-				//
-				//				std::vector<const FBXDocParser::Cluster*> clusters;
-				//				Map<uint64_t, const FBXDocParser::Cluster*> skins;
-				//
-				//				for ( const FBXDocParser::Connection * connection : deformer_connections )
-				//				{
-				//					const FBXDocParser::Cluster * real_cluster = dynamic_cast<FBXDocParser::Cluster*>(connection->DestinationObject());
-				//					if(real_cluster)
-				//					{
-				//						print_verbose("Found cluster!");
-				//						clusters.push_back(real_cluster);
-				//						skins
-				//						//const FBXDocParser::Cluster *deformer = ProcessDOMConnection<FBXDocParser::Cluster>(p_doc, limb_id);
-				//						//if (deformer != nullptr) {
-				//						//print_verbose("[doc] Mesh Cluster: " + String(deformer->Name().c_str()) + ", " + deformer->TransformLink());
-				//						//print_verbose("fbx node: debug name: " + String(model->Name().c_str()) + "bone name: " + String(deformer->Name().c_str()));
-				//
-				//						// assign FBX animation bind pose compensation data;
-				//						//bone_element->transform_link = deformer->TransformLink();
-				//						//bone_element->transform_matrix = deformer->GetTransform();
-				//						//bone_element->cluster = deformer;
-				//
-				//						// skin configures target node ID.
-				//						//bone_element->target_node_id = deformer->TargetNode()->ID();
-				//						//bone_element->valid_target = true;
-				//						//}
-				//					}
-				//				}
-				//
-				//				print_verbose("Actual cluster count: " + itos(clusters.size()));
-
 				bone_element->bone_name = ImportUtils::FBXNodeToName(model->Name());
 				bone_element->parent_bone = p_parent_bone;
 

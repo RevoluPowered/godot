@@ -37,7 +37,7 @@
 // FIXME: this needs added back in
 //		if (bone->cluster != nullptr) {
 //			skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->transform_link, state.scale));
-//
+// dnf
 
 // TODO: Move to the Cluster deformer class
 Ref<FBXNode> FBXSkinDeformer::get_link(const ImportState &state) const {
@@ -69,18 +69,7 @@ Ref<FBXNode> FBXSkinDeformer::get_link(const ImportState &state) const {
 // shear, pivots, geometric pivots, pre rotation and post rotation
 // additionally DO NOT EDIT THIS if your blender file isn't working.
 // Contact RevoluPowered Gordon MacPherson if you are contemplating making edits to this.
-Transform FBXSkinDeformer::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &r_valid_pose) {
-	r_valid_pose = false;
-	print_verbose("get_vertex_skin_xform: " + bone->bone_name);
-
-	// safe to do, this means we have 'remove unused deformer' checked.
-	if (!cluster) {
-		print_verbose("bone [" + itos(bone->bone_id) + "] " + bone->bone_name + ": has no skin offset poly-filling the skin to make rasterizer happy with unused deformers not being skinned");
-		r_valid_pose = true;
-		return Transform();
-	}
-
-	ERR_FAIL_COND_V_MSG(cluster == nullptr, Transform(), "[serious] unable to resolve the fbx cluster for this bone " + bone->bone_name);
+Transform FBXSkinDeformer::get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position) {
 	// these methods will ONLY work for Maya.
 	if (cluster->TransformAssociateModelValid()) {
 		//print_error("additive skinning in use");
@@ -90,11 +79,10 @@ Transform FBXSkinDeformer::get_vertex_skin_xform(const ImportState &state, Trans
 		Transform cluster_global_init_position = cluster->TransformLink();
 		Ref<FBXNode> link_node = get_link(state);
 		ERR_FAIL_COND_V_MSG(link_node.is_null(), Transform(), "invalid link corrupt file detected");
-		r_valid_pose = true;
 		Transform cluster_global_current_position = link_node.is_valid() && link_node->pivot_transform.is_valid() ? link_node->pivot_transform->GlobalTransform : Transform();
 
-		vertex_transform_matrix = reference_global_init_position.affine_inverse() * associate_global_init_position * associate_global_current_position.affine_inverse() *
-								  cluster_global_current_position * cluster_global_init_position.affine_inverse() * reference_global_init_position;
+		return reference_global_init_position.affine_inverse() * associate_global_init_position * associate_global_current_position.affine_inverse() *
+			   cluster_global_current_position * cluster_global_init_position.affine_inverse() * reference_global_init_position;
 	} else {
 		//print_error("non additive skinning is in use");
 		Transform reference_global_position = cluster->GetTransform();
@@ -106,9 +94,6 @@ Transform FBXSkinDeformer::get_vertex_skin_xform(const ImportState &state, Trans
 		}
 		Transform cluster_relative_init_position = global_init_position.affine_inverse() * reference_global_position;
 		Transform cluster_relative_position_inverse = reference_global_current_position.affine_inverse() * global_init_position;
-		vertex_transform_matrix = cluster_relative_position_inverse * cluster_relative_init_position;
-		r_valid_pose = true;
+		return cluster_relative_position_inverse * cluster_relative_init_position;
 	}
-
-	return vertex_transform_matrix;
 }

@@ -135,17 +135,17 @@ private:
 	/// Returns -1 if `p_index` is invalid.
 	int get_vertex_from_polygon_vertex(const std::vector<int> &p_face_indices, int p_index) const;
 
-	/// Retuns true if this polygon_vertex_index is the end of a new polygon.
+	/// Returns true if this polygon_vertex_index is the end of a new polygon.
 	bool is_end_of_polygon(const std::vector<int> &p_face_indices, int p_index) const;
 
-	/// Retuns true if this polygon_vertex_index is the begin of a new polygon.
+	/// Returns true if this polygon_vertex_index is the begin of a new polygon.
 	bool is_start_of_polygon(const std::vector<int> &p_face_indices, int p_index) const;
 
 	/// Returns the number of polygons.
 	int count_polygons(const std::vector<int> &p_face_indices) const;
 
-	/// Used to extract data from the `MappingData` alligned with vertex.
-	/// Useful to extract normal/uvs/colors/tangets/etc...
+	/// Used to extract data from the `MappingData` aligned with vertex.
+	/// Useful to extract normal/uvs/colors/tangents/etc...
 	/// If the function fails somehow, it returns an hollow vector and print an error.
 	template <class R, class T>
 	HashMap<int, R> extract_per_vertex_data(
@@ -157,7 +157,7 @@ private:
 			R p_fall_back) const;
 
 	/// Used to extract data from the `MappingData` organized per polygon.
-	/// Useful to extract the materila
+	/// Useful to extract the material
 	/// If the function fails somehow, it returns an hollow vector and print an error.
 	template <class T>
 	HashMap<int, T> extract_per_polygon(

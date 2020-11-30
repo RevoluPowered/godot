@@ -66,26 +66,26 @@ struct FBXBone : public Reference {
 	}
 
 	// Stores the pivot xform for this bone
+
 	Ref<FBXNode> node = nullptr;
 	Ref<FBXBone> parent_bone = nullptr;
 	Ref<FBXSkeleton> fbx_skeleton = nullptr;
 };
 
-struct FBXSkinDeformer : public Reference {
-	mutable const FBXDocParser::Deformer *skin = nullptr;
-	mutable const FBXDocParser::Cluster *cluster = nullptr;
+struct FBXSkinDeformer {
+	FBXSkinDeformer(Ref<FBXBone> p_bone, const FBXDocParser::Cluster *p_cluster) :
+			cluster(p_cluster), bone(p_bone) {}
+	~FBXSkinDeformer() {}
+	const FBXDocParser::Cluster *cluster;
 	Ref<FBXBone> bone;
-	uint64_t target_node_id; // the node target id for the skeleton element
-	bool valid_target = false; // only applies to bones with a mesh / in the skin.
+
 	/* get associate model - the model can be invalid sometimes */
 	Ref<FBXBone> get_associate_model() const {
 		return bone->parent_bone;
 	}
 
 	Ref<FBXNode> get_link(const ImportState &state) const;
-	Transform get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position, bool &valid);
-	Transform vertex_transform_matrix;
-	Transform local_cluster_matrix; // set_bone_pose
+	Transform get_vertex_skin_xform(const ImportState &state, Transform mesh_global_position);
 };
 
 #endif // FBX_BONE_H
