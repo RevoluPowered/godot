@@ -761,7 +761,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 					// cache the mesh xform
 					//const Transform mesh_xform = mesh->mesh_node->pivot_transform->GlobalTransform;
 
-					skinned_bones.insert(limbNode->ID(), cluster->TransformLink().affine_inverse());
+					skinned_bones.insert(limbNode->ID(), skeleton_node->pivot_transform->GlobalTransform * cluster->TransformLink().affine_inverse());
 				}
 			}
 			// cluster->ID() (Source Object is the LIMBNODE)
