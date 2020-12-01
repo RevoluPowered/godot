@@ -40,6 +40,7 @@
 #include "import_state.h"
 #include "tools/import_utils.h"
 
+struct FBXNode;
 struct FBXMeshData;
 struct FBXBone;
 struct ImportState;
@@ -68,6 +69,7 @@ struct FBXMeshData : Reference {
 		Vector<Vector3> normals;
 	};
 
+	Ref<FBXNode> mesh_node = nullptr;
 	/// vertex id, Weight Info
 	/// later: perf we can use array here
 	HashMap<int, VertexWeightMapping> vertex_weights;

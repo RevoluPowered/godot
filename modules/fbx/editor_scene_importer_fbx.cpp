@@ -666,6 +666,8 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 							state.renderer_mesh_data.insert(mesh_id, mesh_data_precached);
 						}
 
+						mesh_data_precached->mesh_node = fbx_node;
+
 						// mesh node, mesh id
 						mesh_node = mesh_data_precached->create_fbx_mesh(state, mesh_geometry, fbx_node->fbx_model, (p_flags & IMPORT_USE_COMPRESSION) != 0);
 						if (!state.MeshNodes.has(mesh_id)) {
@@ -714,7 +716,12 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		Ref<FBXMeshData> mesh = mesh_data->value();
 
 		const FBXDocParser::MeshGeometry *mesh_geometry = p_document->GetObject(mesh_id)->Get<FBXDocParser::MeshGeometry>();
-		const FBXDocParser::Skin *skin = mesh_geometry->DeformerSkin();
+
+		ERR_CONTINUE_MSG(mesh->mesh_node.is_null(), "invalid mesh allocation");
+
+		const FBXDocParser::Skin *mesh_skin = mesh_geometry->DeformerSkin();
+
+		ERR_CONTINUE_MSG(mesh_skin == nullptr, "no skin for mesh: " + mesh->mesh_node->node_name);
 
 		//
 		// Skin bone configuration
@@ -726,7 +733,15 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		//		ERR_CONTINUE_MSG(!state.fbx_target_map.has(mesh_id), "invalid xform for the skin pose: " + itos(mesh_id));
 		//		Ref<FBXNode> mesh_node_xform_data = state.fbx_target_map[mesh_id];
 
-		for (const FBXDocParser::Cluster *cluster : skin->Clusters()) {
+		// bone id, bone xform
+		Map<uint64_t, Transform> skinned_bones;
+
+		bool has_skin_deformer = false;
+
+		for (const FBXDocParser::Cluster *cluster : mesh_skin->Clusters()) {
+			print_verbose("Enabled cluster deformer for skin");
+			has_skin_deformer = true; // we enabled it for this mesh.
+
 			std::vector<const FBXDocParser::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(cluster->ID());
 
 			for (const FBXDocParser::Connection *connection : connections) {
@@ -734,14 +749,48 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 				if (limbNode) {
 					ERR_BREAK_MSG(!state.fbx_bone_map.has(limbNode->ID()), "unable to find bone");
 
-					Ref<FBXBone> bone_element = state.fbx_bone_map[limbNode->ID()];
+					const Ref<FBXBone> bone = state.fbx_bone_map[limbNode->ID()];
+					const Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
+					const Ref<FBXNode> skeleton_node = skeleton->fbx_node;
 
 					// Calculate the skin pose (was taken and separated out to decouple from the bone data (prevents misunderstanding about cluster relationships with bones)
-					FBXSkinDeformer skin_deformer(bone_element, cluster);
-					state.MeshSkins[mesh_id]->add_named_bind(bone_element->bone_name, skin_deformer.get_vertex_skin_xform(state, mesh_node_xform_data->pivot_transform->GlobalTransform));
+					//FBXSkinDeformer skin_deformer(bone, cluster);
+
+					print_verbose("bone mesh cluster skin pose: " + cluster->TransformLink());
+
+					// cache the mesh xform
+					//const Transform mesh_xform = mesh->mesh_node->pivot_transform->GlobalTransform;
+
+					skinned_bones.insert(limbNode->ID(), cluster->TransformLink().affine_inverse());
 				}
 			}
 			// cluster->ID() (Source Object is the LIMBNODE)
+		}
+
+		// do we need to polyfill skin with global transform of node instead?
+		if (has_skin_deformer) {
+
+			// Lookup skin or create it if it's not found.
+			Ref<Skin> skin;
+			if (!state.MeshSkins.has(mesh_id)) {
+				print_verbose("Created new skin");
+				skin.instance();
+				state.MeshSkins.insert(mesh_id, skin);
+			} else {
+				print_verbose("Grabbed skin");
+				skin = state.MeshSkins[mesh_id];
+			}
+
+			for (Map<uint64_t, Ref<FBXBone> >::Element *element = state.fbx_bone_map.front(); element; element = element->next()) {
+				if (skinned_bones.has(element->key())) {
+					print_verbose("Using cluster bind! ");
+					// basically this could be identity but the FBX SDK I'm fairly sure supplies the inverse joint matrix if the bind matrix is invalid.
+					skin->add_named_bind(element->value()->bone_name, get_unscaled_transform(skinned_bones[element->key()], state.scale));
+				} else {
+					print_verbose("Polyfilled in Transform()");
+					skin->add_named_bind(element->value()->bone_name, Transform().affine_inverse());
+				}
+			}
 		}
 	}
 

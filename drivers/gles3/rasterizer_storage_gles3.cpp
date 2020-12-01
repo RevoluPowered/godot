@@ -4292,7 +4292,7 @@ AABB RasterizerStorageGLES3::mesh_get_aabb(RID p_mesh, RID p_skeleton) const {
 				const bool *skused = mesh->surfaces[i]->skeleton_bone_used.ptr();
 
 				int sbs = sk->size;
-				ERR_CONTINUE(bs > sbs);
+				ERR_CONTINUE_MSG(bs > sbs, "skeleton bone count doesn't match the skin bind count");
 				const float *texture = sk->skel_texture.ptr();
 
 				bool first = true;
