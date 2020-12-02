@@ -771,7 +771,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 		print_verbose("cluster name / id: " + String(mesh_skin->Name().c_str()) + " [" + itos(mesh_skin->ID()) + "]");
 		print_verbose("skeleton has " + itos(state.fbx_bone_map.size()) + " binds");
-		print_verbose("skin has " + itos(mesh_skin->Clusters().size()) + " binds");
+		print_verbose("fbx skin has " + itos(mesh_skin->Clusters().size()) + " binds");
 	}
 
 	// mesh data iteration for populating skeleton mapping

@@ -117,8 +117,6 @@ struct SurfaceData {
 
 MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDocParser::MeshGeometry *p_mesh_geometry, const FBXDocParser::Model *model, bool use_compression) {
 
-	// FIXME: remove me again (debug only!)
-	//mesh_geometry = nullptr;
 	mesh_geometry = p_mesh_geometry;
 	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
 	const std::vector<const FBXDocParser::Material *> &material_lookup = model->GetMaterials();
@@ -443,8 +441,6 @@ void FBXMeshData::sanitize_vertex_weights(const ImportState &state) {
 			for (int i = 0; i < vm->weights.size(); i += 1) {
 				// At this point this is not possible because the skeleton is already initialized.
 				CRASH_COND(bones_ref_ptr[i]->godot_bone_id == -2);
-
-				// FIXME: input here is entirely wrong.
 				bones_ptr[i] = skeleton_to_skin_bind_id[bones_ref_ptr[i]->godot_bone_id];
 			}
 
