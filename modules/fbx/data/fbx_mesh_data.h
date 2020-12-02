@@ -69,6 +69,9 @@ struct FBXMeshData : Reference {
 		Vector<Vector3> normals;
 	};
 
+	// FIXME: remove this is a hack for testing only
+	mutable const FBXDocParser::MeshGeometry *mesh_geometry = nullptr;
+
 	Ref<FBXNode> mesh_node = nullptr;
 	/// vertex id, Weight Info
 	/// later: perf we can use array here
@@ -77,7 +80,7 @@ struct FBXMeshData : Reference {
 	// translate fbx mesh data from document context to FBX Mesh Geometry Context
 	bool valid_weight_indexes = false;
 
-	MeshInstance *create_fbx_mesh(const ImportState &state, const FBXDocParser::MeshGeometry *mesh_geometry, const FBXDocParser::Model *model, bool use_compression);
+	MeshInstance *create_fbx_mesh(const ImportState &state, const FBXDocParser::MeshGeometry *p_mesh_geometry, const FBXDocParser::Model *model, bool use_compression);
 
 	void gen_weight_info(Ref<SurfaceTool> st, int vertex_id) const;
 
@@ -89,7 +92,7 @@ struct FBXMeshData : Reference {
 	MeshInstance *godot_mesh_instance = nullptr;
 
 private:
-	void sanitize_vertex_weights();
+	void sanitize_vertex_weights(const ImportState &state);
 
 	/// Make sure to reorganize the vertices so that the correct UV is taken.
 	/// This step is needed because differently from the normal, that can be
@@ -109,6 +112,7 @@ private:
 			HashMap<int, HashMap<int, Vector2> > &r_uv_2_raw);
 
 	void add_vertex(
+			const ImportState &state,
 			Ref<SurfaceTool> p_surface_tool,
 			real_t p_scale,
 			int p_vertex,

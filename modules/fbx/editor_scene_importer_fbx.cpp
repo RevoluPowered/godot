@@ -507,7 +507,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 				VertexWeightMapping &vm = mesh_vertex_data->vertex_weights[vertex_index];
 				vm.weights.push_back(influence_weight);
-				vm.bones.push_back(0);
+				vm.bones.push_back(0); // bone id is pushed on here during sanitization phase
 				vm.bones_ref.push_back(bone_element);
 			}
 
@@ -733,65 +733,45 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		//		ERR_CONTINUE_MSG(!state.fbx_target_map.has(mesh_id), "invalid xform for the skin pose: " + itos(mesh_id));
 		//		Ref<FBXNode> mesh_node_xform_data = state.fbx_target_map[mesh_id];
 
-		// bone id, bone xform
-		Map<uint64_t, Transform> skinned_bones;
+		if (!mesh_skin) {
+			continue; // not a deformer.
+		}
 
-		bool has_skin_deformer = false;
+		if (mesh_skin->Clusters().size() == 0) {
+			continue; // possibly buggy mesh
+		}
+
+		// Lookup skin or create it if it's not found.
+		Ref<Skin> skin;
+		if (!state.MeshSkins.has(mesh_id)) {
+			print_verbose("Created new skin");
+			skin.instance();
+			state.MeshSkins.insert(mesh_id, skin);
+		} else {
+			print_verbose("Grabbed skin");
+			skin = state.MeshSkins[mesh_id];
+		}
 
 		for (const FBXDocParser::Cluster *cluster : mesh_skin->Clusters()) {
-			print_verbose("Enabled cluster deformer for skin");
-			has_skin_deformer = true; // we enabled it for this mesh.
+			// node or bone this cluster targets (in theory will only be a bone target)
+			uint64_t skin_target_id = cluster->TargetNode()->ID();
 
-			std::vector<const FBXDocParser::Connection *> connections = p_document->GetConnectionsByDestinationSequenced(cluster->ID());
+			print_verbose("adding cluster [" + itos(cluster->ID()) + "] " + String(cluster->Name().c_str()) + " for target: [" + itos(skin_target_id) + "] " + String(cluster->TargetNode()->Name().c_str()));
+			ERR_CONTINUE_MSG(!state.fbx_bone_map.has(skin_target_id), "no bone found by that ID? locator");
 
-			for (const FBXDocParser::Connection *connection : connections) {
-				FBXDocParser::ModelLimbNode *limbNode = dynamic_cast<FBXDocParser::ModelLimbNode *>(connection->SourceObject());
-				if (limbNode) {
-					ERR_BREAK_MSG(!state.fbx_bone_map.has(limbNode->ID()), "unable to find bone");
+			const Ref<FBXBone> bone = state.fbx_bone_map[skin_target_id];
+			const Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
+			const Ref<FBXNode> skeleton_node = skeleton->fbx_node;
 
-					const Ref<FBXBone> bone = state.fbx_bone_map[limbNode->ID()];
-					const Ref<FBXSkeleton> skeleton = bone->fbx_skeleton;
-					const Ref<FBXNode> skeleton_node = skeleton->fbx_node;
-
-					// Calculate the skin pose (was taken and separated out to decouple from the bone data (prevents misunderstanding about cluster relationships with bones)
-					//FBXSkinDeformer skin_deformer(bone, cluster);
-
-					print_verbose("bone mesh cluster skin pose: " + cluster->TransformLink());
-
-					// cache the mesh xform
-					//const Transform mesh_xform = mesh->mesh_node->pivot_transform->GlobalTransform;
-
-					skinned_bones.insert(limbNode->ID(), skeleton_node->pivot_transform->GlobalTransform.affine_inverse() * cluster->TransformLink().affine_inverse());
-				}
-			}
-			// cluster->ID() (Source Object is the LIMBNODE)
+			skin->add_named_bind(
+					bone->bone_name,
+					get_unscaled_transform(
+							skeleton_node->pivot_transform->GlobalTransform.affine_inverse() * cluster->TransformLink().affine_inverse(), state.scale));
 		}
 
-		// do we need to polyfill skin with global transform of node instead?
-		if (has_skin_deformer) {
-
-			// Lookup skin or create it if it's not found.
-			Ref<Skin> skin;
-			if (!state.MeshSkins.has(mesh_id)) {
-				print_verbose("Created new skin");
-				skin.instance();
-				state.MeshSkins.insert(mesh_id, skin);
-			} else {
-				print_verbose("Grabbed skin");
-				skin = state.MeshSkins[mesh_id];
-			}
-
-			for (Map<uint64_t, Ref<FBXBone> >::Element *element = state.fbx_bone_map.front(); element; element = element->next()) {
-				if (skinned_bones.has(element->key())) {
-					print_verbose("Using cluster bind! ");
-					// basically this could be identity but the FBX SDK I'm fairly sure supplies the inverse joint matrix if the bind matrix is invalid.
-					skin->add_named_bind(element->value()->bone_name, get_unscaled_transform(skinned_bones[element->key()], state.scale));
-				} else {
-					print_verbose("Polyfilled in Transform()");
-					skin->add_named_bind(element->value()->bone_name, Transform().affine_inverse());
-				}
-			}
-		}
+		print_verbose("cluster name / id: " + String(mesh_skin->Name().c_str()) + " [" + itos(mesh_skin->ID()) + "]");
+		print_verbose("skeleton has " + itos(state.fbx_bone_map.size()) + " binds");
+		print_verbose("skin has " + itos(mesh_skin->Clusters().size()) + " binds");
 	}
 
 	// mesh data iteration for populating skeleton mapping
