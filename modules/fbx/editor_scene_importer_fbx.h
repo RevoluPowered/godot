@@ -71,6 +71,8 @@ private:
 		};
 	};
 
+	String skeleton_override_file = ""; // used for re-targeting animations onto skeleton
+
 	// ------------------------------------------------------------------------------------------------
 	template <typename T>
 	const T *ProcessDOMConnection(
@@ -120,11 +122,12 @@ private:
 	template <class T>
 	T _interpolate_track(const Vector<float> &p_times, const Vector<T> &p_values, float p_time, AssetImportAnimation::Interpolation p_interp);
 	void _register_project_setting_import(const String generic, const String import_setting_string, const Vector<String> &exts, List<String> *r_extensions, const bool p_enabled) const;
+	void get_import_options(List<ResourceImporter::ImportOption> *r_options, int p_preset) const;
 
 public:
 	EditorSceneImporterFBX() {}
 	~EditorSceneImporterFBX() {}
-
+	virtual void get_custom_options(const Map<StringName, Variant> &p_options);
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);

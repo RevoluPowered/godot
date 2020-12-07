@@ -56,6 +56,7 @@
 
 #include <string>
 
+//e
 void EditorSceneImporterFBX::get_extensions(List<String> *r_extensions) const {
 	// register FBX as the one and only format for FBX importing
 	const String import_setting_string = "filesystem/import/fbx/";
@@ -80,12 +81,26 @@ void EditorSceneImporterFBX::_register_project_setting_import(const String gener
 	}
 }
 
+void EditorSceneImporterFBX::get_custom_options(const Map<StringName, Variant> &p_options) {
+	if (String(p_options["skeleton/use_skeletons_from_file"]) != "") {
+		print_verbose("Override skeleton is configured for asset!");
+		String override_skeleton_path = p_options["skeleton/use_skeletons_from_file"];
+		print_verbose("Override path: " + override_skeleton_path);
+		skeleton_override_file = override_skeleton_path;
+	}
+}
+
 uint32_t EditorSceneImporterFBX::get_import_flags() const {
 	return IMPORT_SCENE;
 }
 
 Node *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps,
 		List<String> *r_missing_deps, Error *r_err) {
+
+	// ResourceImporterScene is not giving me the custom options how do i get them?
+
+	//if(ResourceImporterScene::get_singleton()->)
+
 	// done for performance when re-importing lots of files when testing importer in verbose only!
 	if (OS::get_singleton()->is_stdout_verbose()) {
 		EditorLog *log = EditorNode::get_log();
@@ -387,6 +402,10 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
 
+	if (skeleton_override_file != "") {
+		print_verbose("Skeleton override is enabled for this file: " + skeleton_override_file);
+	}
+
 	// Size relative to cm.
 	const real_t fbx_unit_scale = p_document->GlobalSettingsPtr()->UnitScaleFactor();
 
@@ -624,7 +643,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 		// setup skeleton instances if required :)
 		for (Map<uint64_t, Ref<FBXSkeleton> >::Element *skeleton_node = state.skeleton_map.front(); skeleton_node; skeleton_node = skeleton_node->next()) {
 			Ref<FBXSkeleton> &skeleton = skeleton_node->value();
-			skeleton->init_skeleton(state);
+			skeleton->init_skeleton(state, p_document);
 
 			ERR_CONTINUE_MSG(skeleton->fbx_node.is_null(), "invalid fbx target map, missing skeleton");
 		}

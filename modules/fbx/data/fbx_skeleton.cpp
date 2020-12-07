@@ -34,7 +34,7 @@
 
 #include "tools/import_utils.h"
 
-void FBXSkeleton::init_skeleton(const ImportState &state) {
+void FBXSkeleton::init_skeleton(const ImportState &state, const FBXDocParser::Document *p_document) {
 	int skeleton_bone_count = skeleton_bones.size();
 
 	if (skeleton == nullptr && skeleton_bone_count > 0) {
@@ -98,12 +98,41 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 
 	ERR_FAIL_COND_MSG(skeleton->get_bone_count() != bone_count, "Not all bones got added, is the file corrupted?");
 
+	// NOTE: we are purposefully losing data here, we only need the FIRST bind for the bone and we convert the bind pose to the rest :)
+	Map<uint64_t, Transform> bind_poses_global_list;
+	//Map<uint64_t, Map<uint64_t, Transform> bind_poses_global_skins;
+
+	// Get bind poses
+	const std::vector<uint64_t> &bind_poses = p_document->GetBindPoseIDs();
+	for (uint64_t bind_pose_id : bind_poses) {
+		FBXDocParser::LazyObject *bind_pose = p_document->GetObject(bind_pose_id);
+		const FBXDocParser::FbxPose *pose = bind_pose->Get<FBXDocParser::FbxPose>();
+		if (pose) {
+			// now build the list of pose nodes
+			for (const FBXDocParser::FbxPoseNode *poseNode : pose->GetBindPoses()) {
+				Transform bind_pose_transform = poseNode->GetBindPose();
+				uint64_t bind_pose_target = poseNode->GetNodeID();
+				if (bind_poses_global_list.has(bind_pose_target)) {
+					//print_error("One to many relationship! ignored.. it's fine");
+				} else {
+					bind_poses_global_list.insert(bind_pose_target, bind_pose_transform);
+				}
+			}
+		}
+	}
+
+	if (bind_poses_global_list.size() == 0 && bone_count > 0) {
+		print_verbose("(BAD FBX EXPORTER DETECTED) Looks like your bind pose list is not configured and you have a skeleton, this is a bad thing to happen, we will require you have exported your file in the bind pose.");
+	}
+
 	for (Map<int, Ref<FBXBone> >::Element *bone_element = bone_map.front(); bone_element; bone_element = bone_element->next()) {
 		const Ref<FBXBone> bone = bone_element->value();
 		int bone_index = bone_element->key();
 		print_verbose("working on bone: " + itos(bone_index) + " bone name:" + bone->bone_name);
 
+		// Use a sensible fallback (this code path works fine)
 		skeleton->set_bone_rest(bone->godot_bone_id, get_unscaled_transform(bone->node->pivot_transform->LocalTransform, state.scale));
+		print_verbose("Failed to find pose in the FBX file, has been configured correctly using bone global space, if you have issues export your file in the bind pose please");
 
 		// lookup parent ID
 		if (bone->valid_parent && state.fbx_bone_map.has(bone->parent_bone_id)) {

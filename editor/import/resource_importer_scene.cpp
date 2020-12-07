@@ -1132,7 +1132,6 @@ void ResourceImporterScene::_make_external_resources(Node *p_node, const String 
 	}
 
 	for (int i = 0; i < p_node->get_child_count(); i++) {
-
 		_make_external_resources(p_node->get_child(i), p_base_path, p_make_animations, p_animations_as_text, p_keep_animations, p_make_materials, p_materials_as_text, p_keep_materials, p_make_meshes, p_meshes_as_text, p_animations, p_materials, p_meshes);
 	}
 }
@@ -1182,6 +1181,8 @@ void ResourceImporterScene::get_import_options(List<ImportOption> *r_options, in
 	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "animation/optimizer/max_angle"), 22));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "animation/optimizer/remove_unused_tracks"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "animation/clips/amount", PROPERTY_HINT_RANGE, "0,256,1", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), 0));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::STRING, "skeleton/use_skeletons_from_file", PROPERTY_HINT_FILE, "*.fbx", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), ""));
+
 	for (int i = 0; i < 256; i++) {
 		r_options->push_back(ImportOption(PropertyInfo(Variant::STRING, "animation/clip_" + itos(i + 1) + "/name"), ""));
 		r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "animation/clip_" + itos(i + 1) + "/start_frame"), 0));
@@ -1314,6 +1315,9 @@ Error ResourceImporterScene::import(const String &p_source_file, const String &p
 
 	if (bool(p_options["skins/use_named_skins"]))
 		import_flags |= EditorSceneImporter::IMPORT_USE_NAMED_SKIN_BINDS;
+
+	// push custom settings into the importer (used for expanded properties)
+	importer->get_custom_options(p_options);
 
 	Error err = OK;
 	List<String> missing_deps; // for now, not much will be done with this
