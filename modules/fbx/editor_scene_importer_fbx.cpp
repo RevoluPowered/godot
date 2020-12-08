@@ -390,6 +390,14 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	state.path = p_path;
 	state.animation_player = NULL;
 
+	// TODO: later.
+	if (skeleton_override_file != "") {
+		print_verbose("Skeleton override is enabled for this file: " + skeleton_override_file);
+		Ref<Resource> scene = ResourceLoader::load(skeleton_override_file);
+		Node *node_scene = scene->get_local_scene();
+		state.override_skeleton_scene = scene;
+	}
+
 	// create new root node for scene
 	Spatial *scene_root = memnew(Spatial);
 	state.root = memnew(Spatial);
@@ -401,10 +409,6 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 	state.fbx_root_node.instance();
 	state.fbx_root_node->godot_node = state.root;
-
-	if (skeleton_override_file != "") {
-		print_verbose("Skeleton override is enabled for this file: " + skeleton_override_file);
-	}
 
 	// Size relative to cm.
 	const real_t fbx_unit_scale = p_document->GlobalSettingsPtr()->UnitScaleFactor();

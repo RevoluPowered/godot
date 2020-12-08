@@ -67,6 +67,7 @@ struct ImportState {
 
 	Map<StringName, Ref<Texture> > cached_image_searches;
 	Map<uint64_t, Ref<SpatialMaterial> > cached_materials;
+	Ref<Resource> override_skeleton_scene;
 
 	String path = String();
 	Spatial *root_owner = nullptr;
