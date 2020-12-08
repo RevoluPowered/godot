@@ -37,6 +37,8 @@
 #include "tools/import_utils.h"
 
 #include "core/io/image_loader.h"
+#include "core/io/json.h"
+
 #include "editor/editor_log.h"
 #include "editor/editor_node.h"
 #include "editor/import/resource_importer_scene.h"
@@ -88,6 +90,15 @@ void EditorSceneImporterFBX::get_custom_options(const Map<StringName, Variant> &
 		print_verbose("Override path: " + override_skeleton_path);
 		skeleton_override_file = override_skeleton_path;
 	}
+}
+
+String escape_note_track_str(String str) {
+	str = str.replace("&amp;", "&");
+	str = str.replace("&lt;", "<");
+	str = str.replace("&gt;", ">");
+	str = str.replace("&apos;", "'");
+	str = str.replace("&quot;", "\"");
+	return str;
 }
 
 uint32_t EditorSceneImporterFBX::get_import_flags() const {
@@ -394,7 +405,7 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 	if (skeleton_override_file != "") {
 		print_verbose("Skeleton override is enabled for this file: " + skeleton_override_file);
 		Ref<Resource> scene = ResourceLoader::load(skeleton_override_file);
-		Node *node_scene = scene->get_local_scene();
+		//Node *node_scene = scene->get_local_scene();
 		state.override_skeleton_scene = scene;
 	}
 
@@ -651,10 +662,6 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 
 			ERR_CONTINUE_MSG(skeleton->fbx_node.is_null(), "invalid fbx target map, missing skeleton");
 		}
-
-		// This list is not populated
-		for (Map<uint64_t, Ref<FBXNode> >::Element *skin_mesh = state.MeshNodes.front(); skin_mesh; skin_mesh = skin_mesh->next()) {
-		}
 	}
 
 	// build godot node tree
@@ -884,6 +891,86 @@ Spatial *EditorSceneImporterFBX::_generate_scene(
 				animation.instance();
 				animation->set_name(animation_name);
 				animation->set_length(duration);
+
+				{
+					for (Map<uint64_t, FBXDocParser::PropertyPtr>::Element *fbx_note_tracks = state.AnimationNotes.front(); fbx_note_tracks; fbx_note_tracks = fbx_note_tracks->next()) {
+						uint64_t key = fbx_note_tracks->key();
+						Ref<FBXNode> node = state.fbx_target_map[key];
+						if (fbx_note_tracks->value()) {
+							const FBXDocParser::TypedProperty<std::string> *note_track_content = dynamic_cast<const FBXDocParser::TypedProperty<std::string> *>(fbx_note_tracks->value());
+							if (note_track_content) {
+								String source = String(note_track_content->Value().c_str());
+								String result = escape_note_track_str(source);
+								print_verbose("Resulting string input for dict conversion: " + result);
+
+								Variant variant;
+								String err_str;
+								int error_line;
+								Error err = JSON::parse(result, variant, err_str, error_line);
+
+								if (err == OK) {
+									Dictionary dict = variant;
+
+									Array keys = dict.keys();
+
+									int track_idx = animation->add_track(Animation::TrackType::TYPE_VALUE);
+									String node_path = state.root->get_path_to(node->godot_node);
+									NodePath path = node_path;
+									animation->track_set_path(track_idx, path);
+
+									// pre-cache the keys and the maximum frame count for the animation duration and for basic iteration.
+									int max_frame_number = 0;
+									for (int x = 0; x < keys.size(); x++) {
+										String action_name = keys[x];
+										Array keyframe_array = dict[action_name];
+
+										for (int y = 0; y < keyframe_array.size(); y++) {
+											print_verbose("y value " + itos(y));
+											int keyframe_id = keyframe_array[y];
+											max_frame_number = MAX(max_frame_number, keyframe_id);
+											print_verbose("action name: " + action_name + " position: " + itos(keyframe_id));
+										}
+									}
+
+									// set the duration of the animation (here i assume its 24 like maya default if its not set)
+									// note tracks must expand this if they keyframes don't fit in the engine.
+									float extended_duration = fps_setting > 0 ? max_frame_number / fps_setting : max_frame_number / 24;
+									print_verbose("Animation note system duration");
+
+									// expand the animation length to fit in the note tracks.
+									if (animation->get_length() < extended_duration) {
+										animation->set_length(extended_duration);
+									}
+
+									// add the actual keys into the animation player
+
+									for (int x = 0; x < keys.size(); x++) {
+										String action_name = keys[x];
+										Array keyframe_array = dict[action_name];
+
+										for (int y = 0; y < keyframe_array.size(); y++) {
+											print_verbose("y value " + itos(y));
+											int keyframe_id = keyframe_array[y];
+
+											float animation_duration = keyframe_id / fps_setting;
+											max_frame_number = MAX(max_frame_number, keyframe_id);
+											animation->track_insert_key(track_idx, animation_duration, action_name, 1);
+											print_verbose("action name: " + action_name + " position: " + itos(keyframe_id));
+										}
+									}
+								}
+							}
+						}
+					}
+
+					//
+					// Correctly adds keys tested but now we need the data in the state.
+					//
+
+					// TODO: add duration expansion.
+
+					//state.animation_player->add_animation(animation_name, animation);
+				}
 
 				print_verbose("Animation length: " + rtos(animation->get_length()) + " seconds");
 
@@ -1472,6 +1559,14 @@ void EditorSceneImporterFBX::BuildDocumentNodes(
 			} else {
 				new_node->set_parent(state.fbx_root_node);
 			}
+
+			// if we have note tracks store them (for importing game logic)
+			FBXDocParser::PropertyPtr note_tracks = model->Props()->Get("Notetracks");
+			if (note_tracks) {
+				state.AnimationNotes.insert(current_node_id, note_tracks);
+			}
+
+			// Populate note tracks (stored in the model not in the animation tracks)
 
 			CRASH_COND_MSG(new_node->pivot_transform.is_null(), "invalid fbx target map pivot transform [serious]");
 

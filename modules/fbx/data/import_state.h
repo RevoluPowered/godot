@@ -101,6 +101,9 @@ struct ImportState {
 	// mesh skin map
 	Map<uint64_t, Ref<Skin> > MeshSkins = Map<uint64_t, Ref<Skin> >();
 
+	// Animation notes are text for your animation players which is embedded in the FBX file.
+	Map<uint64_t, FBXDocParser::PropertyPtr> AnimationNotes;
+
 	// this is the container for the mesh weight information and eventually
 	// any mesh data
 	// but not the skin, just stuff important for rendering
