@@ -111,6 +111,7 @@ struct SurfaceData {
 	OrderedHashMap<Vertex, int> lookup_table; // proposed fix is to replace lookup_table[vertex_id] to give the position of the vertices_map[int] index.
 	LocalVector<Vertex> vertices_map; // this must be ordered the same as insertion <-- slow to do find() operation.
 	Ref<SpatialMaterial> material;
+	bool has_uv_map = false;
 	HashMap<PolygonId, Vector<DataIndex> > surface_polygon_vertex;
 	Array morphs;
 };
@@ -172,13 +173,14 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			&collect_all,
 			HashMap<int, Vector2>());
 
-	HashMap<int, Color> colors = extract_per_vertex_data(
+	HashMap<int, Color> colors;
+	HashMap<int, HashMap<int, Color> > colors_raw = extract_per_vertex_data(
 			vertices.size(),
 			mesh_geometry->get_edge_map(),
 			polygon_indices,
 			mesh_geometry->get_colors(),
-			&collect_first,
-			Color());
+			&collect_all,
+			HashMap<int, Color>());
 
 	// TODO what about tangents?
 	// TODO what about bi-nomials?
@@ -209,8 +211,12 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			colors,
 			morphs,
 			normals_raw,
+			colors_raw,
 			uvs_0_raw,
 			uvs_1_raw);
+
+	const int color_count = colors.size();
+	print_verbose("Vertex color count: " + itos(color_count));
 
 	// Make sure that from this moment on the mesh_geometry is no used anymore.
 	// This is a safety step, because the mesh_geometry data are no more valid
@@ -218,8 +224,10 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 
 	const int vertex_count = vertices.size();
 
+	print_verbose("Vertex count: " + itos(vertex_count));
+
 	// The map key is the material allocator id that is also used as surface id.
-	HashMap<SurfaceId, SurfaceData> surfaces;
+	OrderedHashMap<SurfaceId, SurfaceData> surfaces;
 
 	// Phase 2. For each material create a surface tool (So a different mesh).
 	{
@@ -252,7 +260,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
 				}
 
-				surfaces.set(surface_id, sd);
+				surfaces[surface_id] = sd;
 			}
 		}
 	}
@@ -262,33 +270,32 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 	{
 		PolygonId polygon_index = -1;
 		SurfaceId surface_id = -1;
-		SurfaceData *surface_data = nullptr;
 
 		for (size_t polygon_vertex = 0; polygon_vertex < polygon_indices.size(); polygon_vertex += 1) {
 			if (is_start_of_polygon(polygon_indices, polygon_vertex)) {
 				polygon_index += 1;
 				ERR_FAIL_COND_V_MSG(polygon_surfaces.has(polygon_index) == false, nullptr, "The FBX file is currupted, This surface_index is not expected.");
 				surface_id = polygon_surfaces[polygon_index];
-				surface_data = surfaces.getptr(surface_id);
-				CRASH_COND(surface_data == nullptr); // Can't be null.
 			}
 
+			// no copy and no ptr required.
+			SurfaceData &surface_data = surfaces[surface_id];
 			const int vertex = get_vertex_from_polygon_vertex(polygon_indices, polygon_vertex);
 
 			// The vertex position in the surface
 			// Uses a lookup table for speed with large scenes
-			bool has_polygon_vertex_index = surface_data->lookup_table.has(vertex);
+			bool has_polygon_vertex_index = surface_data.lookup_table.has(vertex);
 			int surface_polygon_vertex_index = -1;
 
 			if (has_polygon_vertex_index) {
-				surface_polygon_vertex_index = surface_data->lookup_table[vertex];
+				surface_polygon_vertex_index = surface_data.lookup_table[vertex];
 			} else {
-				surface_polygon_vertex_index = surface_data->vertices_map.size();
-				surface_data->lookup_table[vertex] = surface_polygon_vertex_index;
-				surface_data->vertices_map.push_back(vertex);
+				surface_polygon_vertex_index = surface_data.vertices_map.size();
+				surface_data.lookup_table[vertex] = surface_polygon_vertex_index;
+				surface_data.vertices_map.push_back(vertex);
 			}
 
-			surface_data->surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
+			surface_data.surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
 		}
 	}
 
@@ -296,17 +303,21 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 	//print_verbose("[debug UV 2] UV2: " + itos(uvs_1.size()));
 
 	// Phase 4. Per each surface just insert the vertices and add the indices.
-	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-		SurfaceData *surface = surfaces.getptr(*surface_id);
+	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
+		SurfaceData &surface_data = current_surface.value();
 
 		// Just add the vertices data.
-		for (unsigned int i = 0; i < surface->vertices_map.size(); i += 1) {
-			const Vertex vertex = surface->vertices_map[i];
+		for (unsigned int i = 0; i < surface_data.vertices_map.size(); i += 1) {
+			const Vertex vertex = surface_data.vertices_map[i];
+
+			if (!surface_data.has_uv_map) {
+				surface_data.has_uv_map = uvs_0.size() > 0 || uvs_1.size() > 0;
+			}
 
 			// This must be done before add_vertex because the surface tool is
 			// expecting this before the st->add_vertex() call
 			add_vertex(state,
-					surface->surface_tool,
+					surface_data.surface_tool,
 					state.scale,
 					vertex,
 					vertices,
@@ -317,20 +328,20 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 		}
 
 		// Triangulate the various polygons and add the indices.
-		for (const PolygonId *polygon_id = surface->surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface->surface_polygon_vertex.next(polygon_id)) {
-			const Vector<DataIndex> *indices = surface->surface_polygon_vertex.getptr(*polygon_id);
+		for (const PolygonId *polygon_id = surface_data.surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface_data.surface_polygon_vertex.next(polygon_id)) {
+			const Vector<DataIndex> *indices = surface_data.surface_polygon_vertex.getptr(*polygon_id);
 
 			triangulate_polygon(
-					surface->surface_tool,
+					surface_data.surface_tool,
 					*indices,
-					surface->vertices_map,
+					surface_data.vertices_map,
 					vertices);
 		}
 	}
 
 	// Phase 5. Compose the morphs if any.
-	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-		SurfaceData *surface = surfaces.getptr(*surface_id);
+	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
+		SurfaceData &surface_data = current_surface.value();
 
 		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
 			MorphVertexData *morph_data = morphs.getptr(*morph_name);
@@ -347,8 +358,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			morph_st.instance();
 			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-			for (unsigned int vi = 0; vi < surface->vertices_map.size(); vi += 1) {
-				const Vertex vertex = surface->vertices_map[vi];
+			for (unsigned int vi = 0; vi < surface_data.vertices_map.size(); vi += 1) {
+				const Vertex vertex = surface_data.vertices_map[vi];
 				add_vertex(
 						state,
 						morph_st,
@@ -364,7 +375,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			}
 
 			morph_st->generate_tangents();
-			surface->morphs.push_back(morph_st->commit_to_arrays());
+			surface_data.morphs.push_back(morph_st->commit_to_arrays());
 		}
 	}
 
@@ -382,20 +393,27 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 
 	// Add surfaces.
 	int in_mesh_surface_id = 0;
-	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-		SurfaceData *surface = surfaces.getptr(*surface_id);
 
-		surface->surface_tool->generate_tangents();
+	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
+		SurfaceData &surface_data = current_surface.value();
+
+		// you can't generate them without a valid uv map.
+		if (surface_data.has_uv_map) {
+			surface_data.surface_tool->generate_tangents();
+		}
 
 		mesh->add_surface_from_arrays(
 				Mesh::PRIMITIVE_TRIANGLES,
-				surface->surface_tool->commit_to_arrays(),
-				surface->morphs,
+				surface_data.surface_tool->commit_to_arrays(),
+				surface_data.morphs,
 				use_compression ? Mesh::ARRAY_COMPRESS_DEFAULT : 0);
 
-		if (surface->material.is_valid()) {
-			mesh->surface_set_name(in_mesh_surface_id, surface->material->get_name());
-			mesh->surface_set_material(in_mesh_surface_id, surface->material);
+		// no material if you don't have uvs
+		if (surface_data.has_uv_map) {
+			if (surface_data.material.is_valid()) {
+				mesh->surface_set_name(in_mesh_surface_id, surface_data.material->get_name());
+				mesh->surface_set_material(in_mesh_surface_id, surface_data.material);
+			}
 		}
 
 		in_mesh_surface_id += 1;
@@ -496,6 +514,7 @@ void FBXMeshData::reorganize_vertices(
 		HashMap<int, Color> &r_color,
 		HashMap<String, MorphVertexData> &r_morphs,
 		HashMap<int, HashMap<int, Vector3> > &r_normals_raw,
+		HashMap<int, HashMap<int, Color> > &r_colors_raw,
 		HashMap<int, HashMap<int, Vector2> > &r_uv_1_raw,
 		HashMap<int, HashMap<int, Vector2> > &r_uv_2_raw) {
 
@@ -513,6 +532,7 @@ void FBXMeshData::reorganize_vertices(
 		Vector2 this_vert_poly_uv1 = Vector2();
 		Vector2 this_vert_poly_uv2 = Vector2();
 		Vector3 this_vert_poly_normal = Vector3();
+		Color this_vert_poly_color = Color();
 
 		// Take the normal and see if we need to duplicate this polygon.
 		if (r_normals_raw.has(index)) {
@@ -541,6 +561,41 @@ void FBXMeshData::reorganize_vertices(
 
 				const Vector3 vert_poly_normal = *nrml_arr->getptr(*pid);
 				if ((this_vert_poly_normal - vert_poly_normal).length_squared() > CMP_EPSILON) {
+					// Yes this polygon need duplication.
+					need_duplication = true;
+					break;
+				}
+			}
+		}
+
+		// TODO: make me vertex color
+		// Take the normal and see if we need to duplicate this polygon.
+		if (r_colors_raw.has(index)) {
+			const HashMap<PolygonId, Color> *color_arr = r_colors_raw.getptr(index);
+
+			if (color_arr->has(polygon_index)) {
+				this_vert_poly_color = color_arr->get(polygon_index);
+			} else if (color_arr->has(-1)) {
+				this_vert_poly_color = color_arr->get(-1);
+			} else {
+				print_error("invalid color detected: " + itos(index) + " polygon index: " + itos(polygon_index));
+				for (const PolygonId *pid = color_arr->next(nullptr); pid != nullptr; pid = color_arr->next(pid)) {
+					print_verbose("debug contents key: " + itos(*pid));
+
+					if (color_arr->has(*pid)) {
+						print_verbose("contents valid: " + color_arr->get(*pid));
+					}
+				}
+			}
+
+			// Now, check if we need to duplicate it.
+			for (const PolygonId *pid = color_arr->next(nullptr); pid != nullptr; pid = color_arr->next(pid)) {
+				if (*pid == polygon_index) {
+					continue;
+				}
+
+				const Color vert_poly_color = *color_arr->getptr(*pid);
+				if (!this_vert_poly_color.is_equal_approx(vert_poly_color)) {
 					// Yes this polygon need duplication.
 					need_duplication = true;
 					break;
@@ -599,6 +654,7 @@ void FBXMeshData::reorganize_vertices(
 					bool same_uv1 = false;
 					bool same_uv2 = false;
 					bool same_normal = false;
+					bool same_color = false;
 
 					if (r_uv_1.has(new_vertex)) {
 						if ((this_vert_poly_uv1 - (*r_uv_1.getptr(new_vertex))).length_squared() <= CMP_EPSILON) {
@@ -612,13 +668,19 @@ void FBXMeshData::reorganize_vertices(
 						}
 					}
 
+					if (r_color.has(new_vertex)) {
+						if (this_vert_poly_color.is_equal_approx((*r_color.getptr(new_vertex)))) {
+							same_color = true;
+						}
+					}
+
 					if (r_normals.has(new_vertex)) {
 						if ((this_vert_poly_normal - (*r_normals.getptr(new_vertex))).length_squared() <= CMP_EPSILON) {
 							same_uv2 = true;
 						}
 					}
 
-					if (same_uv1 && same_uv2 && same_normal) {
+					if (same_uv1 && same_uv2 && same_normal && same_color) {
 						similar_vertex = new_vertex;
 						break;
 					}
@@ -635,6 +697,8 @@ void FBXMeshData::reorganize_vertices(
 				}
 			}
 		}
+
+		need_duplication = false;
 
 		if (need_duplication) {
 			const Vertex old_index = index;
@@ -657,6 +721,13 @@ void FBXMeshData::reorganize_vertices(
 				r_normals_raw[new_index][polygon_index] = this_vert_poly_normal;
 			}
 
+			// Vertex Color
+			if (r_colors_raw.has(old_index)) {
+				r_color.set(new_index, this_vert_poly_color);
+				r_colors_raw.getptr(old_index)->erase(polygon_index);
+				r_colors_raw[new_index][polygon_index] = this_vert_poly_color;
+			}
+
 			// UV 0
 			if (r_uv_1_raw.has(old_index)) {
 				r_uv_1.set(new_index, this_vert_poly_uv1);
@@ -669,11 +740,6 @@ void FBXMeshData::reorganize_vertices(
 				r_uv_2.set(new_index, this_vert_poly_uv2);
 				r_uv_2_raw.getptr(old_index)->erase(polygon_index);
 				r_uv_2_raw[new_index][polygon_index] = this_vert_poly_uv2;
-			}
-
-			// Vertex color.
-			if (r_color.has(old_index)) {
-				r_color[new_index] = r_color[old_index];
 			}
 
 			// Morphs
@@ -698,6 +764,10 @@ void FBXMeshData::reorganize_vertices(
 			if (r_normals_raw.has(index) &&
 					r_normals.has(index) == false) {
 				r_normals.set(index, this_vert_poly_normal);
+			}
+
+			if (r_colors_raw.has(index) && r_color.has(index) == false) {
+				r_color.set(index, this_vert_poly_color);
 			}
 
 			if (r_uv_1_raw.has(index) &&
@@ -1010,8 +1080,13 @@ HashMap<int, R> FBXMeshData::extract_per_vertex_data(
 	 * data size is 96 (contains uv coordinates)
 	 * this means index is simple data reduction basically
 	 */
+	////
+	if (p_mapping_data.ref_type == FBXDocParser::MeshGeometry::ReferenceType::index_to_direct && p_mapping_data.index.size() == 0) {
+		print_verbose("debug count: index size: " + itos(p_mapping_data.index.size()) + ", data size: " + itos(p_mapping_data.data.size()));
+		print_verbose("vertex indices count: " + itos(p_mesh_indices.size()));
+		print_verbose("Edge map size: " + itos(p_edge_map.size()));
+	}
 
-	ERR_FAIL_COND_V_MSG(p_mapping_data.ref_type == FBXDocParser::MeshGeometry::ReferenceType::index_to_direct && p_mapping_data.index.size() == 0, (HashMap<int, R>()), "FBX file is missing indexing array");
 	ERR_FAIL_COND_V_MSG(p_mapping_data.ref_type == FBXDocParser::MeshGeometry::ReferenceType::index && p_mapping_data.index.size() == 0, (HashMap<int, R>()), "The FBX seems corrupted");
 
 	// Aggregate vertex data.
@@ -1046,19 +1121,39 @@ HashMap<int, R> FBXMeshData::extract_per_vertex_data(
 		} break;
 		case FBXDocParser::MeshGeometry::MapType::polygon_vertex: {
 			if (p_mapping_data.ref_type == FBXDocParser::MeshGeometry::ReferenceType::index_to_direct) {
-				// The data is mapped using each index from the indexes array then direct to the data (data reduction algorithm)
-				ERR_FAIL_COND_V_MSG((int)p_mesh_indices.size() != (int)p_mapping_data.index.size(), (HashMap<int, R>()), "FBX file seems corrupted: #ERR04");
-				int polygon_id = -1;
-				for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_mapping_data.index.size(); polygon_vertex_index += 1) {
-					if (is_start_of_polygon(p_mesh_indices, polygon_vertex_index)) {
-						polygon_id += 1;
+
+				if (p_mapping_data.index.size() == 0) {
+					// The index mapping doesn't exist so the direct data mapping is correct
+					ERR_FAIL_COND_V_MSG((int)p_mesh_indices.size() != (int)p_mapping_data.data.size(), (HashMap<int, R>()), "FBX file seems corrupted: #ERR04");
+					int polygon_id = -1;
+					for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_mapping_data.data.size(); polygon_vertex_index += 1) {
+						if (is_start_of_polygon(p_mesh_indices, polygon_vertex_index)) {
+							polygon_id += 1;
+						}
+						const int vertex_index = get_vertex_from_polygon_vertex(p_mesh_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, R>()), "FBX file corrupted: #ERR05");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, R>()), "FBX file corrupted: #ERR06");
+						ERR_FAIL_INDEX_V((const size_t)vertex_index, p_mapping_data.data.size(), (HashMap<int, R>()));
+						// p_mapping_data contains a list of colors.
+						// they are indexed based on the mesh indices array.
+						T value = p_mapping_data.data[vertex_index];
+						aggregate_vertex_data[vertex_index].push_back({ polygon_id, value });
 					}
-					const int vertex_index = get_vertex_from_polygon_vertex(p_mesh_indices, polygon_vertex_index);
-					ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, R>()), "FBX file corrupted: #ERR05");
-					ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, R>()), "FBX file corrupted: #ERR06");
-					const int index_to_direct = p_mapping_data.index[polygon_vertex_index];
-					T value = p_mapping_data.data[index_to_direct];
-					aggregate_vertex_data[vertex_index].push_back({ polygon_id, value });
+				} else {
+					// The data is mapped using each index from the indexes array then direct to the data (data reduction algorithm)
+					ERR_FAIL_COND_V_MSG((int)p_mesh_indices.size() != (int)p_mapping_data.index.size(), (HashMap<int, R>()), "FBX file seems corrupted: #ERR04");
+					int polygon_id = -1;
+					for (size_t polygon_vertex_index = 0; polygon_vertex_index < p_mapping_data.index.size(); polygon_vertex_index += 1) {
+						if (is_start_of_polygon(p_mesh_indices, polygon_vertex_index)) {
+							polygon_id += 1;
+						}
+						const int vertex_index = get_vertex_from_polygon_vertex(p_mesh_indices, polygon_vertex_index);
+						ERR_FAIL_COND_V_MSG(vertex_index < 0, (HashMap<int, R>()), "FBX file corrupted: #ERR05");
+						ERR_FAIL_COND_V_MSG(vertex_index >= p_vertex_count, (HashMap<int, R>()), "FBX file corrupted: #ERR06");
+						const int index_to_direct = p_mapping_data.index[polygon_vertex_index];
+						T value = p_mapping_data.data[index_to_direct];
+						aggregate_vertex_data[vertex_index].push_back({ polygon_id, value });
+					}
 				}
 			} else if (p_mapping_data.ref_type == FBXDocParser::MeshGeometry::ReferenceType::direct) {
 				// The data are mapped per polygon vertex directly.
