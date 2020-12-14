@@ -227,7 +227,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 	print_verbose("Vertex count: " + itos(vertex_count));
 
 	// The map key is the material allocator id that is also used as surface id.
-	OrderedHashMap<SurfaceId, SurfaceData> surfaces;
+	HashMap<SurfaceId, SurfaceData> surfaces;
 
 	// Phase 2. For each material create a surface tool (So a different mesh).
 	{
@@ -260,7 +260,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
 				}
 
-				surfaces[surface_id] = sd;
+				surfaces.set(surface_id, sd);
 			}
 		}
 	}
@@ -270,32 +270,33 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 	{
 		PolygonId polygon_index = -1;
 		SurfaceId surface_id = -1;
+		SurfaceData *surface_data = nullptr;
 
 		for (size_t polygon_vertex = 0; polygon_vertex < polygon_indices.size(); polygon_vertex += 1) {
 			if (is_start_of_polygon(polygon_indices, polygon_vertex)) {
 				polygon_index += 1;
 				ERR_FAIL_COND_V_MSG(polygon_surfaces.has(polygon_index) == false, nullptr, "The FBX file is currupted, This surface_index is not expected.");
 				surface_id = polygon_surfaces[polygon_index];
+				surface_data = surfaces.getptr(surface_id);
+				CRASH_COND(surface_data == nullptr); // Can't be null.
 			}
 
-			// no copy and no ptr required.
-			SurfaceData &surface_data = surfaces[surface_id];
 			const int vertex = get_vertex_from_polygon_vertex(polygon_indices, polygon_vertex);
 
 			// The vertex position in the surface
 			// Uses a lookup table for speed with large scenes
-			bool has_polygon_vertex_index = surface_data.lookup_table.has(vertex);
+			bool has_polygon_vertex_index = surface_data->lookup_table.has(vertex);
 			int surface_polygon_vertex_index = -1;
 
 			if (has_polygon_vertex_index) {
-				surface_polygon_vertex_index = surface_data.lookup_table[vertex];
+				surface_polygon_vertex_index = surface_data->lookup_table[vertex];
 			} else {
-				surface_polygon_vertex_index = surface_data.vertices_map.size();
-				surface_data.lookup_table[vertex] = surface_polygon_vertex_index;
-				surface_data.vertices_map.push_back(vertex);
+				surface_polygon_vertex_index = surface_data->vertices_map.size();
+				surface_data->lookup_table[vertex] = surface_polygon_vertex_index;
+				surface_data->vertices_map.push_back(vertex);
 			}
 
-			surface_data.surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
+			surface_data->surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
 		}
 	}
 
@@ -303,21 +304,17 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 	//print_verbose("[debug UV 2] UV2: " + itos(uvs_1.size()));
 
 	// Phase 4. Per each surface just insert the vertices and add the indices.
-	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
-		SurfaceData &surface_data = current_surface.value();
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
 
 		// Just add the vertices data.
-		for (unsigned int i = 0; i < surface_data.vertices_map.size(); i += 1) {
-			const Vertex vertex = surface_data.vertices_map[i];
-
-			if (!surface_data.has_uv_map) {
-				surface_data.has_uv_map = uvs_0.size() > 0 || uvs_1.size() > 0;
-			}
+		for (unsigned int i = 0; i < surface->vertices_map.size(); i += 1) {
+			const Vertex vertex = surface->vertices_map[i];
 
 			// This must be done before add_vertex because the surface tool is
 			// expecting this before the st->add_vertex() call
 			add_vertex(state,
-					surface_data.surface_tool,
+					surface->surface_tool,
 					state.scale,
 					vertex,
 					vertices,
@@ -328,20 +325,20 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 		}
 
 		// Triangulate the various polygons and add the indices.
-		for (const PolygonId *polygon_id = surface_data.surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface_data.surface_polygon_vertex.next(polygon_id)) {
-			const Vector<DataIndex> *indices = surface_data.surface_polygon_vertex.getptr(*polygon_id);
+		for (const PolygonId *polygon_id = surface->surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface->surface_polygon_vertex.next(polygon_id)) {
+			const Vector<DataIndex> *indices = surface->surface_polygon_vertex.getptr(*polygon_id);
 
 			triangulate_polygon(
-					surface_data.surface_tool,
+					surface->surface_tool,
 					*indices,
-					surface_data.vertices_map,
+					surface->vertices_map,
 					vertices);
 		}
 	}
 
 	// Phase 5. Compose the morphs if any.
-	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
-		SurfaceData &surface_data = current_surface.value();
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
 
 		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
 			MorphVertexData *morph_data = morphs.getptr(*morph_name);
@@ -358,8 +355,8 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			morph_st.instance();
 			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
 
-			for (unsigned int vi = 0; vi < surface_data.vertices_map.size(); vi += 1) {
-				const Vertex vertex = surface_data.vertices_map[vi];
+			for (unsigned int vi = 0; vi < surface->vertices_map.size(); vi += 1) {
+				const Vertex vertex = surface->vertices_map[vi];
 				add_vertex(
 						state,
 						morph_st,
@@ -375,7 +372,7 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 			}
 
 			morph_st->generate_tangents();
-			surface_data.morphs.push_back(morph_st->commit_to_arrays());
+			surface->morphs.push_back(morph_st->commit_to_arrays());
 		}
 	}
 
@@ -393,27 +390,24 @@ MeshInstance *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDo
 
 	// Add surfaces.
 	int in_mesh_surface_id = 0;
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
 
-	for (OrderedHashMap<SurfaceId, SurfaceData>::Element current_surface = surfaces.front(); current_surface; current_surface = current_surface.next()) {
-		SurfaceData &surface_data = current_surface.value();
-
+		surface->surface_tool->generate_tangents();
 		// you can't generate them without a valid uv map.
-		if (surface_data.has_uv_map) {
-			surface_data.surface_tool->generate_tangents();
+		if (surface->has_uv_map) {
+			surface->surface_tool->generate_tangents();
 		}
 
 		mesh->add_surface_from_arrays(
 				Mesh::PRIMITIVE_TRIANGLES,
-				surface_data.surface_tool->commit_to_arrays(),
-				surface_data.morphs,
+				surface->surface_tool->commit_to_arrays(),
+				surface->morphs,
 				use_compression ? Mesh::ARRAY_COMPRESS_DEFAULT : 0);
 
-		// no material if you don't have uvs
-		if (surface_data.has_uv_map) {
-			if (surface_data.material.is_valid()) {
-				mesh->surface_set_name(in_mesh_surface_id, surface_data.material->get_name());
-				mesh->surface_set_material(in_mesh_surface_id, surface_data.material);
-			}
+		if (surface->material.is_valid()) {
+			mesh->surface_set_name(in_mesh_surface_id, surface->material->get_name());
+			mesh->surface_set_material(in_mesh_surface_id, surface->material);
 		}
 
 		in_mesh_surface_id += 1;

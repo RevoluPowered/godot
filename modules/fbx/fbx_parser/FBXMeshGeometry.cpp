@@ -211,7 +211,7 @@ MeshGeometry::MeshGeometry(uint64_t id, const ElementPtr element, const std::str
 				} else if (layer_type_name == "LayerElementNormal") {
 					m_normals = resolve_vertex_data_array<Vector3>(layer_scope, MappingInformationType, ReferenceInformationType, "Normals");
 				} else if (layer_type_name == "LayerElementColor") {
-					m_colors = resolve_vertex_data_array<Color>(layer_scope, MappingInformationType, ReferenceInformationType, "Colors");
+					m_colors = resolve_vertex_data_array<Color>(layer_scope, MappingInformationType, ReferenceInformationType, "Colors", "ColorIndex");
 					// NOTE: this is a useful sanity check to ensure you're getting any color data which is not default.
 					//					const Color first_color_check = m_colors.data[0];
 					//					bool colors_are_all_the_same = true;
@@ -361,12 +361,22 @@ MeshGeometry::MappingData<T> MeshGeometry::resolve_vertex_data_array(
 		const ScopePtr source,
 		const std::string &MappingInformationType,
 		const std::string &ReferenceInformationType,
-		const std::string &dataElementName) {
+		const std::string &dataElementName,
+		const std::string &indexOverride) {
 
 	ERR_FAIL_COND_V_MSG(source == nullptr, MappingData<T>(), "Invalid scope operator preventing memory corruption");
 
 	// UVIndex, MaterialIndex, NormalIndex, etc..
-	std::string indexDataElementName = dataElementName + "Index";
+	std::string indexDataElementName;
+
+	if (indexOverride != "") {
+		// Colors should become ColorIndex
+		indexDataElementName = indexOverride;
+	} else {
+		// Some indexes will exist.
+		indexDataElementName = dataElementName + "Index";
+	}
+
 	// goal: expand everything to be per vertex
 
 	ReferenceType l_ref_type = ReferenceType::direct;
