@@ -689,8 +689,8 @@ private:
 	std::string fileName;
 	const PropertyTable *props = nullptr;
 
-	uint64_t contentLength;
-	uint8_t *content;
+	uint64_t contentLength = 0;
+	uint8_t *content = nullptr;
 };
 
 /** DOM class for generic FBX materials */

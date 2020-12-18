@@ -351,21 +351,22 @@ Video::Video(uint64_t id, const ElementPtr element, const Document &doc, const s
 					}
 					if (targetLength == 0) {
 						DOMError("Corrupted embedded content found", element);
-					}
-					content = new uint8_t[targetLength];
-					contentLength = static_cast<uint64_t>(targetLength);
-					size_t dst_offset = 0;
-					for (uint32_t tokenIdx = 0; tokenIdx < numTokens; ++tokenIdx) {
-						const Token *dataToken = GetRequiredToken(Content, tokenIdx);
-						ERR_FAIL_COND(!dataToken);
-						size_t tokenLength = dataToken->end() - dataToken->begin() - 2; // ignore double quotes
-						const char *base64data = dataToken->begin() + 1;
-						dst_offset += Util::DecodeBase64(base64data, tokenLength, content + dst_offset, targetLength - dst_offset);
-					}
-					if (targetLength != dst_offset) {
-						delete[] content;
-						contentLength = 0;
-						DOMError("Corrupted embedded content found", element);
+					} else {
+						content = new uint8_t[targetLength];
+						contentLength = static_cast<uint64_t>(targetLength);
+						size_t dst_offset = 0;
+						for (uint32_t tokenIdx = 0; tokenIdx < numTokens; ++tokenIdx) {
+							const Token *dataToken = GetRequiredToken(Content, tokenIdx);
+							ERR_FAIL_COND(!dataToken);
+							size_t tokenLength = dataToken->end() - dataToken->begin() - 2; // ignore double quotes
+							const char *base64data = dataToken->begin() + 1;
+							dst_offset += Util::DecodeBase64(base64data, tokenLength, content + dst_offset, targetLength - dst_offset);
+						}
+						if (targetLength != dst_offset) {
+							delete[] content;
+							contentLength = 0;
+							DOMError("Corrupted embedded content found", element);
+						}
 					}
 				}
 			} else if (static_cast<size_t>(token->end() - data) < 5) {
