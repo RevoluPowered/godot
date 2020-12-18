@@ -33,12 +33,11 @@
 
 #ifdef TOOLS_ENABLED
 
-#include "core/local_vector.h"
-#include "core/map.h"
-#include "core/ustring.h"
-#include <core/io/json.h>
-#include <core/os/file_access.h>
-#include <scene/3d/path.h>
+#include "core/io/json.h"
+#include "core/os/file_access.h"
+#include "core/string/ustring.h"
+#include "core/templates/local_vector.h"
+#include "core/templates/map.h"
 
 class ValidationTracker {
 protected:

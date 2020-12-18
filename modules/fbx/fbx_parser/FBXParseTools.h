@@ -31,8 +31,8 @@
 #ifndef FBX_PARSE_TOOLS_H
 #define FBX_PARSE_TOOLS_H
 
-#include "core/error_macros.h"
-#include "core/ustring.h"
+#include "core/error/error_macros.h"
+#include "core/string/ustring.h"
 
 #include <stdint.h>
 #include <algorithm>

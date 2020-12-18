@@ -40,7 +40,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
-#include "core/print_string.h"
+#include "core/string/print_string.h"
 #include <stdint.h>
 #include <numeric>
 
@@ -237,7 +237,7 @@ public:
 		transform = ReadMatrix(Transform);
 
 		// get node id this pose node is for
-		const ElementPtr NodeId = sc->GetElement("Node");
+		const ElementPtr NodeId = sc->GetElement("Node3D");
 		if (NodeId) {
 			target_id = ParseTokenAsInt64(GetRequiredToken(NodeId, 0));
 		}

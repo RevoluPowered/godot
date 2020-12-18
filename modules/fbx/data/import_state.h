@@ -37,14 +37,14 @@
 
 #include "pivot_transform.h"
 
-#include "core/bind/core_bind.h"
+#include "core/core_bind.h"
 #include "core/io/resource_importer.h"
-#include "core/vector.h"
+#include "core/templates/vector.h"
 #include "editor/import/resource_importer_scene.h"
 #include "editor/project_settings_editor.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
+#include "scene/3d/mesh_instance_3d.h"
+#include "scene/3d/node_3d.h"
+#include "scene/3d/skeleton_3d.h"
 #include "scene/animation/animation_player.h"
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
@@ -66,18 +66,18 @@ struct ImportState {
 	bool enable_animation_import = true;
 
 	Map<StringName, Ref<Texture>> cached_image_searches;
-	Map<uint64_t, Ref<SpatialMaterial>> cached_materials;
+	Map<uint64_t, Ref<Material>> cached_materials;
 
 	String path = String();
-	Spatial *root_owner = nullptr;
-	Spatial *root = nullptr;
+	Node3D *root_owner = nullptr;
+	Node3D *root = nullptr;
 	real_t scale = 0.01;
 	Ref<FBXNode> fbx_root_node = Ref<FBXNode>();
 	// skeleton map - merged automatically when they are on the same x node in the tree so we can merge them automatically.
 	Map<uint64_t, Ref<FBXSkeleton>> skeleton_map = Map<uint64_t, Ref<FBXSkeleton>>();
 
 	// nodes on the same level get merged automatically.
-	//Map<uint64_t, Skeleton *> armature_map;
+	//Map<uint64_t, Skeleton3D *> armature_map;
 	AnimationPlayer *animation_player = nullptr;
 
 	// Generation 4 - Raw document accessing for bone/skin/joint/kLocators

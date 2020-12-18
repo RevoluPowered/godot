@@ -35,8 +35,8 @@
 #include "fbx_node.h"
 #include "model_abstraction.h"
 
-#include "core/reference.h"
-#include "scene/3d/skeleton.h"
+#include "core/object/reference.h"
+#include "scene/3d/skeleton_3d.h"
 
 struct FBXNode;
 struct ImportState;
@@ -45,7 +45,7 @@ struct FBXBone;
 struct FBXSkeleton : Reference {
 	Ref<FBXNode> fbx_node = Ref<FBXNode>();
 	Vector<Ref<FBXBone>> skeleton_bones = Vector<Ref<FBXBone>>();
-	Skeleton *skeleton = nullptr;
+	Skeleton3D *skeleton = nullptr;
 
 	void init_skeleton(const ImportState &state);
 };

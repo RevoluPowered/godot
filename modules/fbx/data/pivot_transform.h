@@ -32,7 +32,7 @@
 #define PIVOT_TRANSFORM_H
 
 #include "core/math/transform.h"
-#include "core/reference.h"
+#include "core/object/reference.h"
 
 #include "model_abstraction.h"
 

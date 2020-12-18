@@ -38,7 +38,7 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 	int skeleton_bone_count = skeleton_bones.size();
 
 	if (skeleton == nullptr && skeleton_bone_count > 0) {
-		skeleton = memnew(Skeleton);
+		skeleton = memnew(Skeleton3D);
 
 		if (fbx_node.is_valid()) {
 			// cache skeleton attachment for later during node creation
@@ -50,7 +50,7 @@ void FBXSkeleton::init_skeleton(const ImportState &state) {
 				// root node must never be a skeleton to prevent cyclic skeletons from being allowed (skeleton in a skeleton)
 				fbx_node->godot_node->add_child(skeleton);
 				skeleton->set_owner(state.root_owner);
-				skeleton->set_name("Skeleton");
+				skeleton->set_name("Skeleton3D");
 				print_verbose("created armature skeleton for root");
 			}
 		} else {

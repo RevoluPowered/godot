@@ -33,8 +33,8 @@
 
 #include "tools/import_utils.h"
 
-#include "core/reference.h"
-#include "core/ustring.h"
+#include "core/object/reference.h"
+#include "core/string/ustring.h"
 
 struct FBXMaterial : public Reference {
 	String material_name = String();
@@ -71,41 +71,41 @@ struct FBXMaterial : public Reference {
 	};
 
 	/* Returns the string representation of the TextureParam enum */
-	static String get_texture_param_name(SpatialMaterial::TextureParam param) {
+	static String get_texture_param_name(StandardMaterial3D::TextureParam param) {
 		switch (param) {
-			case SpatialMaterial::TEXTURE_ALBEDO:
+			case StandardMaterial3D::TEXTURE_ALBEDO:
 				return "TEXTURE_ALBEDO";
-			case SpatialMaterial::TEXTURE_METALLIC:
+			case StandardMaterial3D::TEXTURE_METALLIC:
 				return "TEXTURE_METALLIC";
-			case SpatialMaterial::TEXTURE_ROUGHNESS:
+			case StandardMaterial3D::TEXTURE_ROUGHNESS:
 				return "TEXTURE_ROUGHNESS";
-			case SpatialMaterial::TEXTURE_EMISSION:
+			case StandardMaterial3D::TEXTURE_EMISSION:
 				return "TEXTURE_EMISSION";
-			case SpatialMaterial::TEXTURE_NORMAL:
+			case StandardMaterial3D::TEXTURE_NORMAL:
 				return "TEXTURE_NORMAL";
-			case SpatialMaterial::TEXTURE_RIM:
+			case StandardMaterial3D::TEXTURE_RIM:
 				return "TEXTURE_RIM";
-			case SpatialMaterial::TEXTURE_CLEARCOAT:
+			case StandardMaterial3D::TEXTURE_CLEARCOAT:
 				return "TEXTURE_CLEARCOAT";
-			case SpatialMaterial::TEXTURE_FLOWMAP:
+			case StandardMaterial3D::TEXTURE_FLOWMAP:
 				return "TEXTURE_FLOWMAP";
-			case SpatialMaterial::TEXTURE_AMBIENT_OCCLUSION:
+			case StandardMaterial3D::TEXTURE_AMBIENT_OCCLUSION:
 				return "TEXTURE_AMBIENT_OCCLUSION";
-			case SpatialMaterial::TEXTURE_DEPTH:
-				return "TEXTURE_DEPTH";
-			case SpatialMaterial::TEXTURE_SUBSURFACE_SCATTERING:
+				//			case StandardMaterial3D::TEXTURE_DEPTH: // TODO: work out how to make this function again!
+				//				return "TEXTURE_DEPTH";
+			case StandardMaterial3D::TEXTURE_SUBSURFACE_SCATTERING:
 				return "TEXTURE_SUBSURFACE_SCATTERING";
-			case SpatialMaterial::TEXTURE_TRANSMISSION:
-				return "TEXTURE_TRANSMISSION";
-			case SpatialMaterial::TEXTURE_REFRACTION:
+				//			case StandardMaterial3D::TEXTURE_TRANSMISSION: // TODO: work out how to make this function again!
+				//				return "TEXTURE_TRANSMISSION";
+			case StandardMaterial3D::TEXTURE_REFRACTION:
 				return "TEXTURE_REFRACTION";
-			case SpatialMaterial::TEXTURE_DETAIL_MASK:
+			case StandardMaterial3D::TEXTURE_DETAIL_MASK:
 				return "TEXTURE_DETAIL_MASK";
-			case SpatialMaterial::TEXTURE_DETAIL_ALBEDO:
+			case StandardMaterial3D::TEXTURE_DETAIL_ALBEDO:
 				return "TEXTURE_DETAIL_ALBEDO";
-			case SpatialMaterial::TEXTURE_DETAIL_NORMAL:
+			case StandardMaterial3D::TEXTURE_DETAIL_NORMAL:
 				return "TEXTURE_DETAIL_NORMAL";
-			case SpatialMaterial::TEXTURE_MAX:
+			case StandardMaterial3D::TEXTURE_MAX:
 				return "TEXTURE_MAX";
 			default:
 				return "broken horribly";
@@ -113,62 +113,62 @@ struct FBXMaterial : public Reference {
 	};
 
 	// TODO make this static?
-	const std::map<std::string, SpatialMaterial::Feature> fbx_feature_mapping_desc = {
+	const std::map<std::string, bool> fbx_feature_mapping_desc = {
 		/* Transparent */
-		{ "TransparentColor", SpatialMaterial::Feature::FEATURE_TRANSPARENT },
-		{ "Maya|opacity", SpatialMaterial::Feature::FEATURE_TRANSPARENT }
+		{ "TransparentColor", true },
+		{ "Maya|opacity", true }
 	};
 
 	// TODO make this static?
-	const std::map<std::string, SpatialMaterial::TextureParam> fbx_texture_mapping_desc = {
+	const std::map<std::string, StandardMaterial3D::TextureParam> fbx_texture_mapping_desc = {
 		/* Diffuse */
-		{ "Maya|base", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "DiffuseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "Maya|DiffuseTexture", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "Maya|baseColor", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "Maya|baseColor|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "3dsMax|Parameters|base_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "Maya|TEX_color_map|file", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
-		{ "Maya|TEX_color_map", SpatialMaterial::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|base", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "DiffuseColor", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|DiffuseTexture", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|baseColor", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|baseColor|file", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "3dsMax|Parameters|base_color_map", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|TEX_color_map|file", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
+		{ "Maya|TEX_color_map", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
 		/* Emission */
-		{ "EmissiveColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "EmissiveFactor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "Maya|emissionColor", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "Maya|emissionColor|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "3dsMax|Parameters|emission_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "Maya|TEX_emissive_map", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
-		{ "Maya|TEX_emissive_map|file", SpatialMaterial::TextureParam::TEXTURE_EMISSION },
+		{ "EmissiveColor", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "EmissiveFactor", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|emissionColor", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|emissionColor|file", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "3dsMax|Parameters|emission_map", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|TEX_emissive_map", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
+		{ "Maya|TEX_emissive_map|file", StandardMaterial3D::TextureParam::TEXTURE_EMISSION },
 		/* Metallic */
-		{ "Maya|metalness", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|metalness|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "3dsMax|Parameters|metalness_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|TEX_metallic_map", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|TEX_metallic_map|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "SpecularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|specularColor", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|SpecularTexture", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|SpecularTexture|file", SpatialMaterial::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|metalness", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|metalness|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "3dsMax|Parameters|metalness_map", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|TEX_metallic_map", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|TEX_metallic_map|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "SpecularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|specularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|SpecularTexture", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		{ "Maya|SpecularTexture|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
 
 		/* Roughness */
 		// Arnold Roughness Map
-		{ "Maya|specularRoughness", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
+		{ "Maya|specularRoughness", StandardMaterial3D::TextureParam::TEXTURE_ROUGHNESS },
 
-		{ "3dsMax|Parameters|roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
-		{ "Maya|TEX_roughness_map", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
-		{ "Maya|TEX_roughness_map|file", SpatialMaterial::TextureParam::TEXTURE_ROUGHNESS },
+		{ "3dsMax|Parameters|roughness_map", StandardMaterial3D::TextureParam::TEXTURE_ROUGHNESS },
+		{ "Maya|TEX_roughness_map", StandardMaterial3D::TextureParam::TEXTURE_ROUGHNESS },
+		{ "Maya|TEX_roughness_map|file", StandardMaterial3D::TextureParam::TEXTURE_ROUGHNESS },
 
 		/* Normal */
-		{ "NormalMap", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		//{ "Bump", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		//{ "3dsMax|Parameters|bump_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		{ "Maya|NormalTexture", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		//{ "Maya|normalCamera", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		//{ "Maya|normalCamera|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		{ "Maya|TEX_normal_map", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
-		{ "Maya|TEX_normal_map|file", SpatialMaterial::TextureParam::TEXTURE_NORMAL },
+		{ "NormalMap", StandardMaterial3D::TextureParam::TEXTURE_NORMAL },
+		//{ "Bump", Material::TextureParam::TEXTURE_NORMAL },
+		//{ "3dsMax|Parameters|bump_map", Material::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|NormalTexture", StandardMaterial3D::TextureParam::TEXTURE_NORMAL },
+		//{ "Maya|normalCamera", Material::TextureParam::TEXTURE_NORMAL },
+		//{ "Maya|normalCamera|file", Material::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|TEX_normal_map", StandardMaterial3D::TextureParam::TEXTURE_NORMAL },
+		{ "Maya|TEX_normal_map|file", StandardMaterial3D::TextureParam::TEXTURE_NORMAL },
 		/* AO */
-		{ "Maya|TEX_ao_map", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
-		{ "Maya|TEX_ao_map|file", SpatialMaterial::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
+		{ "Maya|TEX_ao_map", StandardMaterial3D::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
+		{ "Maya|TEX_ao_map|file", StandardMaterial3D::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 
 		//{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::UNSUPPORTED },
@@ -261,7 +261,7 @@ struct FBXMaterial : public Reference {
 	};
 
 	struct TextureFileMapping {
-		SpatialMaterial::TextureParam map_mode = SpatialMaterial::TEXTURE_ALBEDO;
+		StandardMaterial3D::TextureParam map_mode = StandardMaterial3D::TEXTURE_ALBEDO;
 		String name = String();
 		const FBXDocParser::Texture *texture = nullptr;
 	};
@@ -269,7 +269,7 @@ struct FBXMaterial : public Reference {
 	/* storing the texture properties like color */
 	template <class T>
 	struct TexturePropertyMapping : Reference {
-		SpatialMaterial::TextureParam map_mode = SpatialMaterial::TextureParam::TEXTURE_ALBEDO;
+		StandardMaterial3D::TextureParam map_mode = StandardMaterial3D::TextureParam::TEXTURE_ALBEDO;
 		const T property = T();
 	};
 
@@ -283,12 +283,11 @@ struct FBXMaterial : public Reference {
 
 	struct MaterialInfo {
 		Vector<TextureFileMapping> textures;
-		Vector<SpatialMaterial::Feature> features;
 	};
 	/// Extracts the material information.
 	MaterialInfo extract_material_info(const FBXDocParser::Material *material) const;
 
-	Ref<SpatialMaterial> import_material(ImportState &state);
+	Ref<StandardMaterial3D> import_material(ImportState &state);
 };
 
 #endif // FBX_MATERIAL_H

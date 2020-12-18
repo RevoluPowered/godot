@@ -36,17 +36,17 @@
 #include "data/import_state.h"
 #include "tools/import_utils.h"
 
-#include "core/bind/core_bind.h"
-#include "core/dictionary.h"
+#include "core/core_bind.h"
 #include "core/io/resource_importer.h"
-#include "core/local_vector.h"
-#include "core/ustring.h"
-#include "core/vector.h"
+#include "core/string/ustring.h"
+#include "core/templates/local_vector.h"
+#include "core/templates/vector.h"
+#include "core/variant/dictionary.h"
 #include "editor/import/resource_importer_scene.h"
 #include "editor/project_settings_editor.h"
-#include "scene/3d/mesh_instance.h"
-#include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
+#include "scene/3d/mesh_instance_3d.h"
+#include "scene/3d/node_3d.h"
+#include "scene/3d/skeleton_3d.h"
 #include "scene/animation/animation_player.h"
 #include "scene/resources/animation.h"
 #include "scene/resources/surface_tool.h"
@@ -112,7 +112,7 @@ private:
 
 	void BuildDocumentNodes(Ref<PivotTransform> parent_transform, ImportState &state, const FBXDocParser::Document *doc, uint64_t id, Ref<FBXNode> fbx_parent);
 
-	Spatial *_generate_scene(const String &p_path, const FBXDocParser::Document *p_document,
+	Node3D *_generate_scene(const String &p_path, const FBXDocParser::Document *p_document,
 			const uint32_t p_flags,
 			int p_bake_fps, const int32_t p_max_bone_weights);
 
@@ -126,7 +126,7 @@ public:
 
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual uint32_t get_import_flags() const;
-	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
+	virtual Node3D *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps, Error *r_err = NULL);
 	void create_mesh_data_skin(ImportState &state, const Ref<FBXNode> &fbx_node, uint64_t mesh_id);
 };
 
