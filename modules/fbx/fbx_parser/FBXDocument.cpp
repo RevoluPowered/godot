@@ -300,8 +300,8 @@ static const unsigned int UpperSupportedVersion = 7700;
 
 bool Document::ReadHeader() {
 	// Read ID objects from "Objects" section
-	const ScopePtr sc = parser.GetRootScope();
-	const ElementPtr ehead = sc->GetElement("FBXHeaderExtension");
+	ScopePtr sc = parser.GetRootScope();
+	ElementPtr ehead = sc->GetElement("FBXHeaderExtension");
 	if (!ehead || !ehead->Compound()) {
 		DOMError("no FBXHeaderExtension dictionary found");
 	}

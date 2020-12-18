@@ -143,11 +143,11 @@ public:
 	PropertyPtr Get(const std::string &name) const;
 
 	// PropertyTable's need not be coupled with FBX elements so this can be NULL
-	const ElementPtr GetElement() const {
+	ElementPtr GetElement() const {
 		return element;
 	}
 
-	const PropertyMap &GetProperties() const {
+	PropertyMap &GetProperties() const {
 		return props;
 	}
 
