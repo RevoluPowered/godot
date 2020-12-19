@@ -1,0 +1,31 @@
+From c92ea49d4b827080918b669a5b8e5486c4c14649 Mon Sep 17 00:00:00 2001
+From: clayjohn <claynjohn@gmail.com>
+Date: Sat, 19 Dec 2020 11:10:11 -0800
+Subject: [PATCH] Use basic uniform set for depth prepass
+
+---
+ .../rendering/renderer_rd/renderer_scene_render_forward.cpp   | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/servers/rendering/renderer_rd/renderer_scene_render_forward.cpp b/servers/rendering/renderer_rd/renderer_scene_render_forward.cpp
+index 93f4b7bc8e0..f89b9b1bb50 100644
+--- a/servers/rendering/renderer_rd/renderer_scene_render_forward.cpp
++++ b/servers/rendering/renderer_rd/renderer_scene_render_forward.cpp
+@@ -1864,7 +1864,7 @@ void RendererSceneRenderForward::_render_scene(RID p_render_buffer, const Transf
+ 		clear_color = p_default_bg_color;
+ 	}
+ 
+-	RID rp_uniform_set = _setup_render_pass_uniform_set(p_render_buffer, radiance_texture, p_shadow_atlas, p_reflection_atlas, p_gi_probe_cull_result, p_gi_probe_cull_count);
++	RID rp_uniform_set = _setup_render_pass_uniform_set(RID(), RID(), RID(), RID(), nullptr, 0);
+ 
+ 	render_list.sort_by_key(false);
+ 
+@@ -1910,6 +1910,8 @@ void RendererSceneRenderForward::_render_scene(RID p_render_buffer, const Transf
+ 
+ 	RENDER_TIMESTAMP("Render Opaque Pass");
+ 
++	rp_uniform_set = _setup_render_pass_uniform_set(p_render_buffer, radiance_texture, p_shadow_atlas, p_reflection_atlas, p_gi_probe_cull_result, p_gi_probe_cull_count);
++
+ 	bool can_continue_color = !scene_state.used_screen_texture && !using_ssr && !using_sss;
+ 	bool can_continue_depth = !scene_state.used_depth_texture && !using_ssr && !using_sss;
+ 

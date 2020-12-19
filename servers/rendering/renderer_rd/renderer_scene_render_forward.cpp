@@ -1864,7 +1864,7 @@ void RendererSceneRenderForward::_render_scene(RID p_render_buffer, const Transf
 		clear_color = p_default_bg_color;
 	}
 
-	RID rp_uniform_set = _setup_render_pass_uniform_set(p_render_buffer, radiance_texture, p_shadow_atlas, p_reflection_atlas, p_gi_probe_cull_result, p_gi_probe_cull_count);
+	RID rp_uniform_set = _setup_render_pass_uniform_set(RID(), RID(), RID(), RID(), nullptr, 0);
 
 	render_list.sort_by_key(false);
 
@@ -1909,6 +1909,8 @@ void RendererSceneRenderForward::_render_scene(RID p_render_buffer, const Transf
 	_setup_environment(p_environment, p_render_buffer, p_cam_projection, p_cam_transform, p_reflection_probe, p_reflection_probe.is_valid(), screen_pixel_size, p_shadow_atlas, !p_reflection_probe.is_valid(), p_default_bg_color, p_cam_projection.get_z_near(), p_cam_projection.get_z_far(), p_render_buffer.is_valid());
 
 	RENDER_TIMESTAMP("Render Opaque Pass");
+
+	rp_uniform_set = _setup_render_pass_uniform_set(p_render_buffer, radiance_texture, p_shadow_atlas, p_reflection_atlas, p_gi_probe_cull_result, p_gi_probe_cull_count);
 
 	bool can_continue_color = !scene_state.used_screen_texture && !using_ssr && !using_sss;
 	bool can_continue_depth = !scene_state.used_depth_texture && !using_ssr && !using_sss;
