@@ -160,6 +160,7 @@ Ref<StandardMaterial3D> FBXMaterial::import_material(ImportState &state) {
 	const String p_fbx_current_directory = state.path;
 
 	Ref<StandardMaterial3D> spatial_material;
+	spatial_material.instance();
 
 	// read the material file
 	// is material two sided
@@ -253,11 +254,9 @@ Ref<StandardMaterial3D> FBXMaterial::import_material(ImportState &state) {
 		} else {
 			String path = find_texture_path_by_filename(texture_name, p_fbx_current_directory);
 			if (!path.empty()) {
-				Error err;
-				Ref<Texture> image_texture = ResourceLoader::load(path, "Texture", false, &err);
+				Ref<Texture2D> image_texture = ResourceLoader::load(path);
 
-				ERR_CONTINUE_MSG(err != OK, "unable to import image file not loaded yet: " + path);
-				ERR_CONTINUE(image_texture == NULL || image_texture.is_null());
+				ERR_CONTINUE(image_texture.is_null());
 
 				texture = image_texture;
 				state.cached_image_searches.insert(texture_name, texture);
@@ -542,6 +541,5 @@ Ref<StandardMaterial3D> FBXMaterial::import_material(ImportState &state) {
 	//			spatial_material->set_name(material_name);
 	//		}
 
-	//	return spatial_material;
-	return nullptr;
+	return spatial_material;
 }
