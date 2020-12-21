@@ -116,305 +116,301 @@ struct SurfaceData {
 };
 
 EditorSceneImporterMeshNode *FBXMeshData::create_fbx_mesh(const ImportState &state, const FBXDocParser::MeshGeometry *p_mesh_geometry, const FBXDocParser::Model *model, bool use_compression) {
-	//	mesh_geometry = p_mesh_geometry;
-	//	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
-	//	const std::vector<const FBXDocParser::Material *> &material_lookup = model->GetMaterials();
+	mesh_geometry = p_mesh_geometry;
+	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
+	const std::vector<const FBXDocParser::Material *> &material_lookup = model->GetMaterials();
+
+	std::vector<int> polygon_indices = mesh_geometry->get_polygon_indices();
+	std::vector<Vector3> vertices = mesh_geometry->get_vertices();
+
+	// Phase 1. Parse all FBX data.
+	HashMap<int, Vector3> normals;
+	HashMap<int, HashMap<int, Vector3>> normals_raw = extract_per_vertex_data(
+			vertices.size(),
+			mesh_geometry->get_edge_map(),
+			polygon_indices,
+			mesh_geometry->get_normals(),
+			&collect_all,
+			HashMap<int, Vector3>());
+
+	//	List<int> keys;
+	//	normals.get_key_list(&keys);
 	//
-	//	std::vector<int> polygon_indices = mesh_geometry->get_polygon_indices();
-	//	std::vector<Vector3> vertices = mesh_geometry->get_vertices();
-	//
-	//	// Phase 1. Parse all FBX data.
-	//	HashMap<int, Vector3> normals;
-	//	HashMap<int, HashMap<int, Vector3>> normals_raw = extract_per_vertex_data(
-	//			vertices.size(),
-	//			mesh_geometry->get_edge_map(),
-	//			polygon_indices,
-	//			mesh_geometry->get_normals(),
-	//			&collect_all,
-	//			HashMap<int, Vector3>());
-	//
-	//	//	List<int> keys;
-	//	//	normals.get_key_list(&keys);
-	//	//
-	//	//	const std::vector<Assimp::FBX::MeshGeometry::Edge>& edges = mesh_geometry->get_edge_map();
-	//	//	for (int index = 0; index < keys.size(); index++) {
-	//	//		const int key = keys[index];
-	//	//		const int v1 = edges[key].vertex_0;
-	//	//		const int v2 = edges[key].vertex_1;
-	//	//		const Vector3& n1 = normals.get(v1);
-	//	//		const Vector3& n2 = normals.get(v2);
-	//	//		print_verbose("[" + itos(v1) + "] n1: " + n1 + "\n[" + itos(v2) + "] n2: " + n2);
-	//	//		//print_verbose("[" + itos(key) + "] n1: " + n1 + ", n2: " + n2) ;
-	//	//		//print_verbose("vindex: " + itos(edges[key].vertex_0) + ", vindex2: " + itos(edges[key].vertex_1));
-	//	//		//Vector3 ver1 = vertices[edges[key].vertex_0];
-	//	//		//Vector3 ver2 = vertices[edges[key].vertex_1];
-	//	//		/*real_t angle1 = Math::rad2deg(n1.angle_to(n2));
-	//	//		real_t angle2 = Math::rad2deg(n2.angle_to(n1));
-	//	//		print_verbose("angle of normals: " + rtos(angle1) + " angle 2" + rtos(angle2));*/
-	//	//	}
-	//
-	//	HashMap<int, Vector2> uvs_0;
-	//	HashMap<int, HashMap<int, Vector2>> uvs_0_raw = extract_per_vertex_data(
-	//			vertices.size(),
-	//			mesh_geometry->get_edge_map(),
-	//			polygon_indices,
-	//			mesh_geometry->get_uv_0(),
-	//			&collect_all,
-	//			HashMap<int, Vector2>());
-	//
-	//	HashMap<int, Vector2> uvs_1;
-	//	HashMap<int, HashMap<int, Vector2>> uvs_1_raw = extract_per_vertex_data(
-	//			vertices.size(),
-	//			mesh_geometry->get_edge_map(),
-	//			polygon_indices,
-	//			mesh_geometry->get_uv_1(),
-	//			&collect_all,
-	//			HashMap<int, Vector2>());
-	//
-	//	HashMap<int, Color> colors;
-	//	HashMap<int, HashMap<int, Color>> colors_raw = extract_per_vertex_data(
-	//			vertices.size(),
-	//			mesh_geometry->get_edge_map(),
-	//			polygon_indices,
-	//			mesh_geometry->get_colors(),
-	//			&collect_all,
-	//			HashMap<int, Color>());
-	//
-	//	// TODO what about tangents?
-	//	// TODO what about bi-nomials?
-	//	// TODO there is other?
-	//
-	//	HashMap<int, SurfaceId> polygon_surfaces = extract_per_polygon(
-	//			vertices.size(),
-	//			polygon_indices,
-	//			mesh_geometry->get_material_allocation_id(),
-	//			-1);
-	//
-	//	HashMap<String, MorphVertexData> morphs;
-	//	extract_morphs(mesh_geometry, morphs);
-	//
-	//	// TODO please add skinning.
-	//	//mesh_id = mesh_geometry->ID();
-	//
-	//	sanitize_vertex_weights(state);
-	//
-	//	// Re organize polygon vertices to to correctly take into account strange
-	//	// UVs.
-	//	reorganize_vertices(
-	//			polygon_indices,
-	//			vertices,
-	//			normals,
-	//			uvs_0,
-	//			uvs_1,
-	//			colors,
-	//			morphs,
-	//			normals_raw,
-	//			colors_raw,
-	//			uvs_0_raw,
-	//			uvs_1_raw);
-	//
-	//	const int color_count = colors.size();
-	//	print_verbose("Vertex color count: " + itos(color_count));
-	//
-	//	// Make sure that from this moment on the mesh_geometry is no used anymore.
-	//	// This is a safety step, because the mesh_geometry data are no more valid
-	//	// at this point.
-	//
-	//	const int vertex_count = vertices.size();
-	//
-	//	print_verbose("Vertex count: " + itos(vertex_count));
-	//
-	//	// The map key is the material allocator id that is also used as surface id.
-	//	HashMap<SurfaceId, SurfaceData> surfaces;
-	//
-	//	// Phase 2. For each material create a surface tool (So a different mesh).
-	//	{
-	//		if (polygon_surfaces.empty()) {
-	//			// No material, just use the default one with index -1.
-	//			// Set -1 to all polygons.
-	//			const int polygon_count = count_polygons(polygon_indices);
-	//			for (int p = 0; p < polygon_count; p += 1) {
-	//				polygon_surfaces[p] = -1;
-	//			}
-	//		}
-	//
-	//		// Create the surface now.
-	//		for (const int *polygon_id = polygon_surfaces.next(nullptr); polygon_id != nullptr; polygon_id = polygon_surfaces.next(polygon_id)) {
-	//			const int surface_id = polygon_surfaces[*polygon_id];
-	//			if (surfaces.has(surface_id) == false) {
-	//				SurfaceData sd;
-	//				sd.surface_tool.instance();
-	//				sd.surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
-	//
-	//				if (surface_id < 0) {
-	//					// nothing to do
-	//				} else if (surface_id < (int)material_lookup.size()) {
-	//					const FBXDocParser::Material *mat_mapping = material_lookup.at(surface_id);
-	//					const uint64_t mapping_id = mat_mapping->ID();
-	//					if (state.cached_materials.has(mapping_id)) {
-	//						sd.material = state.cached_materials[mapping_id];
-	//					}
-	//				} else {
-	//					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
-	//				}
-	//
-	//				surfaces.set(surface_id, sd);
-	//			}
-	//		}
+	//	const std::vector<Assimp::FBX::MeshGeometry::Edge>& edges = mesh_geometry->get_edge_map();
+	//	for (int index = 0; index < keys.size(); index++) {
+	//		const int key = keys[index];
+	//		const int v1 = edges[key].vertex_0;
+	//		const int v2 = edges[key].vertex_1;
+	//		const Vector3& n1 = normals.get(v1);
+	//		const Vector3& n2 = normals.get(v2);
+	//		print_verbose("[" + itos(v1) + "] n1: " + n1 + "\n[" + itos(v2) + "] n2: " + n2);
+	//		//print_verbose("[" + itos(key) + "] n1: " + n1 + ", n2: " + n2) ;
+	//		//print_verbose("vindex: " + itos(edges[key].vertex_0) + ", vindex2: " + itos(edges[key].vertex_1));
+	//		//Vector3 ver1 = vertices[edges[key].vertex_0];
+	//		//Vector3 ver2 = vertices[edges[key].vertex_1];
+	//		/*real_t angle1 = Math::rad2deg(n1.angle_to(n2));
+	//		real_t angle2 = Math::rad2deg(n2.angle_to(n1));
+	//		print_verbose("angle of normals: " + rtos(angle1) + " angle 2" + rtos(angle2));*/
 	//	}
-	//
-	//	// Phase 3. Map the vertices relative to each surface, in this way we can
-	//	// just insert the vertices that we need per each surface.
-	//	{
-	//		PolygonId polygon_index = -1;
-	//		SurfaceId surface_id = -1;
-	//		SurfaceData *surface_data = nullptr;
-	//
-	//		for (size_t polygon_vertex = 0; polygon_vertex < polygon_indices.size(); polygon_vertex += 1) {
-	//			if (is_start_of_polygon(polygon_indices, polygon_vertex)) {
-	//				polygon_index += 1;
-	//				ERR_FAIL_COND_V_MSG(polygon_surfaces.has(polygon_index) == false, nullptr, "The FBX file is corrupted, This surface_index is not expected.");
-	//				surface_id = polygon_surfaces[polygon_index];
-	//				surface_data = surfaces.getptr(surface_id);
-	//				CRASH_COND(surface_data == nullptr); // Can't be null.
-	//			}
-	//
-	//			const int vertex = get_vertex_from_polygon_vertex(polygon_indices, polygon_vertex);
-	//
-	//			// The vertex position in the surface
-	//			// Uses a lookup table for speed with large scenes
-	//			bool has_polygon_vertex_index = surface_data->lookup_table.has(vertex);
-	//			int surface_polygon_vertex_index = -1;
-	//
-	//			if (has_polygon_vertex_index) {
-	//				surface_polygon_vertex_index = surface_data->lookup_table[vertex];
-	//			} else {
-	//				surface_polygon_vertex_index = surface_data->vertices_map.size();
-	//				surface_data->lookup_table[vertex] = surface_polygon_vertex_index;
-	//				surface_data->vertices_map.push_back(vertex);
-	//			}
-	//
-	//			surface_data->surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
-	//		}
-	//	}
-	//
-	//	//print_verbose("[debug UV 1] UV1: " + itos(uvs_0.size()));
-	//	//print_verbose("[debug UV 2] UV2: " + itos(uvs_1.size()));
-	//
-	//	// Phase 4. Per each surface just insert the vertices and add the indices.
-	//	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-	//		SurfaceData *surface = surfaces.getptr(*surface_id);
-	//
-	//		// Just add the vertices data.
-	//		for (unsigned int i = 0; i < surface->vertices_map.size(); i += 1) {
-	//			const Vertex vertex = surface->vertices_map[i];
-	//
-	//			// This must be done before add_vertex because the surface tool is
-	//			// expecting this before the st->add_vertex() call
-	//			add_vertex(state,
-	//					surface->surface_tool,
-	//					state.scale,
-	//					vertex,
-	//					vertices,
-	//					normals,
-	//					uvs_0,
-	//					uvs_1,
-	//					colors);
-	//		}
-	//
-	//		// Triangulate the various polygons and add the indices.
-	//		for (const PolygonId *polygon_id = surface->surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface->surface_polygon_vertex.next(polygon_id)) {
-	//			const Vector<DataIndex> *indices = surface->surface_polygon_vertex.getptr(*polygon_id);
-	//
-	//			triangulate_polygon(
-	//					surface->surface_tool,
-	//					*indices,
-	//					surface->vertices_map,
-	//					vertices);
-	//		}
-	//	}
-	//
-	//	// Phase 5. Compose the morphs if any.
-	//	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-	//		SurfaceData *surface = surfaces.getptr(*surface_id);
-	//
-	//		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
-	//			MorphVertexData *morph_data = morphs.getptr(*morph_name);
-	//
-	//			// As said by the docs, this is not supposed to be different than
-	//			// vertex_count.
-	//			CRASH_COND(morph_data->vertices.size() != vertex_count);
-	//			CRASH_COND(morph_data->normals.size() != vertex_count);
-	//
-	//			Vector3 *vertices_ptr = morph_data->vertices.ptrw();
-	//			Vector3 *normals_ptr = morph_data->normals.ptrw();
-	//
-	//			Ref<SurfaceTool> morph_st;
-	//			morph_st.instance();
-	//			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
-	//
-	//			for (unsigned int vi = 0; vi < surface->vertices_map.size(); vi += 1) {
-	//				const Vertex vertex = surface->vertices_map[vi];
-	//				add_vertex(
-	//						state,
-	//						morph_st,
-	//						state.scale,
-	//						vertex,
-	//						vertices,
-	//						normals,
-	//						uvs_0,
-	//						uvs_1,
-	//						colors,
-	//						vertices_ptr[vertex],
-	//						normals_ptr[vertex]);
-	//			}
-	//
-	//			morph_st->generate_tangents();
-	//			surface->morphs.push_back(morph_st->commit_to_arrays());
-	//		}
-	//	}
-	//
-	//	// Phase 6. Compose the mesh and return it.
-	//	Ref<ArrayMesh> mesh;
-	//	mesh.instance();
-	//
-	//	// Add blend shape info.
-	//	for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
-	//		mesh->add_blend_shape(*morph_name);
-	//	}
-	//
-	//	// TODO always normalized, Why?
-	//	mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
-	//
-	//	// Add surfaces.
-	//	int in_mesh_surface_id = 0;
-	//	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
-	//		SurfaceData *surface = surfaces.getptr(*surface_id);
-	//
-	//		// you can't generate them without a valid uv map.
-	//		if (uvs_0_raw.size() > 0) {
-	//			surface->surface_tool->generate_tangents();
-	//		}
-	//
-	//		mesh->
-	//
-	//		mesh->add_surface_from_arrays(
-	//				Mesh::PRIMITIVE_TRIANGLES,
-	//				surface->surface_tool->commit_to_arrays(),
-	//				surface->morphs);
-	//
-	//		if (surface->material.is_valid()) {
-	//			mesh->surface_set_name(in_mesh_surface_id, surface->material->get_name());
-	//			mesh->surface_set_material(in_mesh_surface_id, surface->material);
-	//		}
-	//
-	//		in_mesh_surface_id += 1;
-	//	}
-	//
-	//	EditorSceneImporterMeshNode *godot_mesh = memnew(EditorSceneImporterMeshNode);
-	//	godot_mesh->set_mesh(mesh);
-	//	return godot_mesh;
-	return nullptr;
+
+	HashMap<int, Vector2> uvs_0;
+	HashMap<int, HashMap<int, Vector2>> uvs_0_raw = extract_per_vertex_data(
+			vertices.size(),
+			mesh_geometry->get_edge_map(),
+			polygon_indices,
+			mesh_geometry->get_uv_0(),
+			&collect_all,
+			HashMap<int, Vector2>());
+
+	HashMap<int, Vector2> uvs_1;
+	HashMap<int, HashMap<int, Vector2>> uvs_1_raw = extract_per_vertex_data(
+			vertices.size(),
+			mesh_geometry->get_edge_map(),
+			polygon_indices,
+			mesh_geometry->get_uv_1(),
+			&collect_all,
+			HashMap<int, Vector2>());
+
+	HashMap<int, Color> colors;
+	HashMap<int, HashMap<int, Color>> colors_raw = extract_per_vertex_data(
+			vertices.size(),
+			mesh_geometry->get_edge_map(),
+			polygon_indices,
+			mesh_geometry->get_colors(),
+			&collect_all,
+			HashMap<int, Color>());
+
+	// TODO what about tangents?
+	// TODO what about bi-nomials?
+	// TODO there is other?
+
+	HashMap<int, SurfaceId> polygon_surfaces = extract_per_polygon(
+			vertices.size(),
+			polygon_indices,
+			mesh_geometry->get_material_allocation_id(),
+			-1);
+
+	HashMap<String, MorphVertexData> morphs;
+	extract_morphs(mesh_geometry, morphs);
+
+	// TODO please add skinning.
+	//mesh_id = mesh_geometry->ID();
+
+	sanitize_vertex_weights(state);
+
+	// Re organize polygon vertices to to correctly take into account strange
+	// UVs.
+	reorganize_vertices(
+			polygon_indices,
+			vertices,
+			normals,
+			uvs_0,
+			uvs_1,
+			colors,
+			morphs,
+			normals_raw,
+			colors_raw,
+			uvs_0_raw,
+			uvs_1_raw);
+
+	const int color_count = colors.size();
+	print_verbose("Vertex color count: " + itos(color_count));
+
+	// Make sure that from this moment on the mesh_geometry is no used anymore.
+	// This is a safety step, because the mesh_geometry data are no more valid
+	// at this point.
+
+	const int vertex_count = vertices.size();
+
+	print_verbose("Vertex count: " + itos(vertex_count));
+
+	// The map key is the material allocator id that is also used as surface id.
+	HashMap<SurfaceId, SurfaceData> surfaces;
+
+	// Phase 2. For each material create a surface tool (So a different mesh).
+	{
+		if (polygon_surfaces.empty()) {
+			// No material, just use the default one with index -1.
+			// Set -1 to all polygons.
+			const int polygon_count = count_polygons(polygon_indices);
+			for (int p = 0; p < polygon_count; p += 1) {
+				polygon_surfaces[p] = -1;
+			}
+		}
+
+		// Create the surface now.
+		for (const int *polygon_id = polygon_surfaces.next(nullptr); polygon_id != nullptr; polygon_id = polygon_surfaces.next(polygon_id)) {
+			const int surface_id = polygon_surfaces[*polygon_id];
+			if (surfaces.has(surface_id) == false) {
+				SurfaceData sd;
+				sd.surface_tool.instance();
+				sd.surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+
+				if (surface_id < 0) {
+					// nothing to do
+				} else if (surface_id < (int)material_lookup.size()) {
+					const FBXDocParser::Material *mat_mapping = material_lookup.at(surface_id);
+					const uint64_t mapping_id = mat_mapping->ID();
+					if (state.cached_materials.has(mapping_id)) {
+						sd.material = state.cached_materials[mapping_id];
+					}
+				} else {
+					WARN_PRINT("out of bounds surface detected, FBX file has corrupt material data");
+				}
+
+				surfaces.set(surface_id, sd);
+			}
+		}
+	}
+
+	// Phase 3. Map the vertices relative to each surface, in this way we can
+	// just insert the vertices that we need per each surface.
+	{
+		PolygonId polygon_index = -1;
+		SurfaceId surface_id = -1;
+		SurfaceData *surface_data = nullptr;
+
+		for (size_t polygon_vertex = 0; polygon_vertex < polygon_indices.size(); polygon_vertex += 1) {
+			if (is_start_of_polygon(polygon_indices, polygon_vertex)) {
+				polygon_index += 1;
+				ERR_FAIL_COND_V_MSG(polygon_surfaces.has(polygon_index) == false, nullptr, "The FBX file is corrupted, This surface_index is not expected.");
+				surface_id = polygon_surfaces[polygon_index];
+				surface_data = surfaces.getptr(surface_id);
+				CRASH_COND(surface_data == nullptr); // Can't be null.
+			}
+
+			const int vertex = get_vertex_from_polygon_vertex(polygon_indices, polygon_vertex);
+
+			// The vertex position in the surface
+			// Uses a lookup table for speed with large scenes
+			bool has_polygon_vertex_index = surface_data->lookup_table.has(vertex);
+			int surface_polygon_vertex_index = -1;
+
+			if (has_polygon_vertex_index) {
+				surface_polygon_vertex_index = surface_data->lookup_table[vertex];
+			} else {
+				surface_polygon_vertex_index = surface_data->vertices_map.size();
+				surface_data->lookup_table[vertex] = surface_polygon_vertex_index;
+				surface_data->vertices_map.push_back(vertex);
+			}
+
+			surface_data->surface_polygon_vertex[polygon_index].push_back(surface_polygon_vertex_index);
+		}
+	}
+
+	//print_verbose("[debug UV 1] UV1: " + itos(uvs_0.size()));
+	//print_verbose("[debug UV 2] UV2: " + itos(uvs_1.size()));
+
+	// Phase 4. Per each surface just insert the vertices and add the indices.
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
+
+		// Just add the vertices data.
+		for (unsigned int i = 0; i < surface->vertices_map.size(); i += 1) {
+			const Vertex vertex = surface->vertices_map[i];
+
+			// This must be done before add_vertex because the surface tool is
+			// expecting this before the st->add_vertex() call
+			add_vertex(state,
+					surface->surface_tool,
+					state.scale,
+					vertex,
+					vertices,
+					normals,
+					uvs_0,
+					uvs_1,
+					colors);
+		}
+
+		// Triangulate the various polygons and add the indices.
+		for (const PolygonId *polygon_id = surface->surface_polygon_vertex.next(nullptr); polygon_id != nullptr; polygon_id = surface->surface_polygon_vertex.next(polygon_id)) {
+			const Vector<DataIndex> *indices = surface->surface_polygon_vertex.getptr(*polygon_id);
+
+			triangulate_polygon(
+					surface->surface_tool,
+					*indices,
+					surface->vertices_map,
+					vertices);
+		}
+	}
+
+	// Phase 5. Compose the morphs if any.
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
+
+		for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+			MorphVertexData *morph_data = morphs.getptr(*morph_name);
+
+			// As said by the docs, this is not supposed to be different than
+			// vertex_count.
+			CRASH_COND(morph_data->vertices.size() != vertex_count);
+			CRASH_COND(morph_data->normals.size() != vertex_count);
+
+			Vector3 *vertices_ptr = morph_data->vertices.ptrw();
+			Vector3 *normals_ptr = morph_data->normals.ptrw();
+
+			Ref<SurfaceTool> morph_st;
+			morph_st.instance();
+			morph_st->begin(Mesh::PRIMITIVE_TRIANGLES);
+
+			for (unsigned int vi = 0; vi < surface->vertices_map.size(); vi += 1) {
+				const Vertex vertex = surface->vertices_map[vi];
+				add_vertex(
+						state,
+						morph_st,
+						state.scale,
+						vertex,
+						vertices,
+						normals,
+						uvs_0,
+						uvs_1,
+						colors,
+						vertices_ptr[vertex],
+						normals_ptr[vertex]);
+			}
+
+			morph_st->generate_tangents();
+			surface->morphs.push_back(morph_st->commit_to_arrays());
+		}
+	}
+
+	// Phase 6. Compose the mesh and return it.
+	Ref<EditorSceneImporterMesh> mesh;
+	mesh.instance();
+
+	// Add blend shape info.
+	for (const String *morph_name = morphs.next(nullptr); morph_name != nullptr; morph_name = morphs.next(morph_name)) {
+		mesh->add_blend_shape(*morph_name);
+	}
+
+	// TODO always normalized, Why?
+	mesh->set_blend_shape_mode(Mesh::BLEND_SHAPE_MODE_NORMALIZED);
+
+	// Add surfaces.
+	int in_mesh_surface_id = 0;
+	for (const SurfaceId *surface_id = surfaces.next(nullptr); surface_id != nullptr; surface_id = surfaces.next(surface_id)) {
+		SurfaceData *surface = surfaces.getptr(*surface_id);
+
+		// you can't generate them without a valid uv map.
+		if (uvs_0_raw.size() > 0) {
+			surface->surface_tool->generate_tangents();
+		}
+
+		Array mesh_array = surface->surface_tool->commit_to_arrays();
+		Array blend_shapes = surface->morphs;
+
+		if (surface->material.is_valid()) {
+			mesh->add_surface(Mesh::PRIMITIVE_TRIANGLES, mesh_array, blend_shapes, Dictionary(), surface->material, surface->material->get_name());
+		} else {
+			mesh->add_surface(Mesh::PRIMITIVE_TRIANGLES, mesh_array, blend_shapes);
+		}
+
+		in_mesh_surface_id += 1;
+	}
+
+	EditorSceneImporterMeshNode *godot_mesh = memnew(EditorSceneImporterMeshNode);
+	godot_mesh->set_mesh(mesh);
+	return godot_mesh;
 }
 
 void FBXMeshData::sanitize_vertex_weights(const ImportState &state) {
