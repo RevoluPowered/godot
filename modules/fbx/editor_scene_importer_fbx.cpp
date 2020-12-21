@@ -179,20 +179,20 @@ Node3D *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_fl
 				}
 			}
 
-			if (!is_blender_fbx) {
-				Node3D *spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
-				// todo: move to document shutdown (will need to be validated after moving; this code has been validated already)
-				for (FBXDocParser::TokenPtr token : tokens) {
-					if (token) {
-						delete token;
-						token = nullptr;
-					}
-				}
-
-				return spatial;
-			} else {
-				print_error("We can't import blender FBX files, they're not implemented correctly at export time and would require several hacks in the FBX importer which could break Maya imports.");
+			if (is_blender_fbx) {
+				WARN_PRINT("Blender FBX files will not work properly with keyframes or skeletons until we make fixes stand by.");
 			}
+
+			Node3D *spatial = _generate_scene(p_path, &doc, p_flags, p_bake_fps, 8);
+			// todo: move to document shutdown (will need to be validated after moving; this code has been validated already)
+			for (FBXDocParser::TokenPtr token : tokens) {
+				if (token) {
+					delete token;
+					token = nullptr;
+				}
+			}
+
+			return spatial;
 
 		} else {
 			print_error("Cannot import file: " + p_path + " version of file is unsupported, please re-export in your modelling package file version is: " + itos(doc.FBXVersion()));
