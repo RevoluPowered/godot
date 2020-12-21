@@ -113,14 +113,14 @@ struct FBXMaterial : public Reference {
 	};
 
 	// TODO make this static?
-	const std::map<std::string, bool> fbx_feature_mapping_desc = {
+	const std::map<std::string, bool> fbx_transparency_flags = {
 		/* Transparent */
 		{ "TransparentColor", true },
 		{ "Maya|opacity", true }
 	};
 
 	// TODO make this static?
-	const std::map<std::string, StandardMaterial3D::TextureParam> fbx_texture_mapping_desc = {
+	const std::map<std::string, StandardMaterial3D::TextureParam> fbx_texture_map = {
 		/* Diffuse */
 		{ "Maya|base", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
 		{ "DiffuseColor", StandardMaterial3D::TextureParam::TEXTURE_ALBEDO },
@@ -260,12 +260,6 @@ struct FBXMaterial : public Reference {
 		{ "Maya|coatIOR", PROPERTY_DESC_IGNORE },
 	};
 
-	struct TextureFileMapping {
-		StandardMaterial3D::TextureParam map_mode = StandardMaterial3D::TEXTURE_ALBEDO;
-		String name = String();
-		const FBXDocParser::Texture *texture = nullptr;
-	};
-
 	/* storing the texture properties like color */
 	template <class T>
 	struct TexturePropertyMapping : Reference {
@@ -280,12 +274,6 @@ struct FBXMaterial : public Reference {
 	String get_material_name() const;
 
 	void set_imported_material(FBXDocParser::Material *p_material);
-
-	struct MaterialInfo {
-		Vector<TextureFileMapping> textures;
-	};
-	/// Extracts the material information.
-	MaterialInfo extract_material_info(const FBXDocParser::Material *material) const;
 
 	Ref<StandardMaterial3D> import_material(ImportState &state);
 };
