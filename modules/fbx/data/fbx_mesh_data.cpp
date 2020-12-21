@@ -120,6 +120,8 @@ EditorSceneImporterMeshNode *FBXMeshData::create_fbx_mesh(const ImportState &sta
 	// todo: make this just use a uint64_t FBX ID this is a copy of our original materials unfortunately.
 	const std::vector<const FBXDocParser::Material *> &material_lookup = model->GetMaterials();
 
+	// TODO: perf hotspot on large files
+	// this can be a very large copy
 	std::vector<int> polygon_indices = mesh_geometry->get_polygon_indices();
 	std::vector<Vector3> vertices = mesh_geometry->get_vertices();
 
@@ -495,6 +497,7 @@ void FBXMeshData::sanitize_vertex_weights(const ImportState &state) {
 }
 
 void FBXMeshData::reorganize_vertices(
+		// TODO: perf hotspot on insane files
 		std::vector<int> &r_polygon_indices,
 		std::vector<Vector3> &r_vertices,
 		HashMap<int, Vector3> &r_normals,
