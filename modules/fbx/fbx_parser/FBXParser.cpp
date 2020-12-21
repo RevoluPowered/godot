@@ -671,14 +671,15 @@ void ParseVectorDataArray(std::vector<Vector3> &out, const ElementPtr el) {
 
 	if (a->Tokens().size() % 3 != 0) {
 		print_error("number of floats is not a multiple of three (3)" + String(token->StringContents().c_str()));
-	}
-	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
-		Vector3 v;
-		v.x = ParseTokenAsFloat(*it++);
-		v.y = ParseTokenAsFloat(*it++);
-		v.z = ParseTokenAsFloat(*it++);
+	} else {
+		for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
+			Vector3 v;
+			v.x = ParseTokenAsFloat(*it++);
+			v.y = ParseTokenAsFloat(*it++);
+			v.z = ParseTokenAsFloat(*it++);
 
-		out.push_back(v);
+			out.push_back(v);
+		}
 	}
 }
 
@@ -825,12 +826,13 @@ void ParseVectorDataArray(std::vector<Vector2> &out, const ElementPtr el) {
 
 	if (a->Tokens().size() % 2 != 0) {
 		print_error("number of floats is not a multiple of two (2)" + String(token->StringContents().c_str()));
-	}
-	for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
-		Vector2 v;
-		v.x = ParseTokenAsFloat(*it++);
-		v.y = ParseTokenAsFloat(*it++);
-		out.push_back(v);
+	} else {
+		for (TokenList::const_iterator it = a->Tokens().begin(), end = a->Tokens().end(); it != end;) {
+			Vector2 v;
+			v.x = ParseTokenAsFloat(*it++);
+			v.y = ParseTokenAsFloat(*it++);
+			out.push_back(v);
+		}
 	}
 }
 
