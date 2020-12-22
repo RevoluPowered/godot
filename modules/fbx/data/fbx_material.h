@@ -144,10 +144,6 @@ struct FBXMaterial : public Reference {
 		{ "3dsMax|Parameters|metalness_map", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|TEX_metallic_map", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
 		{ "Maya|TEX_metallic_map|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
-		{ "SpecularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|specularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|SpecularTexture", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
-		{ "Maya|SpecularTexture|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
 
 		/* Roughness */
 		// Arnold Roughness Map
@@ -170,12 +166,21 @@ struct FBXMaterial : public Reference {
 		{ "Maya|TEX_ao_map", StandardMaterial3D::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 		{ "Maya|TEX_ao_map|file", StandardMaterial3D::TextureParam::TEXTURE_AMBIENT_OCCLUSION },
 
-		//{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::UNSUPPORTED },
-		//{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::UNSUPPORTED },
+		// TODO: specular workflow conversion
+		//		{ "SpecularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		//		{ "Maya|specularColor", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		//		{ "Maya|SpecularTexture", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
+		//		{ "Maya|SpecularTexture|file", StandardMaterial3D::TextureParam::TEXTURE_METALLIC },
 		//{ "ShininessExponent", SpatialMaterial::TextureParam::UNSUPPORTED },
 		//{ "ReflectionFactor", SpatialMaterial::TextureParam::UNSUPPORTED },
+
 		//{ "TransparentColor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA },
 		//{ "TransparencyFactor",SpatialMaterial::TextureParam::TEXTURE_CHANNEL_ALPHA }
+
+		// TODO: diffuse roughness
+		//{ "Maya|diffuseRoughness", SpatialMaterial::TextureParam::UNSUPPORTED },
+		//{ "Maya|diffuseRoughness|file", SpatialMaterial::TextureParam::UNSUPPORTED },
+
 	};
 
 	// TODO make this static?
