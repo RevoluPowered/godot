@@ -50,6 +50,7 @@ class SkinReference : public Reference {
 	Skeleton3D *skeleton_node;
 	RID skeleton;
 	Ref<Skin> skin;
+	bool global_binds = false;
 	uint32_t bind_count = 0;
 	uint64_t skeleton_version = 0;
 	Vector<uint32_t> skin_bone_indices;

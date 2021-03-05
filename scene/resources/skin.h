@@ -46,6 +46,7 @@ class Skin : public Resource {
 
 	Bind *binds_ptr = nullptr;
 	int bind_count = 0;
+	bool global_bind_pose = false;
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -67,6 +68,8 @@ public:
 	void set_bind_name(int p_index, const StringName &p_name);
 
 	bool has_named_bind(const String &p_name);
+	void set_global_binds(bool p_global_bind_pose);
+	bool get_global_binds() const;
 
 	inline int get_bind_bone(int p_index) const {
 #ifdef DEBUG_ENABLED

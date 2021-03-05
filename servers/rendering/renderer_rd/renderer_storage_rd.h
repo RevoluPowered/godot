@@ -928,6 +928,7 @@ private:
 	/* Skeleton */
 
 	struct Skeleton {
+		bool use_global_skin = false;
 		bool use_2d = false;
 		int size = 0;
 		Vector<float> data;
@@ -1721,6 +1722,7 @@ public:
 	void skeleton_allocate_data(RID p_skeleton, int p_bones, bool p_2d_skeleton = false);
 	void skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform);
 	void skeleton_set_world_transform(RID p_skeleton, bool p_enable, const Transform &p_world_transform);
+	void skeleton_set_global_binds(RID p_skeleton, bool p_skin_bind_global);
 	int skeleton_get_bone_count(RID p_skeleton) const;
 	void skeleton_bone_set_transform(RID p_skeleton, int p_bone, const Transform &p_transform);
 	Transform skeleton_bone_get_transform(RID p_skeleton, int p_bone) const;

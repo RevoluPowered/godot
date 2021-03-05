@@ -5245,6 +5245,13 @@ void RendererStorageRD::skeleton_allocate_data(RID p_skeleton, int p_bones, bool
 	skeleton->dependency.changed_notify(DEPENDENCY_CHANGED_SKELETON_DATA);
 }
 
+void RendererStorageRD::skeleton_set_global_binds(RID p_skeleton, bool p_skin_bind_global) {
+	Skeleton *skeleton = skeleton_owner.getornull(p_skeleton);
+	ERR_FAIL_COND(!skeleton);
+
+	skeleton->use_global_skin = p_skin_bind_global;
+}
+
 int RendererStorageRD::skeleton_get_bone_count(RID p_skeleton) const {
 	Skeleton *skeleton = skeleton_owner.getornull(p_skeleton);
 	ERR_FAIL_COND_V(!skeleton, 0);

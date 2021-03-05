@@ -300,9 +300,14 @@ void Skeleton3D::_notification(int p_what) {
 			//update skins
 			for (Set<SkinReference *>::Element *E = skin_bindings.front(); E; E = E->next()) {
 				const Skin *skin = E->get()->skin.operator->();
-				RID skeleton = E->get()->skeleton;
-				uint32_t bind_count = skin->get_bind_count();
 
+				RID skeleton = E->get()->skeleton;
+				bool global_binds = skin->get_global_binds();
+				if (E->get()->global_binds != global_binds) {
+					RS::get_singleton()->skeleton_set_global_binds(skeleton, global_binds);
+				}
+
+				uint32_t bind_count = skin->get_bind_count();
 				if (E->get()->bind_count != bind_count) {
 					RS::get_singleton()->skeleton_allocate_data(skeleton, bind_count);
 					E->get()->bind_count = bind_count;

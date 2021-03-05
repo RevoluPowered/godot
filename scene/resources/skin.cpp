@@ -78,6 +78,14 @@ bool Skin::has_named_bind(const String &p_name) {
 	return false;
 }
 
+void Skin::set_global_binds(bool p_global_bind_pose) {
+	global_bind_pose = p_global_bind_pose;
+}
+
+bool Skin::get_global_binds() const {
+	return global_bind_pose;
+}
+
 void Skin::set_bind_pose(int p_index, const Transform &p_pose) {
 	ERR_FAIL_INDEX(p_index, bind_count);
 	binds_ptr[p_index].pose = p_pose;

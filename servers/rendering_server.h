@@ -411,6 +411,7 @@ public:
 	virtual RID skeleton_create() = 0;
 	virtual void skeleton_allocate_data(RID p_skeleton, int p_bones, bool p_2d_skeleton = false) = 0;
 	virtual int skeleton_get_bone_count(RID p_skeleton) const = 0;
+	virtual void skeleton_set_global_binds(RID p_skeleton, bool p_skin_bind_global) = 0;
 	virtual void skeleton_bone_set_transform(RID p_skeleton, int p_bone, const Transform &p_transform) = 0;
 	virtual Transform skeleton_bone_get_transform(RID p_skeleton, int p_bone) const = 0;
 	virtual void skeleton_bone_set_transform_2d(RID p_skeleton, int p_bone, const Transform2D &p_transform) = 0;
