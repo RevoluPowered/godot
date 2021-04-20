@@ -1202,7 +1202,6 @@ private:
 	void ReadObjects();
 	void ReadPropertyTemplates();
 	void ReadConnections();
-	void ReadGlobalSettings();
 
 private:
 	const ImportSettings &settings;

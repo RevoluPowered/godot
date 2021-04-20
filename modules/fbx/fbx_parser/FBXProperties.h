@@ -202,7 +202,7 @@ inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &res
 		}
 		prop = in->Get(name);
 		if (nullptr == prop) {
-			FBX_CORRUPT;
+			// Not a corrupt fbx
 			result = false;
 			return T();
 		}

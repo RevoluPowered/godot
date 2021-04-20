@@ -265,8 +265,6 @@ Document::Document(const Parser &parser, const ImportSettings &settings) :
 		IF_FBX_IS_CORRUPT_RETURN
 		ReadPropertyTemplates();
 		IF_FBX_IS_CORRUPT_RETURN
-		ReadGlobalSettings();
-		IF_FBX_IS_CORRUPT_RETURN
 		// This order is important, connections need parsed objects to check
 		// whether connections are ok or not. Objects may not be evaluated yet,
 		// though, since this may require valid connections.
@@ -335,8 +333,15 @@ bool Document::ReadHeader() {
 
 	if (scene_info) {
 		metadata_properties.Setup(scene_info);
+		scene_info->Compound();
 	}
 
+	// Global file settings configuration
+	ElementPtr globalSettings = sc->GetElement("GlobalSettings");
+	if (globalSettings) {
+		globals = std::make_shared<FileGlobalSettings>(*this);
+		globals.get()->Setup(globalSettings);
+	}
 	const ElementPtr etimestamp = shead->GetElement("CreationTimeStamp");
 	if (etimestamp && etimestamp->Compound()) {
 		const ScopePtr stimestamp = etimestamp->Compound();
@@ -350,13 +355,6 @@ bool Document::ReadHeader() {
 	}
 
 	return true;
-}
-
-// ------------------------------------------------------------------------------------------------
-void Document::ReadGlobalSettings() {
-	ERR_FAIL_COND_MSG(globals != nullptr, "Global settings is already setup this is a serious error and should be reported");
-
-	globals = std::make_shared<FileGlobalSettings>(*this);
 }
 
 // ------------------------------------------------------------------------------------------------
