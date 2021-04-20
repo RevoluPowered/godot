@@ -75,6 +75,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "FBXDocument.h"
 #include "FBXDocumentUtil.h"
+#include "FBXError.h"
 #include "FBXImportSettings.h"
 #include "FBXMeshGeometry.h"
 #include "FBXParser.h"
@@ -99,31 +100,35 @@ LazyObject::LazyObject(uint64_t id, const ElementPtr element, const Document &do
 
 // ------------------------------------------------------------------------------------------------
 LazyObject::~LazyObject() {
-	object.reset();
+	object.reset(); // will free resource ptr on close
 }
 
 ObjectPtr LazyObject::LoadObject() {
 	if (IsBeingConstructed() || FailedToConstruct()) {
-		return nullptr;
+		FBX_CORRUPT_ERROR_PTR;
 	}
+
+	ERR_FAIL_COND_V(FBX_ERROR_DETECTED, nullptr);
 
 	if (object) {
 		return object.get();
 	}
 
 	TokenPtr key = element->KeyToken();
-	ERR_FAIL_COND_V(!key, nullptr);
+	if (!key) {
+		FBX_CORRUPT_ERROR_PTR;
+	}
+
 	const TokenList &tokens = element->Tokens();
 
 	if (tokens.size() < 3) {
-		//DOMError("expected at least 3 tokens: id, name and class tag",&element);
-		return nullptr;
+		FBX_CORRUPT_ERROR_PTR;
 	}
 
 	const char *err = nullptr;
 	std::string name = ParseTokenAsString(tokens[1], err);
 	if (err) {
-		DOMError(err, element);
+		FBX_CORRUPT_ERROR_PTR;
 	}
 
 	// small fix for binary reading: binary fbx files don't use
@@ -139,9 +144,9 @@ ObjectPtr LazyObject::LoadObject() {
 		}
 	}
 
-	const std::string classtag = ParseTokenAsString(tokens[2], err);
+	const std::string class_tag = ParseTokenAsString(tokens[2], err);
 	if (err) {
-		DOMError(err, element);
+		FBX_CORRUPT_ERROR_PTR;
 	}
 
 	// prevent recursive calls
@@ -149,76 +154,76 @@ ObjectPtr LazyObject::LoadObject() {
 
 	// this needs to be relatively fast since it happens a lot,
 	// so avoid constructing strings all the time.
-	const char *obtype = key->begin();
+	const char *object_type = key->begin();
 	const size_t length = static_cast<size_t>(key->end() - key->begin());
 
-	if (!strncmp(obtype, "Pose", length)) {
+	if (!strncmp(object_type, "Pose", length)) {
 		object.reset(new FbxPose(id, element, doc, name));
-	} else if (!strncmp(obtype, "Geometry", length)) {
-		if (!strcmp(classtag.c_str(), "Mesh")) {
+	} else if (!strncmp(object_type, "Geometry", length)) {
+		if (!strcmp(class_tag.c_str(), "Mesh")) {
 			object.reset(new MeshGeometry(id, element, name, doc));
 		}
-		if (!strcmp(classtag.c_str(), "Shape")) {
+		if (!strcmp(class_tag.c_str(), "Shape")) {
 			object.reset(new ShapeGeometry(id, element, name, doc));
 		}
-		if (!strcmp(classtag.c_str(), "Line")) {
+		if (!strcmp(class_tag.c_str(), "Line")) {
 			object.reset(new LineGeometry(id, element, name, doc));
 		}
-	} else if (!strncmp(obtype, "NodeAttribute", length)) {
-		if (!strcmp(classtag.c_str(), "Camera")) {
+	} else if (!strncmp(object_type, "NodeAttribute", length)) {
+		if (!strcmp(class_tag.c_str(), "Camera")) {
 			object.reset(new Camera(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "CameraSwitcher")) {
+		} else if (!strcmp(class_tag.c_str(), "CameraSwitcher")) {
 			object.reset(new CameraSwitcher(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "Light")) {
+		} else if (!strcmp(class_tag.c_str(), "Light")) {
 			object.reset(new Light(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "Null")) {
+		} else if (!strcmp(class_tag.c_str(), "Null")) {
 			object.reset(new Null(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "LimbNode")) {
+		} else if (!strcmp(class_tag.c_str(), "LimbNode")) {
 			// This is an older format for bones
 			// this is what blender uses I believe
 			object.reset(new LimbNode(id, element, doc, name));
 		}
-	} else if (!strncmp(obtype, "Constraint", length)) {
+	} else if (!strncmp(object_type, "Constraint", length)) {
 		object.reset(new Constraint(id, element, doc, name));
-	} else if (!strncmp(obtype, "Deformer", length)) {
-		if (!strcmp(classtag.c_str(), "Cluster")) {
+	} else if (!strncmp(object_type, "Deformer", length)) {
+		if (!strcmp(class_tag.c_str(), "Cluster")) {
 			object.reset(new Cluster(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "Skin")) {
+		} else if (!strcmp(class_tag.c_str(), "Skin")) {
 			object.reset(new Skin(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "BlendShape")) {
+		} else if (!strcmp(class_tag.c_str(), "BlendShape")) {
 			object.reset(new BlendShape(id, element, doc, name));
-		} else if (!strcmp(classtag.c_str(), "BlendShapeChannel")) {
+		} else if (!strcmp(class_tag.c_str(), "BlendShapeChannel")) {
 			object.reset(new BlendShapeChannel(id, element, doc, name));
 		}
-	} else if (!strncmp(obtype, "Model", length)) {
+	} else if (!strncmp(object_type, "Model", length)) {
 		// Model is normal node
 
 		// LimbNode model is a 'bone' node.
-		if (!strcmp(classtag.c_str(), "LimbNode")) {
+		if (!strcmp(class_tag.c_str(), "LimbNode")) {
 			object.reset(new ModelLimbNode(id, element, doc, name));
 
-		} else if (strcmp(classtag.c_str(), "IKEffector") && strcmp(classtag.c_str(), "FKEffector")) {
-			// FK and IK effectors are not supporte
+		} else if (strcmp(class_tag.c_str(), "IKEffector") && strcmp(class_tag.c_str(), "FKEffector")) {
+			// FK and IK effectors are not supported
 			object.reset(new Model(id, element, doc, name));
 		}
-	} else if (!strncmp(obtype, "Material", length)) {
+	} else if (!strncmp(object_type, "Material", length)) {
 		object.reset(new Material(id, element, doc, name));
-	} else if (!strncmp(obtype, "Texture", length)) {
+	} else if (!strncmp(object_type, "Texture", length)) {
 		object.reset(new Texture(id, element, doc, name));
-	} else if (!strncmp(obtype, "LayeredTexture", length)) {
+	} else if (!strncmp(object_type, "LayeredTexture", length)) {
 		object.reset(new LayeredTexture(id, element, doc, name));
-	} else if (!strncmp(obtype, "Video", length)) {
+	} else if (!strncmp(object_type, "Video", length)) {
 		object.reset(new Video(id, element, doc, name));
-	} else if (!strncmp(obtype, "AnimationStack", length)) {
+	} else if (!strncmp(object_type, "AnimationStack", length)) {
 		object.reset(new AnimationStack(id, element, name, doc));
-	} else if (!strncmp(obtype, "AnimationLayer", length)) {
+	} else if (!strncmp(object_type, "AnimationLayer", length)) {
 		object.reset(new AnimationLayer(id, element, name, doc));
-	} else if (!strncmp(obtype, "AnimationCurve", length)) {
+	} else if (!strncmp(object_type, "AnimationCurve", length)) {
 		object.reset(new AnimationCurve(id, element, name, doc));
-	} else if (!strncmp(obtype, "AnimationCurveNode", length)) {
+	} else if (!strncmp(object_type, "AnimationCurveNode", length)) {
 		object.reset(new AnimationCurveNode(id, element, name, doc));
 	} else {
-		ERR_FAIL_V_MSG(nullptr, "FBX contains unsupported object: " + String(obtype));
+		ERR_FAIL_V_MSG(nullptr, "FBX contains unsupported object: " + String(object_type));
 	}
 
 	flags &= ~BEING_CONSTRUCTED;
@@ -257,14 +262,16 @@ Document::Document(const Parser &parser, const ImportSettings &settings) :
 	// we must check if we can read the header version safely, if its outdated then drop it.
 	if (ReadHeader()) {
 		SafeToImport = true;
+		IF_FBX_IS_CORRUPT_RETURN
 		ReadPropertyTemplates();
-
+		IF_FBX_IS_CORRUPT_RETURN
 		ReadGlobalSettings();
-
+		IF_FBX_IS_CORRUPT_RETURN
 		// This order is important, connections need parsed objects to check
 		// whether connections are ok or not. Objects may not be evaluated yet,
 		// though, since this may require valid connections.
 		ReadObjects();
+		IF_FBX_IS_CORRUPT_RETURN
 		ReadConnections();
 	}
 }
@@ -411,7 +418,7 @@ void Document::ReadObjects() {
 			}
 
 			if (class_tag == "Skin") {
-				//print_verbose("registered skin:" + itos(id));
+				print_verbose("registered skin:" + itos(id));
 				skins.push_back(id);
 			}
 		}

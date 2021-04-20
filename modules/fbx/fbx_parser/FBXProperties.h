@@ -76,6 +76,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef FBX_PROPERTIES_H
 #define FBX_PROPERTIES_H
 
+#include "FBXError.h"
 #include "FBXParser.h"
 #include <map>
 #include <memory>
@@ -167,14 +168,22 @@ private:
 // ------------------------------------------------------------------------------------------------
 template <typename T>
 inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &defaultValue) {
+	if (FBX_ERROR_DETECTED)
+		return defaultValue;
+	if (in == nullptr) {
+		FBX_CORRUPT;
+		return defaultValue;
+	}
 	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
+		FBX_CORRUPT;
 		return defaultValue;
 	}
 
 	// strong typing, no need to be lenient
 	const TypedProperty<T> *const tprop = prop->As<TypedProperty<T>>();
 	if (nullptr == tprop) {
+		FBX_CORRUPT;
 		return defaultValue;
 	}
 
@@ -187,11 +196,13 @@ inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &res
 	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
 		if (nullptr == in) {
+			FBX_CORRUPT;
 			result = false;
 			return T();
 		}
 		prop = in->Get(name);
 		if (nullptr == prop) {
+			FBX_CORRUPT;
 			result = false;
 			return T();
 		}
@@ -200,6 +211,7 @@ inline T PropertyGet(const PropertyTable *in, const std::string &name, bool &res
 	// strong typing, no need to be lenient
 	const TypedProperty<T> *const tprop = prop->As<TypedProperty<T>>();
 	if (nullptr == tprop) {
+		FBX_CORRUPT;
 		result = false;
 		return T();
 	}

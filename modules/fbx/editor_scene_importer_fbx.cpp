@@ -96,6 +96,8 @@ Node3D *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_fl
 	ERR_FAIL_COND_V(!f, nullptr);
 
 	{
+		FBXError::ClearCorrupt(); // must be cleared each execution
+
 		PackedByteArray data;
 		// broadphase tokenizing pass in which we identify the core
 		// syntax elements of FBX (brackets, commas, key:value mappings)

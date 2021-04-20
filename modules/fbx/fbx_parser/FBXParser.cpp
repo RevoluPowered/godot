@@ -78,6 +78,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h> /* strtol */
 
 #include "ByteSwapper.h"
+#include "FBXDocument.h"
 #include "FBXParseTools.h"
 #include "FBXParser.h"
 #include "FBXTokenizer.h"
@@ -1271,10 +1272,8 @@ TokenPtr GetRequiredToken(const ElementPtr el, unsigned int index) {
 		const TokenList &x = el->Tokens();
 		TokenPtr token = el->KeyToken();
 
-		ERR_FAIL_COND_V(!token, nullptr);
-
-		if (index >= x.size()) {
-			ERR_FAIL_V_MSG(nullptr, "missing token at index: " + itos(index) + " " + String(token->StringContents().c_str()));
+		if (!token || index >= x.size()) {
+			FBX_CORRUPT_ERROR_PTR
 		}
 
 		return x[index];
@@ -1286,10 +1285,12 @@ TokenPtr GetRequiredToken(const ElementPtr el, unsigned int index) {
 // ------------------------------------------------------------------------------------------------
 // wrapper around ParseTokenAsDim() with print_error handling
 size_t ParseTokenAsDim(const TokenPtr t) {
-	const char *err;
+	const char *err = nullptr;
 	const size_t i = ParseTokenAsDim(t, err);
 	if (err) {
 		print_error(String(err) + " " + String(t->StringContents().c_str()));
+		FBXError::SetCorrupt();
+		return 0; // return zero for safety;
 	}
 	return i;
 }
@@ -1301,6 +1302,8 @@ float ParseTokenAsFloat(const TokenPtr t) {
 	const float i = ParseTokenAsFloat(t, err);
 	if (err) {
 		print_error(String(err) + " " + String(t->StringContents().c_str()));
+		FBXError::SetCorrupt();
+		return 0; // return zero for safety;
 	}
 	return i;
 }
@@ -1312,6 +1315,8 @@ int ParseTokenAsInt(const TokenPtr t) {
 	const int i = ParseTokenAsInt(t, err);
 	if (err) {
 		print_error(String(err) + " " + String(t->StringContents().c_str()));
+		FBXError::SetCorrupt();
+		return 0; // return zero for safety;
 	}
 	return i;
 }
@@ -1323,6 +1328,8 @@ int64_t ParseTokenAsInt64(const TokenPtr t) {
 	const int64_t i = ParseTokenAsInt64(t, err);
 	if (err) {
 		print_error(String(err) + " " + String(t->StringContents().c_str()));
+		FBXError::SetCorrupt();
+		return 0; // return zero for safety;
 	}
 	return i;
 }
