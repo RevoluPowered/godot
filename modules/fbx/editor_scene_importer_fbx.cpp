@@ -174,7 +174,7 @@ Node3D *EditorSceneImporterFBX::import_scene(const String &p_path, uint32_t p_fl
 		f->close();
 
 		// safety for version handling
-		if (doc.IsSafeToImport()) {
+		if (doc.IsSafeToImport() && !FBXError::IsCorrupt()) {
 			bool is_blender_fbx = false;
 			const FBXDocParser::PropertyTable &import_props = doc.GetMetadataProperties();
 			const FBXDocParser::PropertyPtr app_name = import_props.Get("Original|ApplicationName");
