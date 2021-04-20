@@ -205,6 +205,7 @@ Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std
 			skinType = Skin_Blend;
 		} else {
 			print_error("[doc:skin] could not find valid skin type: " + String(skin_type.c_str()));
+			IF_FBX_IS_CORRUPT_RETURN
 		}
 	}
 
@@ -216,6 +217,7 @@ Skin::Skin(uint64_t id, const ElementPtr element, const Document &doc, const std
 	clusters.reserve(conns.size());
 	for (const Connection *con : conns) {
 		const Cluster *cluster = ProcessSimpleConnection<Cluster>(*con, false, "Cluster -> Skin", element);
+		IF_FBX_IS_CORRUPT_RETURN
 		if (cluster) {
 			clusters.push_back(cluster);
 			continue;
@@ -247,17 +249,21 @@ BlendShapeChannel::BlendShapeChannel(uint64_t id, const ElementPtr element, cons
 		Deformer(id, element, doc, name) {
 	const ScopePtr sc = GetRequiredScope(element);
 	const ElementPtr DeformPercent = sc->GetElement("DeformPercent");
+	IF_FBX_IS_CORRUPT_RETURN
 	if (DeformPercent) {
 		percent = ParseTokenAsFloat(GetRequiredToken(DeformPercent, 0));
 	}
 	const ElementPtr FullWeights = sc->GetElement("FullWeights");
+	IF_FBX_IS_CORRUPT_RETURN
 	if (FullWeights) {
 		ParseVectorDataArray(fullWeights, FullWeights);
 	}
+	IF_FBX_IS_CORRUPT_RETURN
 	const std::vector<const Connection *> &conns = doc.GetConnectionsByDestinationSequenced(ID(), "Geometry");
 	shapeGeometries.reserve(conns.size());
 	for (const Connection *con : conns) {
 		const ShapeGeometry *const sg = ProcessSimpleConnection<ShapeGeometry>(*con, false, "Shape -> BlendShapeChannel", element);
+		IF_FBX_IS_CORRUPT_RETURN
 		if (sg) {
 			shapeGeometries.push_back(sg);
 			continue;
