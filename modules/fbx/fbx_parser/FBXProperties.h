@@ -168,15 +168,19 @@ private:
 // ------------------------------------------------------------------------------------------------
 template <typename T>
 inline T PropertyGet(const PropertyTable *in, const std::string &name, const T &defaultValue) {
+	// if a corruption was found prevent loading
 	if (FBX_ERROR_DETECTED)
 		return defaultValue;
+
+	// No property table is a corruption
 	if (in == nullptr) {
 		FBX_CORRUPT;
 		return defaultValue;
 	}
+
 	PropertyPtr prop = in->Get(name);
 	if (nullptr == prop) {
-		FBX_CORRUPT;
+		// NOT a corruption
 		return defaultValue;
 	}
 
