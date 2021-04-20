@@ -1209,10 +1209,20 @@ std::string ParseTokenAsString(const TokenPtr t) {
 // extract a required element from a scope, abort if the element cannot be found
 ElementPtr GetRequiredElement(const ScopePtr sc, const std::string &index, const ElementPtr element /*= NULL*/) {
 	const ElementPtr el = sc->GetElement(index);
+	if (!el) {
+		// Required elements must always be found.
+		FBX_CORRUPT_ERROR_PTR;
+	}
+
 	TokenPtr token = el->KeyToken();
-	ERR_FAIL_COND_V(!token, nullptr);
+
+	if (!token) {
+		FBX_CORRUPT_ERROR_PTR
+	}
+
 	if (!el) {
 		print_error("did not find required element \"" + String(index.c_str()) + "\" " + String(token->StringContents().c_str()));
+		FBX_CORRUPT_ERROR_PTR
 	}
 	return el;
 }
