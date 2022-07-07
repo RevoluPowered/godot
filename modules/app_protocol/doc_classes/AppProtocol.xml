@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="AppProtocol" inherits="Resource" version="4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
+	<brief_description>
+		This is a class for declaring app protocols
+	</brief_description>
+	<description>
+		This is a class for declaring app protocols
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+	</members>
+</class>
