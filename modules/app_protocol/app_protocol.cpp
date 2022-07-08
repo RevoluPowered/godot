@@ -36,6 +36,12 @@
 
 AppProtocol *AppProtocol::singleton = nullptr;
 
+AppProtocol::AppProtocol() {
+}
+
+AppProtocol::~AppProtocol() {
+}
+
 void AppProtocol::initialize() {
 	if (singleton == nullptr) {
 		singleton = memnew(AppProtocol);
@@ -55,7 +61,6 @@ void AppProtocol::register_project_settings() {
 	GLOBAL_DEF("app-protocol/enable_app_protocol", false);
 	GLOBAL_DEF("app-protocol/editor_launch_enabled", false);
 	GLOBAL_DEF("app-protocol/protocol_name", "godotapp");
-	GLOBAL_DEF("app-protocol/editor_launch_path", ProjectSettings::get_singleton()->get_resource_path());
 
 	ProjectSettings *projectSettings = ProjectSettings::get_singleton();
 
@@ -63,10 +68,36 @@ void AppProtocol::register_project_settings() {
 		return;
 	}
 
-	String protocol_name = projectSettings->get("app-protocol/protocol_name");
+	const String protocol_name = projectSettings->get("app-protocol/protocol_name");
 
 	// Do you want to ensure the project can be launched from editor project folder?
 	if ((bool)projectSettings->get("app-protocol/editor_launch_enabled") && !protocol_name.is_empty()) {
-		OS::get_singleton()->register_protocol(protocol_name);
+		CompiledPlatform.register_protocol_handler(protocol_name);
 	}
+}
+
+bool ProtocolPlatformImplementation::validate_protocol(const String &p_protocol) {
+#ifdef TOOLS_ENABLED
+	// This warning should be shared between platforms, so putting it here.
+	// However, it's not technically related to validation.
+	WARN_PRINT("Registering protocols in the editor likely won't work as expected, since it will point to the editor binary. Consider only doing this in exported projects.");
+#endif
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-6.2.2.1
+	// Protocols can't be empty, must be lowercase, must start with a letter,
+	// can only contain letters, numbers, '+', '-', and '.' characters.
+	if (p_protocol.is_empty()) {
+		return false;
+	}
+	if (p_protocol[0] > 'z' || p_protocol[0] < 'a') {
+		ERR_PRINT("Invalid protocol character: " + String::chr(p_protocol[0]) + ". Protocols must start with a lowercase letter.");
+		return false;
+	}
+	for (int i = 1; i < p_protocol.length(); i++) {
+		char32_t c = p_protocol[i];
+		if (c != '+' && c != '-' && c != '.' && !(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9')) {
+			ERR_PRINT("Invalid protocol character: " + String::chr(c) + ". Protocols must be lowercase, must start with a letter, can only contain letters, numbers, '+', '-', and '.' characters.");
+			return false;
+		}
+	}
+	return true;
 }
