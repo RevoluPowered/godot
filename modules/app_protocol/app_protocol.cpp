@@ -29,10 +29,10 @@
 /*************************************************************************/
 
 #include "app_protocol.h"
+#include "thirdparty/ipc/ipc.h"
 
 #include "core/config/project_settings.h"
 #include "core/os/memory.h"
-#include "core/os/os.h"
 
 AppProtocol *AppProtocol::singleton = nullptr;
 
@@ -42,9 +42,15 @@ AppProtocol::AppProtocol() {
 AppProtocol::~AppProtocol() {
 }
 
+void AppProtocol::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("poll_server"), &AppProtocol::poll_server);
+	// TODO: add signal registration for incoming messages.
+}
+
 void AppProtocol::initialize() {
 	if (singleton == nullptr) {
 		singleton = memnew(AppProtocol);
+		singleton->register_project_settings();
 	}
 }
 void AppProtocol::finalize() {
@@ -58,22 +64,53 @@ AppProtocol *AppProtocol::get_singleton() {
 }
 
 void AppProtocol::register_project_settings() {
-	GLOBAL_DEF("app-protocol/enable_app_protocol", false);
-	GLOBAL_DEF("app-protocol/editor_launch_enabled", false);
-	GLOBAL_DEF("app-protocol/protocol_name", "godotapp");
+	GLOBAL_DEF("app_protocol/enable_app_protocol", false);
+	GLOBAL_DEF("app_protocol/editor_launch_enabled", false);
+	GLOBAL_DEF("app_protocol/protocol_name", "godotapp");
+	GLOBAL_DEF("app_protocol/require_single_instance_socket", true);
 
 	ProjectSettings *projectSettings = ProjectSettings::get_singleton();
 
-	if (!(bool)projectSettings->get("app-protocol/enable_app_protocol")) {
+	if (!(bool)projectSettings->get("app_protocol/enable_app_protocol")) {
 		return;
 	}
 
-	const String protocol_name = projectSettings->get("app-protocol/protocol_name");
+	const String protocol_name = projectSettings->get("app_protocol/protocol_name");
 
-	// Do you want to ensure the project can be launched from editor project folder?
-	if ((bool)projectSettings->get("app-protocol/editor_launch_enabled") && !protocol_name.is_empty()) {
-		CompiledPlatform.register_protocol_handler(protocol_name);
+#ifdef TOOLS_ENABLED
+	// If a server is already registered there is no way to register another protocol until it closes.
+	if (!is_server_already_running()) {
+		if (this->Server == nullptr) {
+			print_verbose("Starting IPC server");
+			this->Server = memnew(IPCServer);
+			this->Server->setup();
+			this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
+			// from this point onwards we need to call poll regularly.
+		}
+		// Do you want to ensure the project can be launched from editor project folder?
+		if ((bool)projectSettings->get("app_protocol/editor_launch_enabled") && !protocol_name.is_empty()) {
+			CompiledPlatform.register_protocol_handler(protocol_name);
+		}
 	}
+#else
+	CompiledPlatform.register_protocol_handler(protocol_name);
+#endif
+}
+
+bool AppProtocol::is_server_already_running() {
+	// connection will be refused if it is - connection will be closed instantly.
+	IPCClient client;
+	return client.setup();
+}
+
+void AppProtocol::poll_server() {
+	if (get_singleton()->Server) {
+		get_singleton()->Server->poll();
+	}
+}
+
+void AppProtocol::on_server_get_message(const char *p_str, int strlen) {
+	print_error(p_str);
 }
 
 bool ProtocolPlatformImplementation::validate_protocol(const String &p_protocol) {
