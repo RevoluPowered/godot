@@ -3,7 +3,8 @@
 Import("env")
 Import("env_modules")
 
-env_gltf = env_modules.Clone()
+app_protocol = env_modules.Clone()
 
 # Godot's own source files
-env_gltf.add_source_files(env.modules_sources, "*.cpp")
+app_protocol.add_source_files(env.modules_sources, "*.cpp")
+app_protocol.add_source_files(env.modules_sources, "#thirdparty/ipc/ipc.cpp")

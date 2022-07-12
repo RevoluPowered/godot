@@ -34,6 +34,7 @@
 #include "core/config/project_settings.h"
 #include "core/os/os.h"
 #include "core/string/ustring.h"
+#include "thirdparty/ipc/ipc.h"
 
 class ProtocolPlatformImplementation {
 public:
@@ -53,8 +54,8 @@ public:
 		const String scheme_handler = "x-scheme-handler/" + p_protocol;
 		const String name = "\nName=" + p_protocol.to_upper() + " Protocol Handler";
 #ifdef TOOLS_ENABLED
-		// tools must call explicit path to application
-		const String exec = "\nExec=" + os->get_executable_path() + " --path=\"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri=\"%u\"";
+		// tools enabled / source folders must call explicit path to application
+		const String exec = "\nExec=" + os->get_executable_path() + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri=\"%u\"";
 #else
 		// non tools we assume its an exported game and runs from the current folder - we should test this assumption
 		const String exec = "\nExec=" + os->get_executable_path() + " --uri=\"%u\"";
@@ -95,9 +96,13 @@ public:
 // If this assumption needs to change, totally open to this.
 using CurrentPlatformDefiniton = LinuxDesktopProtocol;
 
-class AppProtocol {
+class AppProtocol : public Object {
+	GDCLASS(AppProtocol, Object);
+
 protected:
 	static AppProtocol *singleton;
+	IPCServer *Server = nullptr; // only active when this is enabled, and will be authoritive over this socket until its shutdown.
+	static void _bind_methods();
 
 public:
 	AppProtocol();
@@ -108,6 +113,9 @@ public:
 	// this object is compile time, so we always keep the same class.
 	CurrentPlatformDefiniton CompiledPlatform;
 	void register_project_settings();
+	bool is_server_already_running();
+	void poll_server();
+	static void on_server_get_message(const char *p_str, int strlen);
 };
 
 #endif // APP_PROTOCOL_H
