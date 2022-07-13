@@ -29,6 +29,7 @@
 /*************************************************************************/
 
 #include "app_protocol.h"
+#include "core/object/object.h"
 #include "thirdparty/ipc/ipc.h"
 
 #include "core/config/project_settings.h"
@@ -44,6 +45,7 @@ AppProtocol::~AppProtocol() {
 
 void AppProtocol::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("poll_server"), &AppProtocol::poll_server);
+	ADD_SIGNAL(MethodInfo("on_url_received", PropertyInfo(Variant::STRING, "url")));
 	// TODO: add signal registration for incoming messages.
 }
 
@@ -109,6 +111,10 @@ void AppProtocol::poll_server() {
 }
 
 void AppProtocol::on_server_get_message(const char *p_str, int strlen) {
+	const String str = p_str;
+	if (str.contains("client_init"))
+		return;
+	get_singleton()->emit_signal(SNAME("on_url_received"), str);
 	print_error("Got message from client: " + String(p_str));
 }
 
