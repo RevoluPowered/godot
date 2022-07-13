@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="AppProtocol" inherits="Resource" version="4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
+<class name="AppProtocol" inherits="Object" version="4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../doc/class.xsd">
 	<brief_description>
-		This is a class for declaring app protocols
+		App protocols let you register urls for your application to browsers and desktop applications.
 	</brief_description>
 	<description>
-		This is a class for declaring app protocols
+		When you declare a protocol it lets you launch via web links in browser (with permission)
+		You can implement protocols for windows,mac and linux and have a uniform API for this.
+		On Mac you must register the binary at export time, so we enable this primarily after you execute and run your game.
+		The idea is you go to a website and click a link and your game opens, but additionally will pass data
+		from your browser to an already running game via an IPC library
 	</description>
 	<tutorials>
 	</tutorials>
-	<members>
-	</members>
+	<methods>
+	<method name="poll_server">
+	<return type="void" />
+	<description>
+		Call this every frame in your GDScript.
+	</description>
+	</method>
+	</methods>
 </class>
