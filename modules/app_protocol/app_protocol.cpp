@@ -50,7 +50,6 @@ void AppProtocol::_bind_methods() {
 void AppProtocol::initialize() {
 	if (singleton == nullptr) {
 		singleton = memnew(AppProtocol);
-		singleton->register_project_settings();
 	}
 }
 void AppProtocol::finalize() {
@@ -80,15 +79,15 @@ void AppProtocol::register_project_settings() {
 #ifdef TOOLS_ENABLED
 	// If a server is already registered there is no way to register another protocol until it closes.
 	if (!is_server_already_running()) {
-		if (this->Server == nullptr) {
-			print_verbose("Starting IPC server");
-			this->Server = memnew(IPCServer);
-			this->Server->setup();
-			this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
-			// from this point onwards we need to call poll regularly.
-		}
 		// Do you want to ensure the project can be launched from editor project folder?
-		if ((bool)projectSettings->get("app_protocol/editor_launch_enabled") && !protocol_name.is_empty()) {
+		if (!protocol_name.is_empty()) {
+			if (this->Server == nullptr) {
+				print_verbose("Starting IPC server");
+				this->Server = memnew(IPCServer);
+				this->Server->setup();
+				this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
+				// from this point onwards we need to call poll regularly.
+			}
 			CompiledPlatform.register_protocol_handler(protocol_name);
 		}
 	}
@@ -110,7 +109,7 @@ void AppProtocol::poll_server() {
 }
 
 void AppProtocol::on_server_get_message(const char *p_str, int strlen) {
-	print_error(p_str);
+	print_error("Got message from client: " + String(p_str));
 }
 
 bool ProtocolPlatformImplementation::validate_protocol(const String &p_protocol) {

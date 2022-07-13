@@ -96,6 +96,7 @@
 #endif
 #endif
 
+#include "modules/app_protocol/app_protocol.h"
 #include "modules/modules_enabled.gen.h" // For mono.
 
 /* Static members */
@@ -694,6 +695,22 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		}
 #endif
 		List<String>::Element *N = I->next();
+
+		if (I->get() == "--url") {
+			if (I->next()) {
+				const String &str = I->next()->get();
+
+				print_line("String to send if client is open: " + str);
+				IPCClient client;
+				// Could be running in another game instance if it is we pass and close down.
+				// If our server is up we just close down the game, so this will return false if the server is down, and true if it is up.
+				if (client.setup_one_shot(str.ascii().get_data(), str.ascii().length())) {
+					exit_code = OK;
+					AppProtocol::finalize();
+					goto error;
+				}
+			}
+		}
 
 		if (I->get() == "-h" || I->get() == "--help" || I->get() == "/?") { // display help
 

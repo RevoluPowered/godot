@@ -43,8 +43,9 @@ class IPCClient : public IPCBase
 	IPCClient();
 	virtual ~IPCClient();
     bool setup();
+	bool setup_one_shot( const char *str, int n );
     bool poll();
-
+	void send_message( const char * str, int n /* length */);
 };
 
 class IPCServer : public IPCBase
