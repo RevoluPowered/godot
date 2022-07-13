@@ -55,7 +55,7 @@ public:
 		const String name = "\nName=" + p_protocol.to_upper() + " Protocol Handler";
 #ifdef TOOLS_ENABLED
 		// tools enabled / source folders must call explicit path to application
-		const String exec = "\nExec=" + os->get_executable_path() + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri=\"%u\"";
+		const String exec = "\nExec=" + os->get_executable_path() + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --url \"%u\"";
 #else
 		// non tools we assume its an exported game and runs from the current folder - we should test this assumption
 		const String exec = "\nExec=" + os->get_executable_path() + " --uri=\"%u\"";
@@ -113,7 +113,7 @@ public:
 	// this object is compile time, so we always keep the same class.
 	CurrentPlatformDefiniton CompiledPlatform;
 	void register_project_settings();
-	bool is_server_already_running();
+	static bool is_server_already_running();
 	void poll_server();
 	static void on_server_get_message(const char *p_str, int strlen);
 };

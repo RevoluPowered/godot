@@ -50,9 +50,9 @@ bool IPCClient::setup()
         std::cout << "Connected to server" << std::endl;
     }
 
-    printf("waiting for write of hello\n");
+    printf("waiting for write of client_init\n");
 
-    char hello[] = "hello";
+    char hello[] = "client_init";
     OK = write(data_socket, hello, sizeof(hello));
     if(OK == -1)
     {
@@ -63,17 +63,68 @@ bool IPCClient::setup()
     return true;
 }
 
+bool IPCClient::setup_one_shot( const char *str, int n ) {
+	printf("Starting socket\n");
+	// Hello world MacOS return point. ;)
+	data_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	if(data_socket == -1) {
+		perror("client socket");
+		return false;
+	}
+
+	printf("configuring socket type and path\n");
+	/* Ensure portable by resetting all to zero */
+	memset(&name, 0, sizeof(name));
+
+	/* AF_UNIX */
+	name.sun_family = AF_UNIX;
+	strncpy(name.sun_path, SOCKET_NAME, sizeof(name.sun_path) - 1);
+	printf("waiting for connnection\n");
+	int OK = connect(data_socket, (const struct sockaddr *) &name, sizeof(name));
+	if (OK == -1) {
+		perror("client connect");
+		return false;
+	}
+	else
+	{
+		std::cout << "Connected to server" << std::endl;
+	}
+
+	printf("waiting for write of client_init\n");
+
+	OK = write(data_socket, str, n);
+	if(OK == -1)
+	{
+		perror("cant send message");
+		return false;
+	}
+
+	close(data_socket);
+
+	return true;
+}
+
+void IPCClient::send_message( const char * str, int n )
+{
+	char hello[] = "client_some_message\0";
+	int OK = write(data_socket, hello, sizeof(hello) );
+	if(OK == -1)
+	{
+		perror("write");
+	}
+}
+
 bool IPCClient::poll()
 {
-    // unlikely to be used as (right now) later if we need a backward pipe.
-    const char str[] = "Hello World from the Client!\0";
-    
-    int OK = write(data_socket, str, sizeof(str));
-    if(OK == -1)
-    {
-       perror("write");
-       return false; 
-    }
+//    // unlikely to be used as (right now) later if we need a backward pipe.
+//    const char str[] = "Hello World from the Client!\0";
+//
+//    int OK = write(data_socket, str, sizeof(str));
+//    if(OK == -1)
+//    {
+//       perror("write");
+//       return false;
+//    }
 
     return true;
 }

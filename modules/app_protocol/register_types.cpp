@@ -33,10 +33,12 @@
 
 void initialize_app_protocol_module(ModuleInitializationLevel p_level) {
 	AppProtocol::initialize();
-
+	AppProtocol::get_singleton()->register_project_settings();
+	if (!Engine::get_singleton()->has_singleton("AppProtocol")) {
+		Engine::get_singleton()->add_singleton(
+				Engine::Singleton("AppProtocol", AppProtocol::get_singleton()));
+	}
 	GDREGISTER_CLASS(AppProtocol);
-	Engine::get_singleton()->add_singleton(
-			Engine::Singleton("IPC", AppProtocol::get_singleton()));
 }
 void uninitialize_app_protocol_module(ModuleInitializationLevel p_level) {
 	AppProtocol::finalize();
