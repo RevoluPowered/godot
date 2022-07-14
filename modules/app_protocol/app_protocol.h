@@ -88,13 +88,20 @@ public:
 	}
 };
 
+class MacDesktopProtocol : public ProtocolPlatformImplementation {
+public:
+	virtual Error register_protocol_handler(const String &p_protocol) {
+
+	}
+};
+
 // TODO: make this swap depending on the compiled platform.
 // Here I made the assumption that the compiled platform is what uses this
 // In the case you run the editor its the CurrentPlatformDefiniton
 // In the case you are using an export template it can also be the CurrentPlatformDefiniton since
 // The events are happening at export time, and baked into the application
 // If this assumption needs to change, totally open to this.
-using CurrentPlatformDefiniton = LinuxDesktopProtocol;
+using CurrentPlatformDefiniton = ApplePlatform; /* Apple is the same across all devices, so specified as 'apple' generically here, nice job apple :) */
 
 class AppProtocol : public Object {
 	GDCLASS(AppProtocol, Object);
