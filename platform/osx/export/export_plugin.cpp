@@ -348,10 +348,11 @@ void EditorExportPlatformOSX::_fix_plist(const Ref<EditorExportPreset> &p_preset
 			strnew += lines[i].replace("$highres", p_preset->get("display/high_res") ? "\t<true/>" : "\t<false/>") + "\n";
 		} else if (lines[i].find("$registered_protocols") != -1) {
 			String protocol = p_preset->get("application/protocol");
+			String bundle_id = p_preset->get("application/bundle_identifier");
 			if (!protocol.is_empty()) {
-				String s = "\t<key>CFBundleURLTypes</key>\n\t<array>\n";
-				s += "\t\t<dict>\n\t\t\t<key>CFBundleURLName</key>\n";
-				s += "\t\t\t<string>" + protocol.to_upper() + " Protocol Handler</string>\n";
+				String s = "\t<key>CFBundleURLTypes</key>\n\t";
+				s += "<array>\n\t\t<dict>\n\t\t\t<key>CFBundleURLName</key>\n";
+				s += "\t\t\t<string>" + bundle_id + "</string>\n";
 				s += "\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n";
 				s += "\t\t\t\t<string>" + protocol + "</string>\n";
 				s += "\t\t\t</array>\n\t\t</dict>\n\t</array>\n";
