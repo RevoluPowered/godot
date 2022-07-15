@@ -88,10 +88,10 @@ public:
 	}
 };
 
-class MacDesktopProtocol : public ProtocolPlatformImplementation {
+class ApplePlatform : public ProtocolPlatformImplementation {
 public:
 	virtual Error register_protocol_handler(const String &p_protocol) {
-
+		return OK;
 	}
 };
 
@@ -110,8 +110,8 @@ protected:
 	static AppProtocol *singleton;
 	IPCServer *Server = nullptr; // only active when this is enabled, and will be authoritive over this socket until its shutdown.
 	static void _bind_methods();
-
 public:
+
 	AppProtocol();
 	~AppProtocol();
 	static void initialize();

@@ -41,5 +41,7 @@ void initialize_app_protocol_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(AppProtocol);
 }
 void uninitialize_app_protocol_module(ModuleInitializationLevel p_level) {
-	AppProtocol::finalize();
+	if(AppProtocol::get_singleton()) {
+		AppProtocol::finalize();
+	}
 }

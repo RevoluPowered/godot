@@ -41,6 +41,7 @@ AppProtocol::AppProtocol() {
 }
 
 AppProtocol::~AppProtocol() {
+	singleton = nullptr;
 }
 
 void AppProtocol::_bind_methods() {
@@ -51,12 +52,13 @@ void AppProtocol::_bind_methods() {
 
 void AppProtocol::initialize() {
 	if (singleton == nullptr) {
-		singleton = memnew(AppProtocol);
+		singleton = new AppProtocol;
 	}
 }
 void AppProtocol::finalize() {
 	if (singleton != nullptr) {
-		memdelete(singleton);
+		delete singleton;
+		singleton = nullptr;
 	}
 }
 
