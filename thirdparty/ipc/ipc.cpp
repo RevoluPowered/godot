@@ -26,7 +26,7 @@ bool IPCClient::setup()
 {
     printf("Starting socket\n");
     // Hello world MacOS return point. ;)
-    data_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    data_socket = socket(AF_UNIX, SOCK_STREAM, 0);
     if(data_socket == -1) {
         perror("client socket");
         return false;
@@ -66,7 +66,7 @@ bool IPCClient::setup()
 bool IPCClient::setup_one_shot( const char *str, int n ) {
 	printf("Starting socket\n");
 	// Hello world MacOS return point. ;)
-	data_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	data_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	if(data_socket == -1) {
 		perror("client socket");
 		return false;
@@ -79,7 +79,7 @@ bool IPCClient::setup_one_shot( const char *str, int n ) {
 	/* AF_UNIX */
 	name.sun_family = AF_UNIX;
 	strncpy(name.sun_path, SOCKET_NAME, sizeof(name.sun_path) - 1);
-	printf("waiting for connnection\n");
+	printf("waiting for connection\n");
 	int OK = connect(data_socket, (const struct sockaddr *) &name, sizeof(name));
 	if (OK == -1) {
 		perror("client connect");
@@ -134,7 +134,7 @@ bool IPCServer::setup()
     unlink(SOCKET_NAME);
     printf("Setting up server connection socket\n");
     // Hello world MacOS return point. ;)
-    connection_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    connection_socket = socket(AF_UNIX, SOCK_STREAM, 0);
     if(connection_socket == -1) {
         perror("socket");
         return false;
