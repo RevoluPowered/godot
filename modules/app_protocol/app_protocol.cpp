@@ -46,7 +46,6 @@ AppProtocol::~AppProtocol() {
 
 void AppProtocol::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("poll_server"), &AppProtocol::poll_server);
-	ADD_SIGNAL(MethodInfo("on_url_received", PropertyInfo(Variant::STRING, "url")));
 	// TODO: add signal registration for incoming messages.
 }
 
@@ -118,6 +117,16 @@ void AppProtocol::on_server_get_message(const char *p_str, int strlen) {
 		return;
 	get_singleton()->emit_signal(SNAME("on_url_received"), str);
 	print_error("Got message from client: " + String(p_str));
+}
+
+void AppProtocol::on_os_get_arguments( const List<String> &args )
+{
+	String str;
+	for(const String& s : args )
+	{
+		str += s;
+	}
+	get_singleton()->emit_signal(SNAME("on_url_received"), str);
 }
 
 bool ProtocolPlatformImplementation::validate_protocol(const String &p_protocol) {

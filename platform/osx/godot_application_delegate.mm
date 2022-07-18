@@ -29,7 +29,7 @@
 /*************************************************************************/
 
 #include "godot_application_delegate.h"
-
+#include "modules/app_protocol/app_protocol.h"
 #include "display_server_osx.h"
 #include "os_osx.h"
 
@@ -109,6 +109,7 @@
 		} else {
 			// Application is just started, add to the list of command line arguments and continue.
 			os->set_cmdline_platform_args(args);
+			AppProtocol::get_singleton()->on_os_get_arguments(args);
 		}
 	}
 }

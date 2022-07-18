@@ -123,6 +123,7 @@ public:
 	static bool is_server_already_running();
 	void poll_server();
 	static void on_server_get_message(const char *p_str, int strlen);
+	static void on_os_get_arguments( const List<String> &args );
 };
 
 #endif // APP_PROTOCOL_H
