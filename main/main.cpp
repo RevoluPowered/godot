@@ -696,7 +696,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 #endif
 		List<String>::Element *N = I->next();
 
-		if (I->get() == "--url") {
+		if (I->get() == "--uri") {
 			if (I->next()) {
 				const String &str = I->next()->get();
 
@@ -706,7 +706,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				// If our server is up we just close down the game, so this will return false if the server is down, and true if it is up.
 				if (client.setup_one_shot(str.ascii().get_data(), str.ascii().length())) {
 					exit_code = OK;
-					AppProtocol::finalize();
 					goto error;
 				}
 			}
