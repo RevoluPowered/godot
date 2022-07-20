@@ -36,35 +36,35 @@
 @implementation GodotApplicationDelegate
 
 - (void)forceUnbundledWindowActivationHackStep1 {
-	// Step 1: Switch focus to macOS SystemUIServer process.
-	// Required to perform step 2, TransformProcessType will fail if app is already the in focus.
-	for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.systemuiserver"]) {
-		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-		break;
-	}
-	[self performSelector:@selector(forceUnbundledWindowActivationHackStep2)
-			   withObject:nil
-			   afterDelay:0.02];
+//	// Step 1: Switch focus to macOS SystemUIServer process.
+//	// Required to perform step 2, TransformProcessType will fail if app is already the in focus.
+//	for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.systemuiserver"]) {
+//		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+//		break;
+//	}
+//	[self performSelector:@selector(forceUnbundledWindowActivationHackStep2)
+//			   withObject:nil
+//			   afterDelay:0.02];
 }
 
 - (void)forceUnbundledWindowActivationHackStep2 {
-	// Step 2: Register app as foreground process.
-	ProcessSerialNumber psn = { 0, kCurrentProcess };
-	(void)TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-	[self performSelector:@selector(forceUnbundledWindowActivationHackStep3) withObject:nil afterDelay:0.02];
+//	// Step 2: Register app as foreground process.
+//	ProcessSerialNumber psn = { 0, kCurrentProcess };
+//	(void)TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+//	[self performSelector:@selector(forceUnbundledWindowActivationHackStep3) withObject:nil afterDelay:0.02];
 }
 
 - (void)forceUnbundledWindowActivationHackStep3 {
-	// Step 3: Switch focus back to app window.
-	[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+//	// Step 3: Switch focus back to app window.
+//	[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notice {
-	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
-	if (nsappname == nil || isatty(STDOUT_FILENO) || isatty(STDIN_FILENO) || isatty(STDERR_FILENO)) {
-		// If the executable is started from terminal or is not bundled, macOS WindowServer won't register and activate app window correctly (menu and title bar are grayed out and input ignored).
-		[self performSelector:@selector(forceUnbundledWindowActivationHackStep1) withObject:nil afterDelay:0.02];
-	}
+//	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+//	if (nsappname == nil || isatty(STDOUT_FILENO) || isatty(STDIN_FILENO) || isatty(STDERR_FILENO)) {
+//		// If the executable is started from terminal or is not bundled, macOS WindowServer won't register and activate app window correctly (menu and title bar are grayed out and input ignored).
+//		[self performSelector:@selector(forceUnbundledWindowActivationHackStep1) withObject:nil afterDelay:0.02];
+//	}
 }
 
 - (id)init {

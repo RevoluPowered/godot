@@ -37,9 +37,9 @@
 #import <Foundation/Foundation.h>
 
 @interface GodotApplicationDelegate : NSObject
-- (void)forceUnbundledWindowActivationHackStep1;
-- (void)forceUnbundledWindowActivationHackStep2;
-- (void)forceUnbundledWindowActivationHackStep3;
+//- (void)forceUnbundledWindowActivationHackStep1;
+//- (void)forceUnbundledWindowActivationHackStep2;
+//- (void)forceUnbundledWindowActivationHackStep3;
 - (void)handleAppleEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 @end
 
