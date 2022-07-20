@@ -45,13 +45,14 @@ AppProtocol::~AppProtocol() {
 }
 
 void AppProtocol::_bind_methods() {
+	ADD_SIGNAL(MethodInfo("on_url_received", PropertyInfo(Variant::STRING, "url")));
 	ClassDB::bind_method(D_METHOD("poll_server"), &AppProtocol::poll_server);
 	// TODO: add signal registration for incoming messages.
 }
 
 void AppProtocol::initialize() {
 	if (singleton == nullptr) {
-		singleton = new AppProtocol;
+		singleton = new AppProtocol();
 	}
 }
 void AppProtocol::finalize() {
@@ -81,22 +82,16 @@ void AppProtocol::register_project_settings() {
 
 #ifdef TOOLS_ENABLED
 	// If a server is already registered there is no way to register another protocol until it closes.
-	if (!is_server_already_running()) {
-		// Do you want to ensure the project can be launched from editor project folder?
-		if (!protocol_name.is_empty()) {
-			if (this->Server == nullptr) {
-				print_verbose("Starting IPC server");
-				this->Server = memnew(IPCServer);
-				this->Server->setup();
-				this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
-				// from this point onwards we need to call poll regularly.
-			}
-			CompiledPlatform.register_protocol_handler(protocol_name);
-		}
+	if (!protocol_name.is_empty() && this->Server == nullptr && !is_server_already_running()) {
+		print_verbose("Starting IPC server");
+		this->Server = memnew(IPCServer);
+		this->Server->setup();
+		this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
+		CompiledPlatform.register_protocol_handler(protocol_name);
+		return; // we are done
 	}
-#else
-	CompiledPlatform.register_protocol_handler(protocol_name);
 #endif
+	CompiledPlatform.register_protocol_handler(protocol_name);
 }
 
 bool AppProtocol::is_server_already_running() {
@@ -107,7 +102,7 @@ bool AppProtocol::is_server_already_running() {
 
 void AppProtocol::poll_server() {
 	if (get_singleton()->Server) {
-		get_singleton()->Server->poll();
+		get_singleton()->Server->poll_update();
 	}
 }
 

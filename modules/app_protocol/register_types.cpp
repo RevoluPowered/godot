@@ -32,13 +32,15 @@
 #include "app_protocol.h"
 
 void initialize_app_protocol_module(ModuleInitializationLevel p_level) {
-	AppProtocol::initialize();
-	AppProtocol::get_singleton()->register_project_settings();
-	if (!Engine::get_singleton()->has_singleton("AppProtocol")) {
-		Engine::get_singleton()->add_singleton(
-				Engine::Singleton("AppProtocol", AppProtocol::get_singleton()));
+	if(AppProtocol::get_singleton() == nullptr) {
+		AppProtocol::initialize();
+		AppProtocol::get_singleton()->register_project_settings();
+		if (!Engine::get_singleton()->has_singleton("AppProtocol")) {
+			Engine::get_singleton()->add_singleton(
+					Engine::Singleton("AppProtocol", AppProtocol::get_singleton()));
+		}
+		GDREGISTER_CLASS(AppProtocol);
 	}
-	GDREGISTER_CLASS(AppProtocol);
 }
 void uninitialize_app_protocol_module(ModuleInitializationLevel p_level) {
 	if(AppProtocol::get_singleton()) {

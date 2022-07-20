@@ -1,5 +1,7 @@
 #include "ipc.h"
+#include <poll.h>
 #include <iostream>
+
 IPCBase::IPCBase(){}
 IPCBase::~IPCBase(){}
 
@@ -39,7 +41,13 @@ bool IPCClient::setup()
     /* AF_UNIX */
     name.sun_family = AF_UNIX;
     strncpy(name.sun_path, SOCKET_NAME, sizeof(name.sun_path) - 1);
-    printf("waiting for connnection\n");
+
+	const int ret = fcntl(data_socket, F_SETFD, fcntl(data_socket, F_GETFD ) | O_NONBLOCK);
+	if(ret == -1) {
+		printf("state %d\n", ret);
+		return false;
+	}
+	printf("waiting for connection\n");
     int OK = connect(data_socket, (const struct sockaddr *) &name, sizeof(name));
     if (OK == -1) {
         perror("client connect");
@@ -50,15 +58,37 @@ bool IPCClient::setup()
         std::cout << "Connected to server" << std::endl;
     }
 
-    printf("waiting for write of client_init\n");
+    printf("waiting for write of client_init [%d] %s \n", __LINE__, __FILE__);
 
-    char hello[] = "client_init";
+    char hello[] = "client_init\0";
     OK = write(data_socket, hello, sizeof(hello));
     if(OK == -1)
     {
         perror("cant send message");
         return false;
     }
+
+	printf("Waiting for read of client_init [%d] %s\n", __LINE__, __FILE__ );
+
+	OK = read(data_socket, buffer, BufferSize);
+	if(OK == -1)
+	{
+		perror("read client socket");
+		close(data_socket);
+		return false;
+	}
+
+	if(strncmp(hello, buffer, BufferSize) != 0)
+	{
+        printf("[%d] %s client buffer:\n %s\n %s\n",
+               __LINE__,
+               __func__,
+               hello,
+               buffer);
+		perror("comparison buffer result wrong client\n");
+		close(data_socket);
+		return false;
+	}
 
     return true;
 }
@@ -69,6 +99,13 @@ bool IPCClient::setup_one_shot( const char *str, int n ) {
 	data_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	if(data_socket == -1) {
 		perror("client socket");
+		return false;
+	}
+
+	const int flags = fcntl(data_socket, F_GETFD );
+	const int ret = fcntl(data_socket, F_SETFD, flags | O_NONBLOCK);
+	if(ret == -1)
+	{
 		return false;
 	}
 
@@ -87,15 +124,55 @@ bool IPCClient::setup_one_shot( const char *str, int n ) {
 	}
 	else
 	{
-		std::cout << "Connected to server" << std::endl;
+		printf("Connected to server");
 	}
 
-	printf("waiting for write of client_init\n");
+	{
+		struct pollfd pfd;
+		pfd.fd = data_socket;
+		pfd.events = POLLIN | POLLOUT;
+		pfd.revents = 0;
+		int ret = poll(&pfd, 1, 0);
+
+		if(ret == -1)
+		{
+			perror("poll error");
+			return false;
+		} else if( ret == EAGAIN) {
+			return true; // would block
+		} else if( ret == 0)
+		{
+			return true; // we must exit, no connection and no error.
+		}
+	}
+
+
+	printf("waiting for write of client_init [%d] %s \n", __LINE__, __FILE__);
 
 	OK = write(data_socket, str, n);
 	if(OK == -1)
 	{
 		perror("cant send message");
+		close(data_socket);
+		return false;
+	}
+
+	printf("Waiting for read of client_init [%d] %s\n", __LINE__, __FILE__ );
+
+	/* Non blocking */
+	OK = read(data_socket, buffer, BufferSize);
+	if(OK == -1 || OK == EWOULDBLOCK || OK == O_NONBLOCK)
+	{
+		perror("read client socket");
+		close(data_socket);
+		return false;
+	}
+
+    buffer[BufferSize - 1] = 0;
+	if(strncmp(str, buffer, BufferSize) != 0)
+	{
+		perror("comparison buffer result wrong client");
+		close(data_socket);
 		return false;
 	}
 
@@ -114,7 +191,7 @@ void IPCClient::send_message( const char * str, int n )
 	}
 }
 
-bool IPCClient::poll()
+bool IPCClient::poll_update()
 {
 //    // unlikely to be used as (right now) later if we need a backward pipe.
 //    const char str[] = "Hello World from the Client!\0";
@@ -140,8 +217,6 @@ bool IPCServer::setup()
         return false;
     }
 
-	int flags = fcntl(connection_socket, F_GETFL );
-	fcntl(connection_socket, F_SETFL, flags | O_NONBLOCK);
     /* Ensure portable by resetting all to zero */
     memset(&name, 0, sizeof(name));
 
@@ -150,41 +225,86 @@ bool IPCServer::setup()
 
     strncpy(name.sun_path, SOCKET_NAME, sizeof(name.sun_path) - 1);
 
+	const int flags = fcntl(connection_socket, F_GETFD );
+	const int ret = fcntl(connection_socket, F_SETFD, flags | O_NONBLOCK);
+
+	if(ret == -1) {
+		printf("state %d\n", ret);
+		return false;
+	}
+
     printf("trying to bind connection\n");
-    int OK = bind(connection_socket, (const struct sockaddr *) &name,sizeof(name));
+    int OK = bind(connection_socket, (const struct sockaddr *) &name, sizeof(name));
     if (OK == -1) {
         perror("bind");
         return false;
     }
+
     printf("Starting listen logic\n");
-    OK = listen(connection_socket, 32); // assume spamming of new connections
+    OK = listen(connection_socket, 8); // assume spamming of new connections
     if (OK == -1) {
         perror("listen");
         return false;
     }
+#if defined(SO_NOSIGPIPE)
+	// Disable SIGPIPE (should only be relevant to stream sockets, but seems to affect UDP too on iOS)
+	int par = 1;
+	if (setsockopt(connection_socket, SOL_SOCKET, SO_NOSIGPIPE, &par, sizeof(int)) != 0) {
+		printf("Unable to turn off SIGPIPE on socket");
+	}
+#endif
 
     printf("started listening for new connections\n");
-
-
     return true;
 }
 
 /* We process and read the buffer once per tick */
-bool IPCServer::poll()
+bool IPCServer::poll_update()
 {
-    // server only
-    data_socket = accept(connection_socket, NULL, NULL);
-    if (data_socket == -1) {
-		// we are non blocking so this can return safely.
-        return false; // do nothing.
-    }
-    else
-    {
+	{
+		struct pollfd pfd;
+		pfd.fd = connection_socket;
+		pfd.events = POLLIN | POLLOUT;
+		pfd.revents = 0;
+		int ret = poll(&pfd, 1, 0);
+
+		if(ret == -1)
+		{
+			perror("poll error");
+			return false;
+		} else if( ret == EAGAIN) {
+			return true; // would block
+		} else if( ret == 0)
+		{
+			return true; // we must exit, no connection and no error.
+		}
+	}
+
+
+	struct sockaddr_storage their_addr;
+	socklen_t size = sizeof(their_addr);
+	data_socket = ::accept(connection_socket, (struct sockaddr *)&their_addr, &size);
+
+    // both are checked for portability to all OS's.
+    if(data_socket == EWOULDBLOCK || data_socket == EAGAIN) {
+        return true; // not an error
+    } else if (data_socket == -1) {
+        perror("socket open failed");
+        return false;
+    } else {
         printf("Server accepted connection\n");
     }
-    // end server only.
 
-    int OK = read(data_socket, buffer, sizeof(buffer));
+	const int flags = fcntl(data_socket, F_GETFD );
+	const int ret = fcntl(data_socket, F_SETFD, flags | O_NONBLOCK);
+
+	if(ret == -1)
+	{
+		perror("SETFD failed");
+	}
+//
+    /* end server only. */
+    int OK = read(data_socket, buffer, BufferSize);
     if (OK == -1) {
         perror("server read");
         return false;
@@ -195,19 +315,21 @@ bool IPCServer::poll()
     }
 
     /* Buffer must be null terminated */
-    buffer[sizeof(buffer) - 1] = 0;
+    buffer[BufferSize - 1] = 0;
 
-    /* Pass data to the application hooked in */
-
-    std::cout << "got message" << buffer << std::endl;
-    if (activeCallback) {
-        activeCallback(buffer, sizeof(buffer));
+    OK = write(data_socket, buffer, BufferSize);
+    if(OK == -1)
+    {
+        perror("cant send message");
+        close(data_socket);
+        return false;
     }
 
-    /* buffer reply means we got the message */
-    OK = write(data_socket, buffer, sizeof(buffer));
-
-    buffer[sizeof(buffer) - 1] = 0;
+    /* Pass data to the application hooked in */
+    printf("Received message from client: %s\n", buffer);
+    if (activeCallback) {
+        activeCallback(buffer, strlen(buffer));
+    }
 
     close(data_socket);
 

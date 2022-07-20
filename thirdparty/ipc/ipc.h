@@ -33,7 +33,7 @@ class IPCBase
     IPCBase();
     virtual ~IPCBase();
 	virtual bool setup() = 0; // setup is always different
-    virtual bool poll() = 0;
+    virtual bool poll_update() = 0;
 	virtual void add_receive_callback( CallbackDefinition callback );
 };
 
@@ -44,7 +44,7 @@ class IPCClient : public IPCBase
 	virtual ~IPCClient();
     bool setup();
 	bool setup_one_shot( const char *str, int n );
-    bool poll();
+    bool poll_update();
 	void send_message( const char * str, int n /* length */);
 };
 
@@ -56,7 +56,7 @@ class IPCServer : public IPCBase
     IPCServer();
     virtual ~IPCServer();
     bool setup();
-    bool poll();
+    bool poll_update();
 };
 
 #endif // AF_UNIX_IPC_INCLUDE
