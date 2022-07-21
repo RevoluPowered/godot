@@ -80,7 +80,6 @@ void AppProtocol::register_project_settings() {
 
 	const String protocol_name = projectSettings->get("app_protocol/protocol_name");
 
-#ifdef TOOLS_ENABLED
 	// If a server is already registered there is no way to register another protocol until it closes.
 	if (!protocol_name.is_empty() && this->Server == nullptr && !is_server_already_running()) {
 		print_verbose("Starting IPC server");
@@ -88,10 +87,7 @@ void AppProtocol::register_project_settings() {
 		this->Server->setup();
 		this->Server->add_receive_callback(&AppProtocol::on_server_get_message);
 		CompiledPlatform.register_protocol_handler(protocol_name);
-		return; // we are done
 	}
-#endif
-	CompiledPlatform.register_protocol_handler(protocol_name);
 }
 
 bool AppProtocol::is_server_already_running() {

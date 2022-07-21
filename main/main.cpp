@@ -696,7 +696,8 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 #endif
 		List<String>::Element *N = I->next();
 
-		if (I->get() == "--uri") {
+		// in the case where we have no arguments from a browser OR a test execution with --uri.
+		if (I->get() == "--uri" || !I->get().contains("--")) {
 			if (I->next()) {
 				const String &str = I->next()->get();
 
