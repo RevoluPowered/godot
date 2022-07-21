@@ -72,7 +72,6 @@
 
 	NSAppleEventManager *aem = [NSAppleEventManager sharedAppleEventManager];
 	[aem setEventHandler:self andSelector:@selector(handleAppleEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
-	[aem setEventHandler:self andSelector:@selector(handleAppleEvent:withReplyEvent:) forEventClass:kCoreEventClass andEventID:kAEOpenDocuments];
 
 	return self;
 }
@@ -87,29 +86,25 @@
 	if (([event eventClass] == kInternetEventClass) && ([event eventID] == kAEGetURL)) {
 		// Opening URL scheme.
 		NSString *url = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
-		args.push_back(vformat("--uri=\"%s\"", String::utf8([url UTF8String])));
+		args.push_back(vformat("--url=\"%s\"", String::utf8([url UTF8String])));
 	}
 
-	if (([event eventClass] == kCoreEventClass) && ([event eventID] == kAEOpenDocuments)) {
-		// Opening file association.
-		NSAppleEventDescriptor *files = [event paramDescriptorForKeyword:keyDirectObject];
-		if (files) {
-			NSInteger count = [files numberOfItems];
-			for (NSInteger i = 1; i <= count; i++) {
-				NSURL *url = [NSURL URLWithString:[[files descriptorAtIndex:i] stringValue]];
-				args.push_back(String::utf8([url.path UTF8String]));
-			}
-		}
+	const String &str = args.size() > 0 ? args[0] : "no arguments";
+
+	if(str == "no arguments")
+	{
+		return;
 	}
 
-	if (!args.is_empty()) {
-		if (os->get_main_loop()) {
-			// Application is already running, open a new instance with the URL/files as command line arguments.
-			os->create_instance(args);
-		} else {
-			// Application is just started, add to the list of command line arguments and continue.
+	if(AppProtocol::is_server_running_locally()) {
+		AppProtocol::on_server_get_message(str.ascii().get_data(), str.ascii().length());
+	} else {
+		IPCClient client;
+
+		// Could be running in another game instance if it is we pass and close down.
+		// If our server is up we just close down the game, so this will return false if the server is down, and true if it is up.
+		if (client.setup_one_shot(str.ascii().get_data(), str.ascii().length())) {
 			os->set_cmdline_platform_args(args);
-			AppProtocol::get_singleton()->on_os_get_arguments(args);
 		}
 	}
 }
@@ -146,13 +141,13 @@
 	}
 }
 
-- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
-	DisplayServerOSX *ds = (DisplayServerOSX *)DisplayServer::get_singleton();
-	if (ds) {
-		ds->send_window_event(ds->get_window(DisplayServerOSX::MAIN_WINDOW_ID), DisplayServerOSX::WINDOW_EVENT_CLOSE_REQUEST);
-	}
-	return NSTerminateCancel;
-}
+//- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+//	DisplayServerOSX *ds = (DisplayServerOSX *)DisplayServer::get_singleton();
+//	if (ds) {
+//		ds->send_window_event(ds->get_window(DisplayServerOSX::MAIN_WINDOW_ID), DisplayServerOSX::WINDOW_EVENT_CLOSE_REQUEST);
+//	}
+//	return NSTerminateCancel;
+//}
 
 - (void)showAbout:(id)sender {
 	OS_OSX *os = (OS_OSX *)OS::get_singleton();

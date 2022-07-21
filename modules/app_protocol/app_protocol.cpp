@@ -102,6 +102,11 @@ void AppProtocol::poll_server() {
 	}
 }
 
+bool AppProtocol::is_server_running_locally()
+{
+	return get_singleton() && get_singleton()->Server;
+}
+
 void AppProtocol::on_server_get_message(const char *p_str, int strlen) {
 	const String str = p_str;
 	if (str.contains("client_init"))

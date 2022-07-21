@@ -117,6 +117,7 @@ public:
 	static void initialize();
 	static void finalize();
 	static AppProtocol *get_singleton();
+	static bool is_server_running_locally();
 	// this object is compile time, so we always keep the same class.
 	CurrentPlatformDefiniton CompiledPlatform;
 	void register_project_settings();

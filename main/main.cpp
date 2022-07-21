@@ -685,6 +685,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	Error exit_code = ERR_INVALID_PARAMETER;
 
 	I = args.front();
+
 	while (I) {
 #ifdef OSX_ENABLED
 		// Ignore the process serial number argument passed by macOS Gatekeeper.
@@ -697,7 +698,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		List<String>::Element *N = I->next();
 
 		// in the case where we have no arguments from a browser OR a test execution with --uri.
-		if (I->get() == "--uri" || !I->get().contains("--")) {
+		if (I->get() == "--uri") {
 			if (I->next()) {
 				const String &str = I->next()->get();
 
