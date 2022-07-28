@@ -5,11 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mswsock.h>
+#include <afunix.h>
+#else
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <fcntl.h>
-#include <unistd.h>
-
+#endif // _WIN32
 
 /* Inter process communication system 
  * - Platform agnostic using AF_UNIX sockets
@@ -19,7 +24,11 @@
 
 using CallbackDefinition = void (*)(const char * /* string data received */, int /*strlen */);
 #define BufferSize 256
-#define SOCKET_NAME "/tmp/som74yhe.socket"
+#define SOCKET_NAME "c:/temp/som74yhe.socket"
+
+
+
+
 
 class IPCBase 
 {
