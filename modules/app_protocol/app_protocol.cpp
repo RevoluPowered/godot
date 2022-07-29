@@ -73,7 +73,6 @@ void AppProtocol::register_project_settings() {
 	GLOBAL_DEF("app_protocol/require_single_instance_socket", true);
 
 	ProjectSettings *projectSettings = ProjectSettings::get_singleton();
-
 	if (!(bool)projectSettings->get("app_protocol/enable_app_protocol")) {
 		return;
 	}

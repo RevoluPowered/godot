@@ -88,6 +88,57 @@ public:
 	}
 };
 
+class WindowsDesktopProtocol : public ProtocolPlatformImplementation {
+public:
+	virtual Error register_protocol_handler(const String &p_protocol) {
+		ERR_FAIL_COND_V(!validate_protocol(p_protocol), ERR_INVALID_PARAMETER);
+
+		const String ExecPath = OS::get_singleton()->get_executable_path().replace("/", "\\");
+#ifdef TOOLS_ENABLED
+		const String open_command = ExecPath + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri=\"%1\"";
+#else
+		const String open_command = ExecPath + " --uri=\"%1\"";
+#endif
+
+		// Create the subkey of HKEY_CLASSES_ROOT if it does not exist.
+		HKEY hkey;
+		String key_path = "SOFTWARE\\Classes\\" + p_protocol;
+		LONG open_res = RegCreateKeyEx(HKEY_CURRENT_USER, key_path.utf8().get_data(), 0, nullptr, 0, KEY_SET_VALUE, nullptr, &hkey, nullptr);
+		if (open_res != ERROR_SUCCESS) {
+			return FAILED;
+		}
+
+		// Set empty protocol header (Windows 11 defaults to using the root name of this node)
+		LONG set_res2 = RegSetValueEx(hkey, "URL Protocol", 0, REG_SZ, (BYTE *)"", 0);
+		// Close the key.
+		LONG close_res = RegCloseKey(hkey);
+
+		// Check if all operations were successful.
+		if (set_res2 != ERROR_SUCCESS || close_res != ERROR_SUCCESS) {
+			return FAILED;
+		}
+
+		// Set the shell/open/command subkey.
+		String shell_path = "SOFTWARE\\Classes\\" + p_protocol + "\\shell\\open\\command";
+		open_res = RegCreateKeyEx(HKEY_CURRENT_USER, shell_path.utf8().get_data(), 0, nullptr, 0, KEY_SET_VALUE, nullptr, &hkey, nullptr);
+		if (open_res != ERROR_SUCCESS) {
+			return FAILED;
+		}
+		LONG set_res3 = RegSetValueEx(hkey, nullptr, 0, REG_SZ, (BYTE *)open_command.utf8().get_data(), open_command.utf8().length() + 1);
+		// Close the key.
+		LONG close_res2 = RegCloseKey(hkey);
+
+		// Check if all operations were successful.
+		if (set_res3 != ERROR_SUCCESS || close_res2 != ERROR_SUCCESS) {
+			return FAILED;
+		}
+
+		return OK;
+	}
+};
+
+
+
 class ApplePlatform : public ProtocolPlatformImplementation {
 public:
 	virtual Error register_protocol_handler(const String &p_protocol) {
@@ -101,7 +152,18 @@ public:
 // In the case you are using an export template it can also be the CurrentPlatformDefiniton since
 // The events are happening at export time, and baked into the application
 // If this assumption needs to change, totally open to this.
-using CurrentPlatformDefiniton = ApplePlatform; /* Apple is the same across all devices, so specified as 'apple' generically here, nice job apple :) */
+
+#if defined(WINDOWS_ENABLED) && defined(OSX_ENABLED)
+#error "sanity check failed"
+#endif
+
+#if defined(WINDOWS_ENABLED)
+using CurrentPlatformDefiniton = WindowsDesktopProtocol;
+#elif defined(OSX_ENABLED)
+using CurrentPlatformDefiniton = ApplePlatform;
+#else
+using CurrentPlatformDefiniton = LinuxDesktopProtocol; /* Apple is the same across all devices, so specified as 'apple' generically here, nice job apple :) */
+#endif
 
 class AppProtocol : public Object {
 	GDCLASS(AppProtocol, Object);
