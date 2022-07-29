@@ -91,7 +91,7 @@ bool IPCClient::setup_one_shot( const char *str, int n )
 			return false;
 		}
 
-        closesocket(data_socket);
+		SocketImplementation::close(data_socket);
         return true;
     }
 	return false;
@@ -189,7 +189,6 @@ bool IPCServer::poll_update()
     }
 //
     /* end server only. */
-    size_t bufferSize = 0;
     int len = SocketImplementation::recv(data_socket, buffer, BufferSize);
     if (len == -1) {
         SocketImplementation::perror("server read");

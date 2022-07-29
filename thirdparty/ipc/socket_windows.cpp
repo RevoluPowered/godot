@@ -1,8 +1,8 @@
 
-// I am still salty we need extra code for sockets on Microsoft Windows.
-#if 1 // _WIN32
-
+// I am still annoyed we need extra code for sockets on Microsoft Windows.
+#ifdef _WIN32
 #include "socket_implementation.h"
+
 #include <afunix.h>
 #include <stdlib.h>
 #include <stdio.h>

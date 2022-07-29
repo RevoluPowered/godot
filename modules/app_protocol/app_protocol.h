@@ -44,6 +44,7 @@ public:
 	virtual Error register_protocol_handler(const String &p_protocol) = 0;
 };
 
+#if !defined(WINDOWS_ENABLED) && !defined(OSX_ENABLED)
 class LinuxDesktopProtocol : public ProtocolPlatformImplementation {
 public:
 	virtual Error register_protocol_handler(const String &p_protocol) {
@@ -87,7 +88,9 @@ public:
 		return os->execute("xdg-mime", args);
 	}
 };
+#endif
 
+#ifdef WINDOWS_ENABLED
 class WindowsDesktopProtocol : public ProtocolPlatformImplementation {
 public:
 	virtual Error register_protocol_handler(const String &p_protocol) {
@@ -136,15 +139,16 @@ public:
 		return OK;
 	}
 };
+#endif
 
-
-
+#ifdef OSX_ENABLED
 class ApplePlatform : public ProtocolPlatformImplementation {
 public:
 	virtual Error register_protocol_handler(const String &p_protocol) {
 		return OK;
 	}
 };
+#endif // OSX only.
 
 // TODO: make this swap depending on the compiled platform.
 // Here I made the assumption that the compiled platform is what uses this

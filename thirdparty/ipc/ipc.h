@@ -24,11 +24,15 @@
 
 using CallbackDefinition = void (*)(const char * /* string data received */, int /*strlen */);
 #define BufferSize 256
+
+// TODO: this should be dynamic
+// Must be an OS specific temp directory
+// UNDER 108 char limit across all operating systems.
+#ifdef _WIN32
 #define SOCKET_NAME "c:/temp/som74yhe.socket"
-
-
-
-
+#else
+#define SOCKET_NAME "/tmp/som74yhe.socket"
+#endif
 
 class IPCBase 
 {
