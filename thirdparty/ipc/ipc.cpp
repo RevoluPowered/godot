@@ -55,45 +55,42 @@ bool IPCClient::setup()
         return false;
 #endif
     }
-    // magic init string
-    const char str[] = "client_init\0";
-
-    int OK = SocketImplementation::send(data_socket, str, strlen(str));
-    if(OK == -1)
-    {
-        SocketImplementation::perror("cant send message");
-        SocketImplementation::close(data_socket);
-        return false;
-    }
-
-
-
-    printf("Waiting for read of client_init [%d] %s\n", __LINE__, __FILE__ );
-
-
-    /* Non blocking */
-    int len = SocketImplementation::recv(data_socket, buffer, BufferSize);
-    if(len == -1)
-    {
-        SocketImplementation::perror("read client socket");
-        SocketImplementation::close(data_socket);
-        return false;
-    }
-
-    buffer[BufferSize - 1] = 0;
-    if(strncmp(str, buffer, len) != 0)
-    {
-        SocketImplementation::perror("comparison buffer result wrong client");
-        SocketImplementation::close(data_socket);
-        return false;
-    }
 
     return true;
 }
 
-bool IPCClient::setup_one_shot( const char *str, int n ) {
-    if( IPCClient::setup() )
-    {
+bool IPCClient::setup_one_shot( const char *str, int n )
+{
+	if( IPCClient::setup() )
+	{
+		// We must send the data to the client requested
+		int OK = SocketImplementation::send(data_socket, str, n);
+		if(OK == -1)
+		{
+			SocketImplementation::perror("cant send message");
+			SocketImplementation::close(data_socket);
+			return false;
+		}
+
+		printf("Waiting for read of client_init [%d] %s\n", __LINE__, __FILE__ );
+
+		/* Non blocking */
+		int len = SocketImplementation::recv(data_socket, buffer, BufferSize);
+		if(len == -1)
+		{
+			SocketImplementation::perror("read client socket");
+			SocketImplementation::close(data_socket);
+			return false;
+		}
+
+		buffer[BufferSize - 1] = 0;
+		if(strncmp(str, buffer, len) != 0)
+		{
+			SocketImplementation::perror("comparison buffer result wrong client");
+			SocketImplementation::close(data_socket);
+			return false;
+		}
+
         closesocket(data_socket);
         return true;
     }

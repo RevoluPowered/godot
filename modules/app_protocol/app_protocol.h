@@ -95,9 +95,9 @@ public:
 
 		const String ExecPath = OS::get_singleton()->get_executable_path().replace("/", "\\");
 #ifdef TOOLS_ENABLED
-		const String open_command = ExecPath + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri=\"%1\"";
+		const String open_command = ExecPath + " --path \"" + ProjectSettings::get_singleton()->get_resource_path() + "\" --uri \"%1\"";
 #else
-		const String open_command = ExecPath + " --uri=\"%1\"";
+		const String open_command = ExecPath + " --uri \"%1\"";
 #endif
 
 		// Create the subkey of HKEY_CLASSES_ROOT if it does not exist.
