@@ -246,6 +246,13 @@ Files generated from upstream source:
 - Step 3: Delete `data/out` folder and rebuild data - `cd data && rm -rf ./out && make`.
 - Step 4: Copy `source/data/out/icudt71l.dat` to the `{GODOT_SOURCE}/thirdparty/icu4c/icudt71l.dat`.
 
+## ipc
+
+- Upstream: https://github.com/RevoluPowered/AF_UNIX_TESTING
+- Version 3f2899c5ec14296881fb98a60361ce1e706bd73b
+- License - MIT (for the files we use)
+
+We only need IPC.h and IPC.cpp.
 
 ## jpeg-compressor
 
