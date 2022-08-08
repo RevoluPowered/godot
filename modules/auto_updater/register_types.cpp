@@ -29,9 +29,11 @@
 /*************************************************************************/
 
 #include "register_types.h"
+#include "auto_updater.h"
 
 void initialize_auto_updater_module(ModuleInitializationLevel p_level) {
 	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
+		GDREGISTER_CLASS(AutoDownloader);
 	}
 }
 

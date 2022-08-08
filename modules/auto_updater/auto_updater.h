@@ -4,28 +4,40 @@
 #include "core/object/callable_method_pointer.h"
 #include "core/string/ustring.h"
 #include "scene/main/http_request.h"
-
+#include <iostream>
+#include <fstream>
 // Func ptrs
-using DownloadProgressReport = void (*)(int p_progress);
-using DownloadCompleted = void (*)(void);
-using DownloadFailure = void (*)(const String &p_error);
+//using DownloadProgressReport = void (*)(int p_progress);
+//using DownloadCompleted = void (*)(void);
+//using DownloadFailure = void (*)(const String &p_error);
 
-class AutoDownloader : public Node {
-	GDCLASS(AutoDownloader, Node);
+class AutoDownloader : public HTTPRequest {
+	GDCLASS(AutoDownloader, HTTPRequest);
 
 public:
-	HTTPRequest request;
 
 	void RequestCompleted(int result, int response_code, PackedStringArray headers, PackedByteArray body) {
-		printf("Request Completed\n");
+		printf("Request Completed result %d, response code %d\n", result, response_code);
+		printf("image size bytes: %d\n", body.size() * 8);
+		std::ofstream file("image.png");
+		for( int x = 0; x < body.size(); ++x) {
+			file << body[x];
+		}
+		file.close();
 	}
 
-	void Download(const String &p_file) {
-		Error err = request.request(p_file);
-		request.connect("request_completed", callable_mp(this, &AutoDownloader::RequestCompleted));
+	static void _bind_methods(){
+		ClassDB::bind_method(D_METHOD("Download"), &AutoDownloader::Download);
+	}
+
+	Error Download(const String &p_file) {
+		Error err = request(p_file);
+		connect("request_completed", callable_mp(this, &AutoDownloader::RequestCompleted));
 		if (err != OK) {
 			print_error("error");
 		}
+
+		return err;
 	}
 };
 
