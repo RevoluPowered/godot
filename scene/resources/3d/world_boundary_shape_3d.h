@@ -33,8 +33,6 @@
 
 #include "scene/resources/3d/shape_3d.h"
 
-class ArrayMesh;
-
 class WorldBoundaryShape3D : public Shape3D {
 	GDCLASS(WorldBoundaryShape3D, Shape3D);
 	Plane plane;
@@ -48,7 +46,6 @@ public:
 	const Plane &get_plane() const;
 
 	virtual Vector<Vector3> get_debug_mesh_lines() const override;
-	virtual Ref<ArrayMesh> get_debug_arraymesh_faces(const Color &p_modulate) const override;
 	virtual real_t get_enclosing_radius() const override {
 		// Should be infinite?
 		return 0;
