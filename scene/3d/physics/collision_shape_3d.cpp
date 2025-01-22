@@ -217,7 +217,6 @@ bool CollisionShape3D::is_disabled() const {
 CollisionShape3D::CollisionShape3D() {
 	//indicator = RenderingServer::get_singleton()->mesh_create();
 	set_notify_local_transform(true);
-	debug_color = _get_default_debug_color();
 }
 
 CollisionShape3D::~CollisionShape3D() {

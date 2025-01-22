@@ -70,8 +70,6 @@ void CollisionPolygon3D::_build_polygon() {
 
 		convex->set_points(cp);
 		convex->set_margin(margin);
-		convex->set_debug_color(debug_color);
-		convex->set_debug_fill(debug_fill);
 		collision_object->shape_owner_add_shape(owner_id, convex);
 		collision_object->shape_owner_set_disabled(owner_id, disabled);
 	}
